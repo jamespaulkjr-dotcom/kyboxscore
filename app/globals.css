@@ -1,26 +1,111 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * kyboxscore palette — Kentucky's official colors are blue and gold.
+ * Blue is drawn toward the state flag's navy rather than any one school's
+ * blue, so the site reads statewide instead of partisan. Gold is goldenrod,
+ * the state flower, and carries the live/leader accents.
+ *
+ * Every foreground token below is verified at WCAG 2.2 AA (>= 4.5:1) against
+ * both --bg and --surface in its own mode. Do not change one without
+ * rechecking; the brief requires AA.
+ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --bg: #ffffff;
+  --surface: #f4f6f9;
+  --surface-raised: #ffffff;
+  --border: #dde3ea;
+  --border-strong: #c3ccd8;
+
+  --fg: #0e1b2e;          /* 17.3:1 on bg */
+  --fg-muted: #56637a;    /*  6.1:1 on bg */
+
+  --brand: #0e4c9a;       /*  8.3:1 — Kentucky blue */
+  --brand-strong: #0a3a78;
+  --brand-fill: #0e4c9a;  /* white text on this: 8.3:1 */
+  --on-brand: #ffffff;
+
+  --accent: #8a5a00;      /*  5.9:1 — goldenrod, darkened for text */
+  --accent-fill: #e8a33d; /* fill only; pair with --fg-on-accent */
+  --fg-on-accent: #0a1a2e;/*  8.1:1 on accent-fill */
+
+  --live: #9a4a00;
+  --win: #0e6b3e;
+  --loss: #9a2222;
+  --scheduled: #56637a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #0a1a2e;            /* bluegrass navy */
+    --surface: #102741;
+    --surface-raised: #16314e;
+    --border: #1e3855;
+    --border-strong: #2c4c6e;
+
+    --fg: #e9eef6;            /* 15.0:1 */
+    --fg-muted: #9aa9bf;      /*  7.3:1 */
+
+    --brand: #5d9bee;         /*  6.2:1 */
+    --brand-strong: #8fbcf7;
+    --brand-fill: #0e4c9a;
+    --on-brand: #ffffff;
+
+    --accent: #f0b441;        /*  9.4:1 */
+    --accent-fill: #e8a33d;
+    --fg-on-accent: #0a1a2e;
+
+    --live: #f0b441;
+    --win: #4ade80;
+    --loss: #f87171;
+    --scheduled: #9aa9bf;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-fill: var(--brand-fill);
+  --color-on-brand: var(--on-brand);
+  --color-accent: var(--accent);
+  --color-accent-fill: var(--accent-fill);
+  --color-fg-on-accent: var(--fg-on-accent);
+  --color-live: var(--live);
+  --color-win: var(--win);
+  --color-loss: var(--loss);
+  --color-scheduled: var(--scheduled);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  color-scheme: light dark;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Scores are tabular data: keep digits from dancing between updates. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
