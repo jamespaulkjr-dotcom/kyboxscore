@@ -1,0 +1,16 @@
+kyboxscore.com, www.kyboxscore.com {
+    encode gzip zstd
+
+    @scoreboard path /scores* /football* /basketball* /teams*
+    header @scoreboard Cache-Control "public, max-age=30, s-maxage=30, stale-while-revalidate=300"
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    reverse_proxy web:3000
+}
