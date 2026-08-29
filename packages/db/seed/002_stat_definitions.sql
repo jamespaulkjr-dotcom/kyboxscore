@@ -86,3 +86,82 @@ ON CONFLICT (sport_id, key) DO UPDATE SET
   is_derived = EXCLUDED.is_derived, derivation = EXCLUDED.derivation,
   higher_is_better = EXCLUDED.higher_is_better,
   leaderboard_eligible = EXCLUDED.leaderboard_eligible, qualifier = EXCLUDED.qualifier;
+
+-- ----------------------------------------------------------------- baseball
+-- Keys mirror the MaxPreps export columns one for one (see
+-- packages/parsers/src/mapping.ts) so an import is a lookup, not a guess.
+--
+-- Innings pitched are stored as OUTS, not as 6.2 or 6.667. The export splits
+-- them across InningsPitched and PartialInningPitched precisely because 6.2
+-- means six and two thirds, and that is not a decimal. Outs are exact
+-- integers, ERA and WHIP divide correctly, and display converts back.
+INSERT INTO stat_definition
+  (sport_id, key, name, abbrev, scope, value_type, category, display_order,
+   season_aggregation, is_derived, derivation, higher_is_better,
+   leaderboard_eligible, qualifier)
+SELECT sp.id, v.key, v.name, v.abbrev, v.scope::stat_scope, v.vtype::stat_value_type,
+       v.category, v.ord, v.agg::aggregation, v.derived, v.derivation::jsonb,
+       v.hib, v.lb, v.qual::jsonb
+FROM sport sp, (VALUES
+  ('ab',        'At Bats',            'AB',   'player','count','batting',   10,'sum',false,NULL,true, false,NULL),
+  ('r',         'Runs',               'R',    'player','count','batting',   20,'sum',false,NULL,true, true, '{"min_games":10}'),
+  ('h',         'Hits',               'H',    'player','count','batting',   30,'sum',false,NULL,true, true, '{"min_games":10}'),
+  ('singles',   'Singles',            '1B',   'player','count','batting',   40,'sum',false,NULL,true, false,NULL),
+  ('doubles',   'Doubles',            '2B',   'player','count','batting',   50,'sum',false,NULL,true, true, '{"min_games":10}'),
+  ('triples',   'Triples',            '3B',   'player','count','batting',   60,'sum',false,NULL,true, true, '{"min_games":10}'),
+  ('hr',        'Home Runs',          'HR',   'player','count','batting',   70,'sum',false,NULL,true, true, '{"min_games":10}'),
+  ('rbi',       'Runs Batted In',     'RBI',  'player','count','batting',   80,'sum',false,NULL,true, true, '{"min_games":10}'),
+  ('bb',        'Walks',              'BB',   'player','count','batting',   90,'sum',false,NULL,true, false,NULL),
+  ('so',        'Strikeouts',         'SO',   'player','count','batting',  100,'sum',false,NULL,false,false,NULL),
+  ('hbp',       'Hit By Pitch',       'HBP',  'player','count','batting',  110,'sum',false,NULL,true, false,NULL),
+  ('sac_bunt',  'Sacrifice Bunts',    'SAC',  'player','count','batting',  120,'sum',false,NULL,true, false,NULL),
+  ('sac_fly',   'Sacrifice Flies',    'SF',   'player','count','batting',  130,'sum',false,NULL,true, false,NULL),
+  ('sb',        'Stolen Bases',       'SB',   'player','count','batting',  140,'sum',false,NULL,true, true, '{"min_games":10}'),
+  ('sb_att',    'Stolen Base Att',    'SBA',  'player','count','batting',  150,'sum',false,NULL,true, false,NULL),
+  ('roe',       'Reached On Error',   'ROE',  'player','count','batting',  160,'sum',false,NULL,true, false,NULL),
+  ('fc',        'Fielders Choice',    'FC',   'player','count','batting',  170,'sum',false,NULL,false,false,NULL),
+  ('avg',       'Batting Average',    'AVG',  'player','ratio','batting',  180,'derived',true,'{"op":"ratio","num":"h","den":"ab"}',true,true,'{"min_games":10,"min":{"key":"ab","per_game":2}}'),
+  -- On base percentage: (H + BB + HBP) / (AB + BB + HBP + SF)
+  ('obp',       'On Base Percentage', 'OBP',  'player','ratio','batting',  190,'derived',true,'{"op":"ratio","num":{"sum":["h","bb","hbp"]},"den":{"sum":["ab","bb","hbp","sac_fly"]}}',true,true,'{"min_games":10,"min":{"key":"ab","per_game":2}}'),
+  -- Slugging: total bases / AB, where TB = 1B + 2*2B + 3*3B + 4*HR
+  ('slg',       'Slugging',           'SLG',  'player','ratio','batting',  200,'derived',true,'{"op":"ratio","num":{"weighted":[["singles",1],["doubles",2],["triples",3],["hr",4]]},"den":"ab"}',true,true,'{"min_games":10,"min":{"key":"ab","per_game":2}}'),
+
+  ('ip_outs',   'Outs Recorded',      'OUTS', 'player','count','pitching', 300,'sum',false,NULL,true, false,NULL),
+  ('ip',        'Innings Pitched',    'IP',   'player','decimal','pitching',310,'derived',true,'{"op":"innings","key":"ip_outs"}',true,false,NULL),
+  ('bf',        'Batters Faced',      'BF',   'player','count','pitching', 320,'sum',false,NULL,true, false,NULL),
+  ('h_allowed', 'Hits Allowed',       'H',    'player','count','pitching', 330,'sum',false,NULL,false,false,NULL),
+  ('r_allowed', 'Runs Allowed',       'R',    'player','count','pitching', 340,'sum',false,NULL,false,false,NULL),
+  ('er',        'Earned Runs',        'ER',   'player','count','pitching', 350,'sum',false,NULL,false,false,NULL),
+  ('bb_allowed','Walks Allowed',      'BB',   'player','count','pitching', 360,'sum',false,NULL,false,false,NULL),
+  ('k',         'Strikeouts Pitched', 'K',    'player','count','pitching', 370,'sum',false,NULL,true, true, '{"min_games":5}'),
+  ('hr_allowed','Home Runs Allowed',  'HR',   'player','count','pitching', 380,'sum',false,NULL,false,false,NULL),
+  ('hbp_allowed','Batters Hit',       'HB',   'player','count','pitching', 390,'sum',false,NULL,false,false,NULL),
+  ('wp',        'Wild Pitches',       'WP',   'player','count','pitching', 400,'sum',false,NULL,false,false,NULL),
+  ('appearances','Appearances',       'APP',  'player','count','pitching', 410,'sum',false,NULL,true, false,NULL),
+  ('pitches',   'Pitches Thrown',     'PC',   'player','count','pitching', 420,'sum',false,NULL,true, false,NULL),
+  -- ERA = 9 * ER / (outs/3) = 27 * ER / outs. Lower is better.
+  ('era',       'Earned Run Average', 'ERA',  'player','decimal','pitching',430,'derived',true,'{"op":"rate","num":"er","den":"ip_outs","scale":27}',false,true,'{"min":{"key":"ip_outs","per_game":3}}'),
+  -- WHIP = (BB + H) / innings = 3 * (BB + H) / outs
+  ('whip',      'Walks+Hits per IP',  'WHIP', 'player','decimal','pitching',440,'derived',true,'{"op":"rate","num":{"sum":["bb_allowed","h_allowed"]},"den":"ip_outs","scale":3}',false,true,'{"min":{"key":"ip_outs","per_game":3}}')
+) AS v(key,name,abbrev,scope,vtype,category,ord,agg,derived,derivation,hib,lb,qual)
+WHERE sp.slug = 'baseball'
+ON CONFLICT (sport_id, key) DO UPDATE SET
+  name = EXCLUDED.name, abbrev = EXCLUDED.abbrev, category = EXCLUDED.category,
+  display_order = EXCLUDED.display_order, season_aggregation = EXCLUDED.season_aggregation,
+  is_derived = EXCLUDED.is_derived, derivation = EXCLUDED.derivation,
+  higher_is_better = EXCLUDED.higher_is_better,
+  leaderboard_eligible = EXCLUDED.leaderboard_eligible, qualifier = EXCLUDED.qualifier;
+
+-- Softball shares baseball's stat set exactly.
+INSERT INTO stat_definition
+  (sport_id, key, name, abbrev, scope, value_type, category, display_order,
+   season_aggregation, is_derived, derivation, higher_is_better,
+   leaderboard_eligible, qualifier)
+SELECT sb.id, sd.key, sd.name, sd.abbrev, sd.scope, sd.value_type, sd.category,
+       sd.display_order, sd.season_aggregation, sd.is_derived, sd.derivation,
+       sd.higher_is_better, sd.leaderboard_eligible, sd.qualifier
+FROM stat_definition sd
+JOIN sport bb ON bb.id = sd.sport_id AND bb.slug = 'baseball'
+CROSS JOIN sport sb
+WHERE sb.slug = 'softball'
+ON CONFLICT (sport_id, key) DO NOTHING;
