@@ -13,8 +13,10 @@ RUN npm ci
 FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+# npm workspaces hoist everything to the root node_modules; there is no
+# per-workspace node_modules to copy. The @kyboxscore/* symlinks inside it
+# resolve once COPY . . brings the workspace sources in.
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY . .
 RUN npm run build
 
@@ -32,8 +34,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 
-# Migrations run from the same image via `docker compose exec web`.
+# Migrations run from this image via `docker compose exec web`. Next inlines
+# postgres.js into the server bundle, so it is not present as a resolvable
+# package - the scripts need their own copy. postgres.js has no dependencies.
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db ./packages/db
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
 
 USER nextjs
 EXPOSE 3000
