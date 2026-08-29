@@ -1,6 +1,6 @@
 # kyboxscore.com Setup and Deployment
 
-Target: DigitalOcean droplet at 104.131.51.154. Spec: 2 vCPU / 4 GB RAM / 80 GB disk. Pattern: Docker Compose on the droplet, images built in GitHub Actions, Caddy for TLS, Postgres in a container with volume backed storage.
+Target: DigitalOcean droplet at 68.183.98.229. Spec: 2 vCPU / 4 GB RAM / 80 GB disk. Pattern: Docker Compose on the droplet, images built in GitHub Actions, Caddy for TLS, Postgres in a container with volume backed storage.
 
 ## Key decision: build in CI, not on the box
 
@@ -74,8 +74,8 @@ Note this prunes images only, not volumes. Never add --volumes to a cron job on 
 At your registrar, point kyboxscore.com at the droplet.
 
 ```text
-A     @      104.131.51.154
-A     www    104.131.51.154
+A     @      68.183.98.229
+A     www    68.183.98.229
 ```
 
 If you are putting Cloudflare in front (recommended, see section 8), add the domain to Cloudflare first, change nameservers at the registrar, then create the same two A records inside Cloudflare with the proxy turned OFF initially. Turn the proxy on after Caddy has issued a certificate.
@@ -286,7 +286,9 @@ jobs:
             docker compose exec -T web node scripts/migrate.js
 ```
 
-Secrets to add in the repo settings: DEPLOY_HOST (104.131.51.154) and DEPLOY_KEY (a dedicated deploy SSH private key, not your personal one).
+Secrets to add in the repo settings: DEPLOY_HOST (68.183.98.229) and DEPLOY_KEY (a dedicated deploy SSH private key, not your personal one).
+
+If the deploy job fails at the ssh-action step while the build job succeeds, DEPLOY_HOST is the first thing to check. The droplet's address is 68.183.98.229; an earlier draft of this document listed 104.131.51.154, which is not this box.
 
 Generate the deploy key on your machine, not on the server:
 
