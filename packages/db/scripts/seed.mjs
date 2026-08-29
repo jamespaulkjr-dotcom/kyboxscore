@@ -18,6 +18,20 @@ const SEED_DIR = path.join(import.meta.dirname, "..", "seed");
 const isProd = process.env.NODE_ENV === "production";
 const withFixtures = process.argv.includes("--fixtures") || !isProd;
 
+/**
+ * postgres.js puts the whole connection string in its error output, which
+ * means a bad DATABASE_URL prints the database password into CI logs and
+ * terminal scrollback. Redact before anything is shown.
+ */
+function redact(err) {
+  const url = process.env.DATABASE_URL ?? "";
+  let text = err && err.stack ? err.stack : String(err);
+  const m = /^(\w+:\/\/[^:]+:)([^@]*)(@)/.exec(url);
+  if (m && m[2]) text = text.split(m[2]).join("****");
+  if (url) text = text.split(url).join(url.replace(/:\/\/([^:]+):[^@]*@/, "://$1:****@"));
+  return text;
+}
+
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) {
@@ -68,6 +82,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(redact(err));
   process.exit(1);
 });
