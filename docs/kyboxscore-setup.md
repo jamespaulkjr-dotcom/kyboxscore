@@ -314,6 +314,14 @@ AUTH_SECRET=<generate a long random string>
 
 Commit .env.example with the keys and empty values so the shape is documented.
 
+**Generate the password with `openssl rand -hex 32`, not `base64`.** It ends up
+inside `DATABASE_URL`, and base64 output contains `/`, `+` and `=`, which are
+not URL-safe. A `/` in the password makes the URL unparseable and the app
+cannot start; worse, the driver prints the whole connection string in its
+error, putting the password into logs. Hex has no such characters. The
+migration and seed scripts redact credentials from their errors, but the
+simplest fix is a password that never needs escaping.
+
 ## 10. Backups
 
 Postgres in a container with no backup is a bad night waiting to happen. Add a nightly dump to DigitalOcean Spaces or anywhere off the droplet:
