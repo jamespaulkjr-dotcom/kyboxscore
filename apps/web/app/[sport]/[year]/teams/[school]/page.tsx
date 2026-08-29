@@ -85,7 +85,7 @@ export default async function Page(
               <li key={row.shortCode} className="border-b border-border last:border-0">
                 <Link
                   href={`/${sport}/${season.urlYear}/games/${row.shortCode}`}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
                 >
                   <span className="tabular w-14 shrink-0 text-sm text-fg-muted">
                     {formatShortDate(row.localDate)}

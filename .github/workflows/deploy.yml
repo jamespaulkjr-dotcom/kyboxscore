@@ -2,9 +2,40 @@ name: deploy
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: kyboxscore
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: kyboxscore_test
+        options: >-
+          --health-cmd "pg_isready -U kyboxscore"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+        ports: ["5432:5432"]
+    env:
+      DATABASE_URL: postgresql://kyboxscore:test@localhost:5432/kyboxscore_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm run typecheck
+      - run: npm test
+
   build:
+    needs: check
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,8 +69,10 @@ jobs:
           username: deploy
           key: ${{ secrets.DEPLOY_KEY }}
           script: |
+            set -e
             cd /home/deploy/kyboxscore
             docker compose pull web
             docker compose up -d web
-            # migrations come later:
-            # docker compose exec -T web node scripts/migrate.js
+            # Reference data is idempotent; fixtures are refused in production.
+            docker compose exec -T web node packages/db/scripts/migrate.mjs
+            docker compose exec -T web node packages/db/scripts/seed.mjs

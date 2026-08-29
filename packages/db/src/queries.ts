@@ -414,3 +414,23 @@ export async function searchAll(query: string, limit = 20) {
     ORDER BY similarity(title, ${q}) DESC, title
     LIMIT ${limit}`;
 }
+
+/**
+ * Which sport `/` should land on. Prefer one whose season is running right
+ * now, then the one starting soonest, then display order. In August this
+ * means football rather than an empty basketball scoreboard.
+ */
+export async function getDefaultSportSlug(): Promise<string> {
+  const rows = await sql<{ slug: string }[]>`
+    SELECT sp.slug
+    FROM sport_season ss
+    JOIN sport sp ON sp.id = ss.sport_id
+    WHERE sp.is_active AND ss.is_current
+    ORDER BY
+      (CURRENT_DATE BETWEEN ss.starts_on AND ss.ends_on) DESC,
+      CASE WHEN ss.starts_on >= CURRENT_DATE THEN ss.starts_on - CURRENT_DATE
+           ELSE CURRENT_DATE - ss.ends_on END,
+      sp.display_order
+    LIMIT 1`;
+  return rows[0]?.slug ?? "basketball";
+}

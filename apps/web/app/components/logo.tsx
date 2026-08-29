@@ -1,42 +1,68 @@
 /**
- * Kentucky is the mark. The outline is a simplified trace of the state's real
- * borders — Ohio River along the north, Big Sandy east, the 36°30' parallel
- * running straight across the south — so it stays recognizable at 16px.
+ * Brand marks from the approved KY BOXSCORE logo package (docs/assets).
+ * Derivatives in /public/brand are cropped to content, re-centred and
+ * downscaled with a box filter - the source PNGs have hard 1-bit alpha, so
+ * scaling them in the browser aliases badly.
+ *
+ * Plain <img> rather than next/image: these are fixed-size static marks, and
+ * it keeps the native sharp dependency out of the Alpine runtime image.
  */
 
-const KY_PATH =
-  "M2.0,87.42 L8.49,79.21 L12.9,70.99 L30.56,68.69 L41.46,64.42 L44.83,56.21 L52.62,41.43 L60.41,43.73 L66.9,44.71 L81.18,39.78 L93.64,38.14 L100.65,28.94 L114.93,14.16 L124.79,2.0 L140.11,11.86 L155.17,15.8 L172.04,14.48 L175.93,19.74 L182.42,24.34 L183.72,34.85 L190.21,44.71 L198.0,53.91 L188.91,61.8 L172.04,75.92 L154.39,84.14 L125.83,84.14 L112.33,83.15 L83.52,82.49 L46.13,82.82 L40.94,87.42 L5.37,87.42 Z";
-
-export function KentuckyMark({
-  className = "",
-  title,
-}: {
-  className?: string;
-  title?: string;
-}) {
+export function Wordmark({ className = "h-7 sm:h-9" }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 200 89.42"
-      className={className}
-      fill="currentColor"
-      role={title ? "img" : "presentation"}
-      aria-hidden={title ? undefined : true}
-      aria-label={title}
-    >
-      {title ? <title>{title}</title> : null}
-      <path d={KY_PATH} />
-    </svg>
+    <img
+      src="/brand/wordmark-80.png"
+      width={386}
+      height={80}
+      alt="KY BOXSCORE"
+      className={`${className} w-auto`}
+      fetchPriority="high"
+      decoding="async"
+    />
   );
 }
 
-export function Logo({ className = "" }: { className?: string }) {
+/** Compact square mark for tight spaces. */
+export function AppMark({ className = "h-8 w-8" }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <KentuckyMark className="h-[0.72em] w-auto text-accent-fill" />
-      <span className="font-bold tracking-tight leading-none">
-        <span className="text-accent">ky</span>
-        <span className="text-fg">boxscore</span>
-      </span>
-    </span>
+    <img
+      src="/brand/app-icon-180.png"
+      width={180}
+      height={180}
+      alt=""
+      aria-hidden
+      className={className}
+      decoding="async"
+    />
+  );
+}
+
+/** Kentucky secondary badge - used once, in the footer. */
+export function KentuckyBadge({ className = "h-8" }: { className?: string }) {
+  return (
+    <img
+      src="/brand/kentucky-badge-64.png"
+      width={142}
+      height={64}
+      alt=""
+      aria-hidden
+      className={`${className} w-auto`}
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
+
+/** Full stacked lockup for hero and error states. */
+export function Lockup({ className = "h-24" }: { className?: string }) {
+  return (
+    <img
+      src="/brand/lockup-180.png"
+      width={364}
+      height={180}
+      alt="KY BOXSCORE"
+      className={`${className} w-auto`}
+      decoding="async"
+    />
   );
 }

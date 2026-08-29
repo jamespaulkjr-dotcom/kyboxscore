@@ -41,11 +41,11 @@ export default async function Page(props: PageProps<"/search">) {
             placeholder="School, team, player or coach"
             aria-label="Search schools, players and coaches"
             autoComplete="off"
-            className="min-h-11 flex-1 rounded-md border border-border bg-surface px-3 text-fg placeholder:text-fg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+            className="min-h-11 flex-1 rounded-md border border-border bg-surface px-3 text-fg placeholder:text-fg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-link"
           />
           <button
             type="submit"
-            className="min-h-11 rounded-md bg-brand-fill px-4 font-medium text-on-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="min-h-11 rounded-md bg-brand-fill px-4 font-medium text-on-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-link"
           >
             Search
           </button>
@@ -61,7 +61,7 @@ export default async function Page(props: PageProps<"/search">) {
                       ? `/${primary}/${year}/teams/${r.slug}`
                       : `/search?q=${encodeURIComponent(r.title)}`
                   }
-                  className="flex items-baseline gap-3 px-4 py-3 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
+                  className="flex items-baseline gap-3 px-4 py-3 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{r.title}</span>

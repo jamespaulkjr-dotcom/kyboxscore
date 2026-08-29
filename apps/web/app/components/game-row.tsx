@@ -76,7 +76,7 @@ export function GameRow({
       {/* Whole row is a link to the game, but team links stay clickable. */}
       <Link
         href={`/${sportSlug}/${urlYear}/games/${game.shortCode}`}
-        className="absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
+        className="absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
         aria-label={`Box score: ${game.away.schoolName} at ${game.home.schoolName}`}
       />
     </li>

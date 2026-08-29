@@ -1,69 +1,79 @@
 @import "tailwindcss";
 
 /*
- * kyboxscore palette — Kentucky's official colors are blue and gold.
- * Blue is drawn toward the state flag's navy rather than any one school's
- * blue, so the site reads statewide instead of partisan. Gold is goldenrod,
- * the state flower, and carries the live/leader accents.
+ * KY BOXSCORE brand palette.
+ * Source of truth: docs/brand-colors.json and the approved logo package.
+ *   navy  #00152E   gold #FCB526   white #FEFEFE
  *
- * Every foreground token below is verified at WCAG 2.2 AA (>= 4.5:1) against
- * both --bg and --surface in its own mode. Do not change one without
- * rechecking; the brief requires AA.
+ * Two derivations were necessary and are deliberate:
+ *
+ * 1. Brand gold on white is 1.77:1 - unusable as text. --accent keeps the
+ *    gold hue (40deg) darkened to #9C6902 (4.69:1) for text on light grounds.
+ *    The true brand gold stays as --gold and is used as a FILL, always with
+ *    navy on top (10.27:1).
+ * 2. The package has no link colour. --link is derived from the navy hue
+ *    (213deg) so it reads as the same family rather than a foreign blue.
+ *
+ * Every foreground token is verified at WCAG 2.2 AA against its own ground.
  */
 
 :root {
-  --bg: #ffffff;
-  --surface: #f4f6f9;
-  --surface-raised: #ffffff;
-  --border: #dde3ea;
-  --border-strong: #c3ccd8;
+  /* brand constants - identical in both themes */
+  --navy: #00152E;
+  --gold: #FCB526;
+  --white: #FEFEFE;
 
-  --fg: #0e1b2e;          /* 17.3:1 on bg */
-  --fg-muted: #56637a;    /*  6.1:1 on bg */
+  /* light theme */
+  --bg: #FEFEFE;
+  --surface: #F2F5F9;
+  --surface-raised: #FFFFFF;
+  --border: #DCE3EC;
+  --border-strong: #BCC8D8;
 
-  --brand: #0e4c9a;       /*  8.3:1 — Kentucky blue */
-  --brand-strong: #0a3a78;
-  --brand-fill: #0e4c9a;  /* white text on this: 8.3:1 */
-  --on-brand: #ffffff;
+  --fg: #00152E;          /* 18.2:1 */
+  --fg-muted: #55677D;    /*  5.6:1 */
 
-  --accent: #8a5a00;      /*  5.9:1 — goldenrod, darkened for text */
-  --accent-fill: #e8a33d; /* fill only; pair with --fg-on-accent */
-  --fg-on-accent: #0a1a2e;/*  8.1:1 on accent-fill */
+  --link: #004DA8;        /*  7.9:1 */
+  --accent: #9C6902;      /*  4.7:1 - gold, darkened for text */
+  --accent-fill: #FCB526;
+  --on-accent: #00152E;   /* 10.3:1 on the fill */
+  --brand-fill: #00152E;
+  --on-brand: #FEFEFE;
 
-  --live: #9a4a00;
-  --win: #0e6b3e;
-  --loss: #9a2222;
-  --scheduled: #56637a;
+  --live: #9C6902;
+  --win: #0E6B3E;
+  --loss: #A31D1D;
+  --scheduled: #55677D;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0a1a2e;            /* bluegrass navy */
-    --surface: #102741;
-    --surface-raised: #16314e;
-    --border: #1e3855;
-    --border-strong: #2c4c6e;
+    --bg: #00152E;            /* brand navy is the ground */
+    --surface: #0F2033;
+    --surface-raised: #152C47;
+    --border: #1C3A5F;
+    --border-strong: #254E7E;
 
-    --fg: #e9eef6;            /* 15.0:1 */
-    --fg-muted: #9aa9bf;      /*  7.3:1 */
+    --fg: #FEFEFE;            /* 18.2:1 */
+    --fg-muted: #A9BACE;      /*  9.0:1 */
 
-    --brand: #5d9bee;         /*  6.2:1 */
-    --brand-strong: #8fbcf7;
-    --brand-fill: #0e4c9a;
-    --on-brand: #ffffff;
+    --link: #4E9BF5;
+    --accent: #FCB526;        /* 10.3:1 - true brand gold */
+    --accent-fill: #FCB526;
+    --on-accent: #00152E;
+    --brand-fill: #FCB526;
+    --on-brand: #00152E;
 
-    --accent: #f0b441;        /*  9.4:1 */
-    --accent-fill: #e8a33d;
-    --fg-on-accent: #0a1a2e;
-
-    --live: #f0b441;
-    --win: #4ade80;
-    --loss: #f87171;
-    --scheduled: #9aa9bf;
+    --live: #FCB526;
+    --win: #46D07E;
+    --loss: #FF7B7B;
+    --scheduled: #A9BACE;
   }
 }
 
 @theme inline {
+  --color-navy: var(--navy);
+  --color-gold: var(--gold);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
@@ -71,13 +81,12 @@
   --color-border-strong: var(--border-strong);
   --color-fg: var(--fg);
   --color-fg-muted: var(--fg-muted);
-  --color-brand: var(--brand);
-  --color-brand-strong: var(--brand-strong);
-  --color-brand-fill: var(--brand-fill);
-  --color-on-brand: var(--on-brand);
+  --color-link: var(--link);
   --color-accent: var(--accent);
   --color-accent-fill: var(--accent-fill);
-  --color-fg-on-accent: var(--fg-on-accent);
+  --color-on-accent: var(--on-accent);
+  --color-brand-fill: var(--brand-fill);
+  --color-on-brand: var(--on-brand);
   --color-live: var(--live);
   --color-win: var(--win);
   --color-loss: var(--loss);
@@ -87,16 +96,26 @@
   --font-mono: var(--font-geist-mono);
 }
 
-html {
-  color-scheme: light dark;
-}
+html { color-scheme: light dark; }
 
 body {
   background: var(--bg);
   color: var(--fg);
 }
 
-/* Scores are tabular data: keep digits from dancing between updates. */
+/*
+ * Site chrome is always brand navy, in both themes. The logo package is
+ * navy-grounded, so pinning the header and footer keeps the mark on the
+ * background it was drawn for instead of flipping it to white every morning.
+ */
+.chrome {
+  background: var(--navy);
+  color: var(--white);
+  --chrome-muted: #A9BACE;
+  --chrome-border: #1C3A5F;
+}
+
+/* Scores are tabular data: digits must not dance between refreshes. */
 .tabular {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;

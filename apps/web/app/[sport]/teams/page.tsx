@@ -36,7 +36,7 @@ export default async function Page(props: PageProps<"/[sport]/teams">) {
             <li key={t.schoolSlug} className="border-b border-border last:border-0">
               <Link
                 href={`/${sport}/${season.urlYear}/teams/${t.schoolSlug}`}
-                className="-mx-2 flex items-baseline gap-3 rounded px-2 py-3 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+                className="-mx-2 flex items-baseline gap-3 rounded px-2 py-3 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-link"
               >
                 <span className="min-w-0 flex-1 truncate font-medium">{t.schoolName}</span>
                 <span className="tabular shrink-0 text-sm text-fg-muted">

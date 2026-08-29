@@ -30,7 +30,7 @@ export function BottomNav({
               href={item.href(sportSlug)}
               aria-current={active === item.key ? "page" : undefined}
               className={`flex min-h-12 items-center justify-center px-2 py-3 text-sm font-medium ${
-                active === item.key ? "text-brand" : "text-fg-muted"
+                active === item.key ? "text-link" : "text-fg-muted"
               }`}
             >
               {item.label}

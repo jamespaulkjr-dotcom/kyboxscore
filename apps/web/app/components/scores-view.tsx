@@ -133,7 +133,7 @@ function DateStep({
     <Link
       href={href}
       rel={dir}
-      className={`${cls} text-fg hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand`}
+      className={`${cls} text-fg hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-link`}
     >
       {dir === "prev" ? arrow : null}
       {label}
