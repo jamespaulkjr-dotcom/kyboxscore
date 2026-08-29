@@ -2,22 +2,16 @@
   "name": "kyboxscore",
   "version": "0.1.0",
   "private": true,
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "dev": "npm run dev --workspace @kyboxscore/web",
+    "build": "npm run build --workspace @kyboxscore/web",
+    "start": "npm run start --workspace @kyboxscore/web",
+    "typecheck": "tsc --noEmit -p apps/web/tsconfig.json",
+    "test": "node --test --experimental-strip-types packages/*/test/*.test.ts",
+    "db:migrate": "node packages/db/scripts/migrate.mjs",
+    "db:seed": "node packages/db/scripts/seed.mjs",
+    "db:reset": "node packages/db/scripts/migrate.mjs --reset && npm run db:seed"
   },
-  "dependencies": {
-    "next": "16.3.3",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+  "engines": { "node": ">=22.18" }
 }
