@@ -5,8 +5,13 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 # Copy only manifests first so the install layer caches independently of source.
 COPY package.json package-lock.json ./
-COPY apps/web/package.json      apps/web/package.json
-COPY packages/db/package.json   packages/db/package.json
+# Every workspace manifest, not just the ones currently imported. npm ci needs
+# them all to create the @kyboxscore/* symlinks; a missing one fails the build
+# at `next build` with an unresolved import, which does not point back here.
+COPY apps/web/package.json          apps/web/package.json
+COPY packages/db/package.json       packages/db/package.json
+COPY packages/parsers/package.json  packages/parsers/package.json
+COPY packages/rpi/package.json      packages/rpi/package.json
 RUN npm ci
 
 # ---------- build ----------

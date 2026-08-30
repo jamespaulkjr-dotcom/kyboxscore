@@ -94,3 +94,20 @@ type-errors in a way that does not explain itself.
 exercised by a coach yet — an admin UI for that is the immediate blocker.
 After that, refreshing `player_season_stat` on commit so imported numbers reach
 team and leaderboard pages. Still waiting on the KHSAA sport list.
+
+## 2026-08-30 — Docker build break, and why local build missed it
+**Did:** Added `@kyboxscore/parsers` to `apps/web` dependencies and taught the
+Dockerfile's deps stage to copy **every** workspace manifest, not just the two
+that happened to be imported.
+**Why:** The importer made `apps/web` import `@kyboxscore/parsers` for the
+first time. The deps stage only copied `apps/web` and `packages/db`
+manifests, so `npm ci` never created the `@kyboxscore/parsers` symlink and
+`next build` failed on an unresolved import.
+**Learned:** `npm run build` locally is **not** a check that the image builds.
+The local `node_modules` already has every workspace symlinked, so it hides
+exactly this class of failure. The CI `check` job passes too, because it also
+runs against a full install. Only the Docker build catches it. When a new
+cross-package import is added, verify with
+`docker build -f docker/Dockerfile .` before pushing. Copying all four
+manifests unconditionally means the next new import does not repeat this.
+**Next:** unchanged — admin UI for `user_team_grant`.

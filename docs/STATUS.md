@@ -111,6 +111,11 @@ That skips migrations, which the pipeline runs and this command does not.
   classifier, so schema questions cannot be answered by querying prod.
 - A hand-deploy restarts the container but does **not** migrate. If the
   schema and the image disagree, that is why.
+- **`npm run build` passing locally does not mean the image builds.** The local
+  `node_modules` has every workspace symlinked, so a missing workspace manifest
+  in the Dockerfile's deps stage only shows up in CI. After adding a new
+  cross-package import, run `docker build -f docker/Dockerfile .` before
+  pushing.
 - Actions job logs need repo admin to download, but **annotations are readable
   unauthenticated** — useful for diagnosing CI without a token.
 - There is no `gh` CLI and no GitHub token on the droplet. The only way to
