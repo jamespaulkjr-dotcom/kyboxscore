@@ -93,8 +93,14 @@ jobs:
               "SSH_PRIVATE_KEY": "ALT5",
           }
           present = [n for n, e in probes.items() if os.environ.get(e, "").strip()]
-          print("secret names carrying a value:", ", ".join(present) or "(none of the probed names)")
-          print("DEPLOY_HOST:", "set" if os.environ.get("H", "").strip() else "EMPTY")
+          # Emitted as annotations so the diagnosis is visible from the API,
+          # not only in the raw log, which needs admin rights to download.
+          print("::warning::secret names carrying a value: "
+                + (", ".join(present) or "NONE of DEPLOY_KEY/DEPLOYKEY/DEPLOY_SSH_KEY/"
+                                        "SSH_KEY/DEPLOY_PRIVATE_KEY/SSH_PRIVATE_KEY"))
+          print("::warning::DEPLOY_HOST is "
+                + ("set, %d chars" % len(os.environ.get("H", "").strip())
+                   if os.environ.get("H", "").strip() else "EMPTY"))
 
           k = os.environ.get("K", "")
           if not k.strip():
