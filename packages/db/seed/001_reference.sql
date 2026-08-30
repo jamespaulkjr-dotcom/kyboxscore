@@ -30,8 +30,10 @@ ON CONFLICT (slug) DO UPDATE
       regulation_periods = EXCLUDED.regulation_periods,
       rpi_profile = EXCLUDED.rpi_profile;
 
--- Phase one is football and basketball; the rest are defined but dormant.
-UPDATE sport SET is_active = slug IN ('football', 'basketball');
+-- Phase one is football and basketball. Baseball joins them because the
+-- MaxPreps .txt importer maps baseball columns and is otherwise unusable:
+-- there would be no baseball team_season to import into.
+UPDATE sport SET is_active = slug IN ('football', 'basketball', 'baseball');
 
 -- ---------------------------------------------------------------- seasons
 INSERT INTO season (label, start_year) VALUES ('2026-27', 2026)
@@ -44,7 +46,11 @@ INSERT INTO sport_season (sport_id, season_id, url_year, starts_on, ends_on, reg
 SELECT sp.id, se.id, v.url_year, v.starts_on, v.ends_on, v.reg_ends, true
 FROM (VALUES
   ('football',   2026, DATE '2026-08-21', DATE '2026-12-05', DATE '2026-10-31'),
-  ('basketball', 2027, DATE '2026-11-09', DATE '2027-03-21', DATE '2027-02-21')
+  ('basketball', 2027, DATE '2026-11-09', DATE '2027-03-21', DATE '2027-02-21'),
+  -- PROVISIONAL: these baseball dates are approximate and have not been
+  -- checked against the published KHSAA calendar. They exist so the importer
+  -- has a season to write into. Correct them before any real data lands.
+  ('baseball',   2027, DATE '2027-03-01', DATE '2027-06-12', DATE '2027-05-22')
 ) AS v(sport_slug, url_year, starts_on, ends_on, reg_ends)
 JOIN sport sp ON sp.slug = v.sport_slug
 JOIN season se ON se.start_year = 2026

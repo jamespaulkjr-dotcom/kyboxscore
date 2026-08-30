@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { listGrantedTeams, listSports } from "@kyboxscore/db";
 import { SiteHeader } from "../components/site-header";
 import { requireUser } from "../../lib/auth";
@@ -74,10 +75,18 @@ export default async function Page() {
           </ul>
         )}
 
-        {/* The importer lands here next. Stated plainly rather than shown as a
-            dead button, so nobody clicks something that does nothing. */}
-        <p className="mt-8 text-sm text-fg-muted">
-          Stat import and box score entry are being built next.
+        <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+          Statistics
+        </h2>
+        <Link
+          href="/coach/import"
+          className="mt-2 flex min-h-11 items-center justify-center rounded-md bg-brand-fill px-4 font-medium text-on-brand"
+        >
+          Import a box score
+        </Link>
+        <p className="mt-2 text-sm text-fg-muted">
+          Upload the MaxPreps <code>.txt</code> your scorekeeping app exports.
+          You will see everything it read before anything is saved.
         </p>
       </main>
     </>

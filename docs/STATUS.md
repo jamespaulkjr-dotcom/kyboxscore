@@ -57,8 +57,16 @@ That skips migrations, which the pipeline runs and this command does not.
 - **Database** — `packages/db`, migrations `0001_init` and
   `0002_stat_consistency`, seeded reference data and dev fixtures.
 - **Parsers** — `packages/parsers`, MaxPreps `.txt` only, written against a
-  real export in `docs/reference/`.
+  real export in `docs/reference/`. Also `matching.ts`: jersey → roster
+  matching, because **the MaxPreps .txt carries no player names, only jersey
+  numbers**. Names/aliases in the schema are for the CSV path.
 - **RPI** — `packages/rpi`, official and shadow formulas, unit tested.
+- **Importer** — `/coach/import`: choose team → choose game → upload the
+  MaxPreps `.txt` → preview every row → resolve unmatched jerseys → commit.
+  Nothing reaches `stat_line` until commit. Idempotent on file sha256 per
+  team; re-committing overwrites rather than duplicating, because `stat_line`
+  is unique on `(game_id, player_id)`. Corrections are remembered in
+  `player_name_alias` so the next upload matches automatically. Baseball only.
 - **Auth** — email + password for coaches and administrators. scrypt from
   `node:crypto` (no native build), opaque server-side sessions in
   `user_session` so revocation is immediate, rate limiting per email and per
@@ -81,13 +89,18 @@ That skips migrations, which the pipeline runs and this command does not.
   basketball, baseball, softball, soccer, volleyball) but
   `UPDATE sport SET is_active = slug IN ('football','basketball')` means only
   two are live. The rest of the KHSAA sports are not in the schema at all.
-- **Team grants.** `user_team_grant` exists and the dashboard reads it, but
-  nothing writes to it yet — there is no admin UI for assigning a coach to a
-  team, so grants have to be inserted by hand.
-- **Import UI.** The MaxPreps parser exists as a library with no route, no
-  upload form, no preview-before-commit, no name resolution. Excel is not
-  written. PDF is explicitly out of scope for phase one and stays deferred
-  (confirmed 2026-08-30).
+- **Team grants.** `user_team_grant` exists and the dashboard and importer
+  read it, but nothing writes to it yet — there is no admin UI for assigning a
+  coach to a team, so grants have to be inserted by hand. **This blocks using
+  the importer at all**, since it only offers teams you hold a grant on.
+- **CSV and Excel parsers.** Only the MaxPreps `.txt` is handled. CSV with
+  interactive column mapping is next; `import_column_mapping` is already in
+  the schema for it. PDF stays deferred (confirmed 2026-08-30).
+- **Column maps beyond baseball.** `mapping.ts` has `BASEBALL_COLUMN_MAP`
+  only. The upload page refuses other sports rather than importing garbage.
+- **Rollups.** `player_season_stat` / `team_season_stat` are not refreshed
+  after a commit, so imported stats do not yet appear on team or leaderboard
+  pages. `stat_line` / `stat_value` are correct; the read model is stale.
 - **Coach data entry.** Nothing.
 
 ## Gotchas learned the hard way
@@ -108,9 +121,14 @@ That skips migrations, which the pipeline runs and this command does not.
 
 ## Open items
 
-1. Activate the full set of KHSAA sports (needs the sanctioned list confirmed).
-2. Auth and coach accounts.
-3. Import UI: upload → preview → resolve names → commit.
+1. **Admin UI for `user_team_grant`** — nothing writes it, which blocks the
+   importer end to end.
+2. **Refresh rollups after a commit** — imported stats do not reach team or
+   leaderboard pages yet.
+3. Activate the full set of KHSAA sports (needs the sanctioned list confirmed).
 4. CSV parser with interactive column mapping, then Excel.
-5. Front page is bare — reads as a stub rather than a product.
-6. Admin UI for granting a coach access to a team.
+5. Column maps for basketball and football.
+6. Front page is bare — reads as a stub rather than a product.
+7. Password change UI (only the CLI can reset a password today).
+8. Confirm the provisional baseball season dates in `seed/001_reference.sql`
+   against the published KHSAA calendar.

@@ -71,3 +71,26 @@ it instead.
 commit. Also needs an admin UI for `user_team_grant`, since nothing writes to
 it yet. Still waiting on the confirmed KHSAA sport list before widening beyond
 football and basketball.
+
+## 2026-08-30 — Importer, first vertical slice
+**Did:** `/coach/import` (team → game → upload), `/coach/import/[id]` (preview,
+per-row resolution, commit). `packages/parsers/src/matching.ts` with 9 tests,
+`packages/db/src/import.ts` for the pipeline queries, and a transactional
+commit into `stat_line` / `stat_value`. Activated baseball and seeded a
+provisional baseball season.
+**Why:** The brief calls the importer the adoption path — "if coaches will not
+use them nothing else matters" — so this came before widening sports or
+dressing up the front page.
+**Learned:** **The MaxPreps .txt has no player names.** First line is a vendor
+game UUID, second is the header, and every row is keyed by jersey number only.
+That makes matching jersey-against-roster rather than fuzzy name matching, and
+it fails in exactly two interesting ways: a jersey nobody wears, and a jersey
+two players share. Both go to a human; neither is ever guessed. The
+`player_name_alias` and fuzzy-match machinery in the schema is for the CSV
+season-totals path, which does carry names. Also: postgres.js bulk insert is
+`sql(rows, ...columns)`, not an array of `sql` fragments — the fragment form
+type-errors in a way that does not explain itself.
+**Next:** Nothing writes `user_team_grant`, so the importer cannot actually be
+exercised by a coach yet — an admin UI for that is the immediate blocker.
+After that, refreshing `player_season_stat` on commit so imported numbers reach
+team and leaderboard pages. Still waiting on the KHSAA sport list.
