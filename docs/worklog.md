@@ -111,3 +111,21 @@ cross-package import is added, verify with
 `docker build -f docker/Dockerfile .` before pushing. Copying all four
 manifests unconditionally means the next new import does not repeat this.
 **Next:** unchanged — admin UI for `user_team_grant`.
+
+## 2026-08-30 — Admin grant UI
+**Did:** `/admin/users` (search accounts) and `/admin/users/[id]` (grant and
+revoke team access, with who granted it and when). `packages/db/src/admin.ts`
+for the queries, `requireAdmin` in the web auth lib, and an Administration link
+on the coach dashboard for admins only.
+**Why:** `user_team_grant` gates every statistic that enters the system, and
+nothing wrote to it, so the importer could not be exercised by anyone.
+**Learned:** A coach who guesses `/admin/users` gets a 404, not a 403 — there
+is no reason to confirm the page exists. Grantable teams show a "no current
+season" note rather than being filtered out, because a missing team looks like
+a bug while an annotated one explains itself. Applied the Docker lesson from
+earlier today: ran a real `docker build` before pushing rather than trusting
+`npm run build`.
+**Next:** Production has no schools, teams or rosters, and seed fixtures are
+refused in production by design — so there is still nothing to grant or import
+into. Staff data entry for schools/teams/seasons/rosters is the last blocker on
+a real end-to-end import. After that, refresh `player_season_stat` on commit.

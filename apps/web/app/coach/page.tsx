@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { listGrantedTeams, listSports } from "@kyboxscore/db";
 import { SiteHeader } from "../components/site-header";
-import { requireUser } from "../../lib/auth";
+import { isAdmin, requireUser } from "../../lib/auth";
 import { logout } from "../login/actions";
 
 export const metadata: Metadata = {
@@ -88,6 +88,17 @@ export default async function Page() {
           Upload the MaxPreps <code>.txt</code> your scorekeeping app exports.
           You will see everything it read before anything is saved.
         </p>
+
+        {isAdmin(user) && (
+          <>
+            <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+              Administration
+            </h2>
+            <Link href="/admin/users" className="mt-2 block text-link underline">
+              Accounts and team access
+            </Link>
+          </>
+        )}
       </main>
     </>
   );

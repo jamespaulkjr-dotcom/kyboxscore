@@ -67,6 +67,11 @@ That skips migrations, which the pipeline runs and this command does not.
   team; re-committing overwrites rather than duplicating, because `stat_line`
   is unique on `(game_id, player_id)`. Corrections are remembered in
   `player_name_alias` so the next upload matches automatically. Baseball only.
+- **Admin** — `/admin/users` and `/admin/users/[id]`: search accounts, grant
+  and revoke team access, see who issued each grant and when. Restricted to
+  `admin` and `staff`; a signed-in coach who guesses the URL gets a 404 rather
+  than a 403, so the page's existence is not confirmed. Revoking stops future
+  entry and leaves committed statistics in place.
 - **Auth** — email + password for coaches and administrators. scrypt from
   `node:crypto` (no native build), opaque server-side sessions in
   `user_session` so revocation is immediate, rate limiting per email and per
@@ -89,10 +94,11 @@ That skips migrations, which the pipeline runs and this command does not.
   basketball, baseball, softball, soccer, volleyball) but
   `UPDATE sport SET is_active = slug IN ('football','basketball')` means only
   two are live. The rest of the KHSAA sports are not in the schema at all.
-- **Team grants.** `user_team_grant` exists and the dashboard and importer
-  read it, but nothing writes to it yet — there is no admin UI for assigning a
-  coach to a team, so grants have to be inserted by hand. **This blocks using
-  the importer at all**, since it only offers teams you hold a grant on.
+- **Schools, teams and rosters.** Production has none. Seed fixtures are
+  dev-only by design ("fixtures are refused in production"), so there is
+  nothing to grant, schedule, or import into yet. **This is now the single
+  blocker on exercising the importer end to end.** How this data arrives is a
+  provenance decision, not just a UI one — see the hard rules in CLAUDE.md.
 - **CSV and Excel parsers.** Only the MaxPreps `.txt` is handled. CSV with
   interactive column mapping is next; `import_column_mapping` is already in
   the schema for it. PDF stays deferred (confirmed 2026-08-30).
@@ -126,8 +132,8 @@ That skips migrations, which the pipeline runs and this command does not.
 
 ## Open items
 
-1. **Admin UI for `user_team_grant`** — nothing writes it, which blocks the
-   importer end to end.
+1. **Staff data entry for schools, teams, seasons and rosters** — the last
+   thing between here and a real import.
 2. **Refresh rollups after a commit** — imported stats do not reach team or
    leaderboard pages yet.
 3. Activate the full set of KHSAA sports (needs the sanctioned list confirmed).

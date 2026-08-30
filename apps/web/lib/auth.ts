@@ -61,6 +61,26 @@ export async function requireUser(returnTo: string): Promise<SessionUser> {
   return user;
 }
 
+/** Roles that may administer accounts and team grants. */
+export const ADMIN_ROLES = ["admin", "staff"] as const;
+
+export function isAdmin(user: SessionUser): boolean {
+  return (ADMIN_ROLES as readonly string[]).includes(user.role);
+}
+
+/**
+ * Guard for staff-only pages. A signed-in coach who guesses the URL gets a
+ * 404 rather than a 403: there is no reason to confirm the page exists.
+ */
+export async function requireAdmin(returnTo: string): Promise<SessionUser> {
+  const user = await requireUser(returnTo);
+  if (!isAdmin(user)) {
+    const { notFound } = await import("next/navigation");
+    notFound();
+  }
+  return user;
+}
+
 /** Client address for rate limiting, honouring the Caddy/Cloudflare chain. */
 export async function clientIp(): Promise<string | null> {
   const h = await headers();
