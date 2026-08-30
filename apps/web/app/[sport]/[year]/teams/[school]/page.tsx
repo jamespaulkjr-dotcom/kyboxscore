@@ -66,6 +66,13 @@ export default async function Page(
             {team.wins}-{team.losses}
             {team.ties > 0 ? `-${team.ties}` : ""}
           </span>
+          {/* District standing decides postseason placement, so it sits beside
+              the overall record rather than buried further down the page. */}
+          {team.districtName && (
+            <span className="tabular text-fg-muted">
+              (District {team.districtWins}-{team.districtLosses})
+            </span>
+          )}
           <span>·</span>
           <span>{season.sportName} {season.seasonLabel}</span>
           {team.districtName && (<><span>·</span><span>{team.districtName}</span></>)}

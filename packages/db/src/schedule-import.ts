@@ -1,5 +1,6 @@
 import type { TransactionSql } from "postgres";
 import { sql } from "./client.ts";
+import { refreshTeamSeasonRollups } from "./rollups.ts";
 
 /**
  * Turning a pasted schedule into games.
@@ -261,6 +262,25 @@ export async function commitSchedule(
 
   const [{ count: teamsAfter }] = await sql<{ count: number }[]>`
     SELECT count(*)::int FROM team WHERE sport_id = ${sportId}`;
+
+  // A schedule carries results, so records have to be rebuilt. Without this a
+  // team can be 2-0 in the games table and 0-0 everywhere a human looks.
+  // Every team touched by the paste, both sides of every game.
+  const touchedSchools = [
+    ...new Set(rows.flatMap((r) => [r.homeSchoolId, r.awaySchoolId])),
+  ];
+  if (touchedSchools.length > 0) {
+    const seasons = await sql<{ id: number }[]>`
+      SELECT ts.id::int
+      FROM team_season ts
+      JOIN team t ON t.id = ts.team_id
+      WHERE ts.sport_season_id = ${ss.id}
+        AND t.sport_id = ${sportId}
+        AND t.school_id = ANY(${touchedSchools}::bigint[])`;
+    for (const s of seasons) {
+      await refreshTeamSeasonRollups(s.id);
+    }
+  }
 
   return { created, duplicates, failed, teamsCreated: teamsAfter - teamsBefore };
 }

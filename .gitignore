@@ -42,3 +42,8 @@ tsconfig.tsbuildinfo
 next-env.d.ts
 
 .env
+
+# Raw source drops: bulk PDFs and exports, never committed.
+# The README is kept so the folder exists in a fresh clone.
+data-inbox/*
+!data-inbox/README.md

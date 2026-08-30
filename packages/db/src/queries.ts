@@ -90,7 +90,7 @@ export async function getScoreboard(
   const rows = await sql<ScoreboardGame[]>`
     WITH sides AS (
       SELECT gp.game_id, gp.role, gp.team_id::int, gp.score::int,
-             sc.slug AS school_slug, sc.name AS school_name,
+             sc.slug AS school_slug, coalesce(sc.short_name, sc.name) AS school_name,
              sc.short_name, sc.mascot, sc.time_zone,
              CASE WHEN ${groupBy} = 'district' THEN grp.name ELSE parent.name END AS group_name
       FROM game_participant gp
@@ -155,15 +155,19 @@ export async function getTeamSeason(
       wins: number;
       losses: number;
       ties: number;
+      districtWins: number;
+      districtLosses: number;
     }[]
   >`
     SELECT ts.id::int AS "teamSeasonId", t.id::int AS "teamId",
-           sc.name AS "schoolName", sc.slug AS "schoolSlug", sc.mascot,
+           coalesce(sc.short_name, sc.name) AS "schoolName", sc.slug AS "schoolSlug", sc.mascot,
            sc.city, sc.county, sc.time_zone AS "timeZone",
            d.name AS "districtName", r.name AS "regionName",
            coalesce(rec.wins, 0)::int AS wins,
            coalesce(rec.losses, 0)::int AS losses,
-           coalesce(rec.ties, 0)::int AS ties
+           coalesce(rec.ties, 0)::int AS ties,
+           coalesce(rec.district_wins, 0)::int AS "districtWins",
+           coalesce(rec.district_losses, 0)::int AS "districtLosses"
     FROM team_season ts
     JOIN team t ON t.id = ts.team_id
     JOIN school sc ON sc.id = t.school_id
@@ -182,7 +186,7 @@ export async function getTeamSchedule(
   return sql<TeamScheduleRow[]>`
     SELECT g.short_code AS "shortCode", g.local_date::text AS "localDate",
            g.status, me.role = 'home' AS "isHome", g.neutral_site AS "neutralSite",
-           osc.name AS "opponentName", osc.slug AS "opponentSlug",
+           coalesce(osc.short_name, osc.name) AS "opponentName", osc.slug AS "opponentSlug",
            me.score::int AS "teamScore", opp.score::int AS "opponentScore",
            CASE WHEN me.score IS NULL OR opp.score IS NULL THEN NULL
                 WHEN me.score > opp.score THEN 'W'
@@ -335,13 +339,19 @@ export async function listTeams(sportSeasonId: number) {
       mascot: string | null;
       city: string | null;
       regionName: string | null;
+      districtName: string | null;
       wins: number;
       losses: number;
+      districtWins: number;
+      districtLosses: number;
     }[]
   >`
-    SELECT sc.slug AS "schoolSlug", sc.name AS "schoolName", sc.mascot, sc.city,
-           r.name AS "regionName",
-           coalesce(rec.wins, 0)::int AS wins, coalesce(rec.losses, 0)::int AS losses
+    SELECT sc.slug AS "schoolSlug", coalesce(sc.short_name, sc.name) AS "schoolName",
+           sc.mascot, sc.city,
+           r.name AS "regionName", d.name AS "districtName",
+           coalesce(rec.wins, 0)::int AS wins, coalesce(rec.losses, 0)::int AS losses,
+           coalesce(rec.district_wins, 0)::int AS "districtWins",
+           coalesce(rec.district_losses, 0)::int AS "districtLosses"
     FROM team_season ts
     JOIN team t ON t.id = ts.team_id
     JOIN school sc ON sc.id = t.school_id
@@ -413,7 +423,7 @@ export async function getLeaderboard(
     SELECT (row_number() OVER (ORDER BY e.value DESC))::int AS rank,
            p.first_name || ' ' || p.last_name AS "playerName",
            p.slug AS "playerSlug",
-           sc.name AS "schoolName", sc.slug AS "schoolSlug",
+           coalesce(sc.short_name, sc.name) AS "schoolName", sc.slug AS "schoolSlug",
            e.value, e.games_played AS "gamesPlayed",
            round((e.value / nullif(e.games_played, 0))::numeric, 1)::float8 AS "perGame"
     FROM eligible e

@@ -355,7 +355,7 @@ export async function getRpiStandings(sportSlug: string, urlYear?: number) {
       FROM rpi_run WHERE sport_season_id = (SELECT id FROM ss)
       GROUP BY variant
     )
-    SELECT r.team_id::int AS "teamId", sc.name AS "schoolName",
+    SELECT r.team_id::int AS "teamId", coalesce(sc.short_name, sc.name) AS "schoolName",
            sc.slug::text AS "schoolSlug",
            r.wins::int, r.losses::int, r.ties::int,
            r.wp::float8, r.owp::float8, r.oowp::float8,

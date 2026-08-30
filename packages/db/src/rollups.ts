@@ -114,3 +114,17 @@ export async function refreshTeamSeasonRollups(
           district_losses = EXCLUDED.district_losses,
           computed_at = now()`;
 }
+
+/**
+ * Rebuilds every team season in one sport season.
+ *
+ * Records are derived, not entered, so after a bulk import of schedules or a
+ * change of alignment they have to be recomputed wholesale. Cheap at this
+ * size and idempotent, so it is safe to run whenever something feels stale.
+ */
+export async function refreshSportSeasonRollups(sportSeasonId: number) {
+  const seasons = await sql<{ id: number }[]>`
+    SELECT id::int FROM team_season WHERE sport_season_id = ${sportSeasonId}`;
+  for (const s of seasons) await refreshTeamSeasonRollups(s.id);
+  return seasons.length;
+}

@@ -41,6 +41,11 @@ export default async function Page(props: PageProps<"/[sport]/teams">) {
                 <span className="min-w-0 flex-1 truncate font-medium">{t.schoolName}</span>
                 <span className="tabular shrink-0 text-sm text-fg-muted">
                   {t.wins}-{t.losses}
+                  {t.districtName && (
+                    <span className="ml-2 text-xs">
+                      ({t.districtWins}-{t.districtLosses} dist)
+                    </span>
+                  )}
                 </span>
               </Link>
             </li>

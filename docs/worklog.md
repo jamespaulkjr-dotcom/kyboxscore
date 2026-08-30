@@ -348,3 +348,24 @@ cannot be corrupted by one.
 arguing the data is free. Facts are indeed uncopyrightable, but the constraint
 is those sites' terms prohibiting automated extraction, so the answer did not
 change. The pain he was describing was formatting, and that is what got fixed.
+
+## 2026-08-30 — Records, and short school names
+**Did:** Overall and district records now show as `2-0 (District 0-0)` on team
+pages and the teams index. Schedule imports rebuild `team_season_record` for
+every team they touch. Schools gained a `short_name` scoreboard label and every
+public surface reads it.
+**Why:** James asked for the record to show, with district split out because it
+decides postseason placement — and asked for "High School" gone from display.
+**Learned:** A schedule import writes results but was not rebuilding rollups, so
+John Hardin was 2-0 in `game` and 0-0 in `team_season_record`. Anything that
+writes a result has to refresh.
+**Design note:** `short_name` for display, `name` for matching. Destroying the
+legal name would have broken import matching, which relies on the long form,
+and a record book should hold what a school is actually called. Parenthetical
+disambiguators are kept in the short name or the two Trinitys collapse.
+**Open question for James:** his schedule marks the Aug 29 game at Seneca as a
+district game, but the KHSAA alignment he supplied puts John Hardin in 4A
+District 2 and Seneca in 5A District 3, so it cannot be one. District status is
+computed from the alignment, which is why the district record reads 0-0 rather
+than 1-0. Either the source's marker means something other than district, or it
+is stale. Raised rather than reconciled.

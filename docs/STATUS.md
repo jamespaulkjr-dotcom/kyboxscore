@@ -61,8 +61,13 @@ That skips migrations, which the pipeline runs and this command does not.
   sports carry a scoring unit, periods and an RPI; the rest are NULL rather
   than filled with a plausible lie. `/sports` lists everything; the header
   links to it. Only football, basketball and baseball have a season open.
-- **Schools** — 291 KHSAA member schools, slug and name only, attributed to
-  the `staff-entry` data source.
+- **Schools** — 291 KHSAA member schools, attributed to `staff-entry`. Each
+  carries the full legal name **and** a `short_name` scoreboard label
+  ("John Hardin", not "John Hardin High School"). **Display reads
+  `short_name`; import matching reads `name`** — a parent searches for the
+  short form, an import file contains the long one. Parenthetical
+  disambiguators survive into the short name, or "Trinity (Louisville)" and
+  "Trinity (Whitesville)" would collapse into one.
 - **Parsers** — `packages/parsers`, MaxPreps `.txt` only, written against a
   real export in `docs/reference/`. Also `matching.ts`: jersey → roster
   matching, because **the MaxPreps .txt carries no player names, only jersey
@@ -107,6 +112,12 @@ That skips migrations, which the pipeline runs and this command does not.
 - **Alignments** — a team's district is set on its team page, from the
   districts that exist for its sport and gender. Drives district records and
   the RPI class factor. Left unassigned rather than guessed.
+- **Records** — overall and district, shown as `2-0 (District 0-0)` on team
+  pages and in the teams index. **District games are determined by the
+  alignment, not by whatever a schedule document claims** — two teams are in
+  the same district or they are not, and the imported KHSAA alignment is the
+  authority. Records are derived: any schedule or box score commit rebuilds
+  them for the teams it touched.
 - **Schedules** — games are created on the team page: opponent, date,
   home/away, status, scores. Duplicate games are refused by the schema's
   natural key (same two teams, same date). A game with a box score cannot be
@@ -199,6 +210,10 @@ That skips migrations, which the pipeline runs and this command does not.
   school named "St. Xavier" made an ambiguous name resolve exactly on a dev
   database while production, which refuses fixtures, would have missed it.
   Verify matching against a `NODE_ENV=production` seed.
+- **Rollups do not maintain themselves and are easy to forget.** A schedule
+  import carries results, so it must rebuild `team_season_record` — otherwise a
+  team is 2-0 in the games table and 0-0 everywhere a human looks. Anything
+  that writes a result must call `refreshTeamSeasonRollups`.
 - **A game cannot be deleted once an RPI run references it.** `rpi_input`
   pins its games so a past rating stays reproducible; `deleteGame` reports
   that rather than surfacing a foreign key error.
