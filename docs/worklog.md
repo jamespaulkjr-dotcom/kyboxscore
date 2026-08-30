@@ -254,3 +254,31 @@ two schools, so the row is skipped and both candidates are shown — the same
 rule the box score importer uses for a jersey worn by two players.
 **Next:** district data and season dates are both blocked on James. The RPI
 engine is unit tested but has never run against the database.
+
+## 2026-08-30 — RPI wired to real data
+**Did:** `packages/db/src/rpi-run.ts` loads every final regular-season game into
+the engine, runs official and shadow, and persists `rpi_run` / `rpi_result` /
+`rpi_input`. `npm run rpi -- --sport football` is the command. `/[sport]/rpi`
+publishes the table with the shadow rating and delta, plus a plain-English
+explanation of what the numbers mean. Three assertions added to the DB test
+suite; 61 tests, run twice to prove repeatability.
+**Why:** The engine was unit tested against a hand-worked round robin and had
+never touched the database. It is the moat — nobody else publishes a KHSAA RPI,
+and nobody has ever shown a border-county coach what the .500 assumption costs
+them.
+**Learned:** Two real bugs, both invisible to typecheck.
+1. The loader referenced `oos.win_pct`, a column that does not exist —
+   `out_of_state_record` stores W/L/T, so the percentage is derived.
+2. **The stored rating did not reproduce from its own stored components.**
+   `class_factor` is `numeric(6,4)`, and a rating computed from the unrounded
+   value misses by ~3e-5 — small, but it makes the published arithmetic look
+   wrong to anyone who checks it, which is precisely the person this feature
+   exists for. The published rating is now computed FROM the published
+   components.
+**Design note:** out-of-state teams are computed but never ranked. Their record
+feeds everyone else's OWP, but they are opponents, not members. Also: a game
+cannot be deleted once an RPI run references it, and `deleteGame` now says so
+in words instead of throwing a foreign key error.
+**Next:** nothing runs the recompute automatically — the brief asks for hourly.
+Football's WP assignment is still the standard 1/0.5/0; the real table is a
+documented unknown.

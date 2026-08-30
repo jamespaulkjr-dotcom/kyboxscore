@@ -501,12 +501,24 @@ export async function createGame(input: {
 }
 
 export async function deleteGame(gameId: number): Promise<{ ok: boolean; reason?: string }> {
-  const [row] = await sql<{ hasStats: boolean }[]>`
-    SELECT EXISTS (SELECT 1 FROM stat_line WHERE game_id = ${gameId}) AS "hasStats"`;
+  const [row] = await sql<{ hasStats: boolean; inRpi: boolean }[]>`
+    SELECT EXISTS (SELECT 1 FROM stat_line WHERE game_id = ${gameId}) AS "hasStats",
+           EXISTS (SELECT 1 FROM rpi_input WHERE game_id = ${gameId}) AS "inRpi"`;
   if (row?.hasStats) {
     return {
       ok: false,
       reason: "This game has a box score recorded. Delete the statistics first.",
+    };
+  }
+  // A published RPI run keeps the games it was computed from, because the
+  // whole promise is that a past rating can be reproduced. Refusing here beats
+  // surfacing a raw foreign key error.
+  if (row?.inRpi) {
+    return {
+      ok: false,
+      reason:
+        "An RPI run has already been computed from this game. Deleting it " +
+        "would make that rating impossible to reproduce.",
     };
   }
   await sql`DELETE FROM game WHERE id = ${gameId}`;

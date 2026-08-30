@@ -67,7 +67,20 @@ That skips migrations, which the pipeline runs and this command does not.
   real export in `docs/reference/`. Also `matching.ts`: jersey → roster
   matching, because **the MaxPreps .txt carries no player names, only jersey
   numbers**. Names/aliases in the schema are for the CSV path.
-- **RPI** — `packages/rpi`, official and shadow formulas, unit tested.
+- **RPI** — `packages/rpi` holds the pure engine; `packages/db/src/rpi-run.ts`
+  is the seam to real data. `npm run rpi -- --sport football` loads every
+  final regular-season game, computes official and shadow, and writes
+  `rpi_run` / `rpi_result` / `rpi_input`. Each invocation writes a **new** run
+  rather than updating one, so a past ranking stays reproducible after the
+  constants change. `/[sport]/rpi` shows the table with the shadow rating and
+  the delta beside it, linked from the stats page.
+
+  Two rules encoded here: **out-of-state teams are computed but never ranked**
+  (their record feeds everyone's OWP; ranking them in Kentucky standings would
+  be a category error), and **the stored rating is derived from the stored
+  components**, not from the engine's unrounded output — `class_factor` is
+  `numeric(6,4)`, so a rating stored raw would miss reproduction by ~3e-5 and
+  look like broken arithmetic on the page.
 - **Importer** — `/coach/import`: choose team → choose game → upload the
   MaxPreps `.txt` → preview every row → resolve unmatched jerseys → commit.
   Nothing reaches `stat_line` until commit. Idempotent on file sha256 per
@@ -167,6 +180,9 @@ That skips migrations, which the pipeline runs and this command does not.
   import test clears its own roster and prior game first, and deletion order
   matters: `game` cascades to `stat_line`, but `import_batch` references
   `game` and `stat_line` references `import_batch`.
+- **A game cannot be deleted once an RPI run references it.** `rpi_input`
+  pins its games so a past rating stays reproducible; `deleteGame` reports
+  that rather than surfacing a foreign key error.
 - **Typecheck and build do not execute SQL.** A `GROUP BY` bug in
   `listTeamsAdmin` passed both and would have been a 500 on the page. Run new
   queries against the dev database before pushing.
@@ -190,8 +206,11 @@ That skips migrations, which the pipeline runs and this command does not.
 
 1. Season dates per sport, so the other 17 sports can open.
 2. District assignments, once the alignment data is to hand.
-3. Wire the RPI engine to real data — it is unit tested but never run against
-   the database.
+3. Schedule the hourly RPI recompute the brief calls for — `npm run rpi` is
+   the command; nothing runs it automatically yet.
+4. Football's WP assignment is still the standard 1/0.5/0. The brief says
+   football differs; the real table is a documented unknown in
+   `packages/rpi/src/index.ts`.
 4. CSV parser with interactive column mapping, then Excel.
 5. Column maps for basketball and football.
 6. Front page is bare — reads as a stub rather than a product.

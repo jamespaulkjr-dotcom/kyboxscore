@@ -47,6 +47,11 @@ export default async function Page(props: PageProps<"/[sport]/stats">) {
           {season.sportName} leaders
         </h1>
         <p className="text-sm text-fg-muted">Statewide · {season.seasonLabel}</p>
+        <p className="mt-2 text-sm">
+          <Link href={`/${sport}/rpi`} className="text-link underline">
+            RPI ratings and rankings →
+          </Link>
+        </p>
 
         <nav aria-label="Statistic" className="mt-4 flex flex-wrap gap-1.5">
           {categories.map((c) => (

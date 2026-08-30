@@ -7,3 +7,4 @@ export * from "./import.ts";
 export * from "./admin.ts";
 export * from "./rollups.ts";
 export * from "./schedule-import.ts";
+export * from "./rpi-run.ts";

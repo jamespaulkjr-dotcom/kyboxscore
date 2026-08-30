@@ -271,3 +271,98 @@ test("school name matching resolves the easy cases and refuses the ambiguous one
     throw err;
   }
 });
+
+test("RPI runs against real games, reproduces its own arithmetic, and ranks only Kentucky", opts, async () => {
+  const db = await import("../src/index.ts");
+  const { sql } = db;
+
+  const [football] = await sql<{ id: number }[]>`
+    SELECT id::int FROM sport WHERE slug = 'football'`;
+  const [ss] = await sql<{ id: number }[]>`
+    SELECT id::int FROM sport_season WHERE sport_id = ${football.id} AND is_current`;
+  assert.ok(football && ss, "football must have a current season");
+
+  // Dates used only by this test, so cleanup cannot touch anything else.
+  const DATES = ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05"];
+  // rpi_input references game, so past runs pin their games in place. Clearing
+  // the season's runs first is what makes this test re-runnable.
+  await sql`DELETE FROM rpi_run WHERE sport_season_id = ${ss.id}`;
+  const stale = await sql<{ id: number }[]>`
+    SELECT id::int FROM game
+    WHERE sport_season_id = ${ss.id} AND local_date = ANY(${DATES}::date[])`;
+  for (const g of stale) {
+    await sql`DELETE FROM stat_line WHERE game_id = ${g.id}`;
+    await sql`DELETE FROM import_batch WHERE game_id = ${g.id}`;
+    await sql`DELETE FROM game WHERE id = ${g.id}`;
+  }
+
+  // An out-of-state opponent: the whole point of shadow RPI.
+  const [tn] = await sql<{ id: number }[]>`
+    INSERT INTO school (slug, name, state, data_source_id)
+    SELECT 'rpi-test-tn', 'RPI Test Academy (TN)', 'TN', ds.id
+    FROM data_source ds WHERE ds.slug = 'staff-entry'
+    ON CONFLICT (slug) DO UPDATE SET state = 'TN'
+    RETURNING id::int`;
+
+  const schools = await sql<{ id: number; slug: string }[]>`
+    SELECT id::int, slug::text FROM school
+    WHERE slug IN ('male', 'john-hardin', 'central-hardin')`;
+  const id = (slug: string) => schools.find((s) => s.slug === slug)!.id;
+
+  const rows = [
+    { lineNumber: 1, date: DATES[0], homeSchoolId: id("john-hardin"), awaySchoolId: id("central-hardin"), homeScore: 28, awayScore: 14 },
+    { lineNumber: 2, date: DATES[1], homeSchoolId: id("male"), awaySchoolId: id("john-hardin"), homeScore: 35, awayScore: 10 },
+    { lineNumber: 3, date: DATES[2], homeSchoolId: id("central-hardin"), awaySchoolId: id("male"), homeScore: 0, awayScore: 49 },
+    { lineNumber: 4, date: DATES[3], homeSchoolId: id("male"), awaySchoolId: tn.id, homeScore: 31, awayScore: 28 },
+  ];
+  const commit = await db.commitSchedule(rows, football.id, "boys", "varsity");
+  assert.equal(commit.failed.length, 0, "the schedule must commit cleanly");
+
+  const summary = await db.runRpi(ss.id, { throughDate: "2026-12-31" });
+  assert.ok(summary.teams >= 4, "every participating team is computed");
+  assert.ok(summary.published > 0, "teams with complete scores are published");
+
+  const standings = await db.getRpiStandings("football");
+  assert.ok(standings.length > 0, "there must be a published table");
+
+  // Out-of-state teams are computed - their record feeds everyone's OWP - but
+  // ranking them in Kentucky standings would be a category error.
+  assert.ok(
+    !standings.some((s) => s.schoolName.includes("RPI Test Academy")),
+    "an out-of-state opponent must never appear in the standings"
+  );
+
+  // "Every stored RPI value must be reproducible."
+  for (const s of standings) {
+    const recomputed = (s.wp * 0.35 + s.owp * 0.35 + s.oowp * 0.3) * s.classFactor;
+    assert.ok(
+      Math.abs(recomputed - s.rpi) < 1e-6,
+      `${s.schoolName}: stored ${s.rpi} does not reproduce from its own components`
+    );
+  }
+
+  // The arithmetic is persisted, not just the answer.
+  const [{ count: inputs }] = await sql<{ count: number }[]>`
+    SELECT count(*)::int FROM rpi_input WHERE rpi_run_id = ${summary.officialRunId}`;
+  assert.ok(inputs > 0, "per-game inputs must be stored for a disputing coach");
+
+  // Shadow must differ for anyone who played the out-of-state team, because
+  // its real record is not .500.
+  await sql`
+    INSERT INTO out_of_state_record
+      (team_id, sport_season_id, wins, losses, source_name, as_of, data_source_id)
+    SELECT t.id, ${ss.id}, 9, 1, 'test', CURRENT_DATE, ds.id
+    FROM team t, data_source ds
+    WHERE t.school_id = ${tn.id} AND t.sport_id = ${football.id}
+      AND ds.slug = 'staff-entry'
+    ON CONFLICT (team_id, sport_season_id) DO UPDATE SET wins = 9, losses = 1`;
+
+  await db.runRpi(ss.id, { throughDate: "2026-12-31" });
+  const withShadow = await db.getRpiStandings("football");
+  const male = withShadow.find((s) => s.schoolSlug === "male");
+  assert.ok(male, "Male played the out-of-state team");
+  assert.ok(
+    male!.delta !== null && Math.abs(male!.delta) > 0.0001,
+    "shadow RPI must differ once the out-of-state record is known"
+  );
+});
