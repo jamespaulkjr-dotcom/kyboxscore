@@ -59,6 +59,21 @@ That skips migrations, which the pipeline runs and this command does not.
 - **Parsers** — `packages/parsers`, MaxPreps `.txt` only, written against a
   real export in `docs/reference/`.
 - **RPI** — `packages/rpi`, official and shadow formulas, unit tested.
+- **Auth** — email + password for coaches and administrators. scrypt from
+  `node:crypto` (no native build), opaque server-side sessions in
+  `user_session` so revocation is immediate, rate limiting per email and per
+  IP, and timing-equalized failures so accounts cannot be enumerated. Routes:
+  `/login`, `/coach`. Migration `0003_auth_sessions`.
+
+  **There is no signup.** Accounts are provisioned from the CLI:
+
+  ```
+  npm run db:create-user -- --email a@b.org --name "Jane Doe" --role admin
+  ```
+
+  Re-running for an existing email resets the password and revokes that
+  user's live sessions, which is the locked-out path. Roles: `admin`,
+  `staff`, `athletic_director`, `coach`.
 
 ## What is NOT built yet
 
@@ -66,11 +81,13 @@ That skips migrations, which the pipeline runs and this command does not.
   basketball, baseball, softball, soccer, volleyball) but
   `UPDATE sport SET is_active = slug IN ('football','basketball')` means only
   two are live. The rest of the KHSAA sports are not in the schema at all.
-- **Auth.** No login, no accounts, no coach roles, no sessions. `AUTH_SECRET`
-  exists in `.env` but nothing consumes it.
+- **Team grants.** `user_team_grant` exists and the dashboard reads it, but
+  nothing writes to it yet — there is no admin UI for assigning a coach to a
+  team, so grants have to be inserted by hand.
 - **Import UI.** The MaxPreps parser exists as a library with no route, no
-  upload form, no preview-before-commit, no name resolution. CSV and Excel
-  parsers are not written. PDF is explicitly out of scope for phase one.
+  upload form, no preview-before-commit, no name resolution. Excel is not
+  written. PDF is explicitly out of scope for phase one and stays deferred
+  (confirmed 2026-08-30).
 - **Coach data entry.** Nothing.
 
 ## Gotchas learned the hard way
@@ -85,6 +102,9 @@ That skips migrations, which the pipeline runs and this command does not.
   unauthenticated** — useful for diagnosing CI without a token.
 - There is no `gh` CLI and no GitHub token on the droplet. The only way to
   trigger a run from here is pushing a commit.
+- `AUTH_SECRET` is the pepper for session token hashes. **Changing it logs
+  everyone out**, because every stored `token_hash` becomes unmatchable. That
+  is acceptable now and will not be once coaches depend on it.
 
 ## Open items
 
@@ -92,5 +112,5 @@ That skips migrations, which the pipeline runs and this command does not.
 2. Auth and coach accounts.
 3. Import UI: upload → preview → resolve names → commit.
 4. CSV parser with interactive column mapping, then Excel.
-5. Rotate `AUTH_SECRET` (it was exposed in a chat transcript 2026-08-30).
-6. Front page is bare — reads as a stub rather than a product.
+5. Front page is bare — reads as a stub rather than a product.
+6. Admin UI for granting a coach access to a team.

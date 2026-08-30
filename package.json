@@ -14,7 +14,8 @@
     "test": "node --test --experimental-strip-types packages/*/test/*.test.ts",
     "db:migrate": "node packages/db/scripts/migrate.mjs",
     "db:seed": "node packages/db/scripts/seed.mjs",
-    "db:reset": "node packages/db/scripts/migrate.mjs --reset && npm run db:seed"
+    "db:reset": "node packages/db/scripts/migrate.mjs --reset && npm run db:seed",
+    "db:create-user": "node packages/db/scripts/create-user.mjs"
   },
   "engines": {
     "node": ">=22.18"

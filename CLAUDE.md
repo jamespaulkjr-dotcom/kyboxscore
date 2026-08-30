@@ -129,6 +129,13 @@ High information density, minimal chrome, generous tap targets, real typographic
 
 Ask when a product decision is genuinely ambiguous. Do not ask permission to write code. Build the stat importer and coach entry flow first, because if coaches will not use them nothing else matters.
 
+**Leave a waypoint.** Sessions get lost. Before finishing any meaningful chunk of work:
+
+- update `docs/STATUS.md` if what-is-built or the infrastructure changed
+- append an entry to `docs/worklog.md` saying what changed, why, what surprised you, and what comes next
+
+Commit both with the work, not as an afterthought. A future session should be able to read those two files and resume without reconstructing anything from shell history or old transcripts.
+
 ## Related documents
 
 - `docs/STATUS.md` — **current state: what is built, what is not, and the

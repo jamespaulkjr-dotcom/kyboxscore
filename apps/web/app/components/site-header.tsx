@@ -5,6 +5,11 @@ import { Wordmark } from "./logo";
  * The header is always brand navy, in both themes, so the navy-grounded logo
  * always sits on the ground it was drawn for. Sport and season stay visible
  * and changeable from every page.
+ *
+ * The sign-in link is deliberately stateless - it never reads the session.
+ * Reading cookies here would opt every public page into dynamic rendering and
+ * cost us the edge cache on the scoreboard, which is the one page that has to
+ * be fast. /login redirects an already-signed-in user onward instead.
  */
 export function SiteHeader({
   sports,
@@ -39,6 +44,12 @@ export function SiteHeader({
             </Link>
           ))}
         </nav>
+        <Link
+          href="/login"
+          className="ml-auto shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold text-[color:var(--chrome-muted)] hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        >
+          Sign in
+        </Link>
       </div>
     </header>
   );
