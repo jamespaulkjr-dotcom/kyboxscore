@@ -45,8 +45,14 @@ export function SiteHeader({
           ))}
         </nav>
         <Link
-          href="/login"
+          href="/sports"
           className="ml-auto shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold text-[color:var(--chrome-muted)] hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        >
+          All sports
+        </Link>
+        <Link
+          href="/login"
+          className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold text-[color:var(--chrome-muted)] hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
         >
           Sign in
         </Link>

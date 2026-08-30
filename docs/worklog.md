@@ -129,3 +129,32 @@ earlier today: ran a real `docker build` before pushing rather than trusting
 refused in production by design — so there is still nothing to grant or import
 into. Staff data entry for schools/teams/seasons/rosters is the last blocker on
 a real end-to-end import. After that, refresh `player_season_stat` on commit.
+
+## 2026-08-30 — All KHSAA sports, and 291 schools
+**Did:** Migration `0004_sport_categories` (a `sport_category` enum, nullable
+scoring columns, `rpi_profile = 'none'`), all 20 KHSAA sports seeded with their
+grouping, 291 member schools in `006_schools.sql`, and a `/sports` index linked
+from the header.
+**Why:** The site showed two sports and read as a stub. Sports are now modelled
+honestly: only team sports have a scoring unit, periods and an RPI, so
+`scoring_unit`/`period_noun`/`regulation_periods` became nullable rather than
+being filled with a plausible lie for bass fishing. Two CHECK constraints keep
+that consistent.
+**Learned:** **`docker compose -f compose.dev.yml up` recreated the PRODUCTION
+database container.** Compose takes its project name from the directory, and
+both `/home/deploy/code/kyboxscore` and `/home/deploy/kyboxscore` are
+"kyboxscore", so the `db` service collided. It detached the live `pgdata`
+volume and published 5432 to 0.0.0.0 with the password "localdev". No data was
+lost - the volume was detached, not deleted - and it was restored in about 90
+seconds with `docker compose up -d db` from the production directory. Fixed
+properly by pinning `name: kyboxscore-dev` and binding the dev port to
+loopback. Also: a page with no route params is prerendered at build time, which
+fails when the image builds without a database - `/sports` needed
+`force-dynamic` like every other data-backed page.
+**Open questions raised with the user:** football was absent from their sport
+list (kept, since the brief makes it phase one), and "Competitive" is seeded as
+"Competitive Cheer" pending confirmation. Field hockey and lacrosse period
+structure is provisional. School `time_zone` defaults to Eastern, which is
+wrong for western Kentucky.
+**Next:** teams, seasons and rosters - a school is not a team, and 17 of 20
+sports have no season dates.

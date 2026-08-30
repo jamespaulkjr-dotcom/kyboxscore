@@ -17,6 +17,31 @@ export async function listSports() {
     ORDER BY sp.display_order`;
 }
 
+export type SportListing = {
+  slug: string;
+  name: string;
+  category: "team" | "individual" | "activity";
+  urlYear: number | null;
+};
+
+/**
+ * Every sport we offer, whether or not it has a season open.
+ *
+ * listSports() is the navigation query and deliberately returns only sports
+ * with a current season, because a nav link to an empty scoreboard is a dead
+ * end. This one backs the sports index, where "not open yet" is the useful
+ * answer rather than a broken page.
+ */
+export async function listAllSports() {
+  return sql<SportListing[]>`
+    SELECT sp.slug, sp.name, sp.category::text AS category,
+           ss.url_year::int AS "urlYear"
+    FROM sport sp
+    LEFT JOIN sport_season ss ON ss.sport_id = sp.id AND ss.is_current
+    WHERE sp.is_active
+    ORDER BY sp.display_order`;
+}
+
 export async function getSportSeason(
   sportSlug: string,
   urlYear?: number

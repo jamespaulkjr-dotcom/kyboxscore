@@ -56,6 +56,13 @@ That skips migrations, which the pipeline runs and this command does not.
   Bottom nav, site header/footer, brand assets in `docs/assets/`.
 - **Database** — `packages/db`, migrations `0001_init` and
   `0002_stat_consistency`, seeded reference data and dev fixtures.
+- **Sports** — all 20 KHSAA sports and sport activities, grouped as KHSAA
+  groups them (`sport.category`: team / individual / activity). Only team
+  sports carry a scoring unit, periods and an RPI; the rest are NULL rather
+  than filled with a plausible lie. `/sports` lists everything; the header
+  links to it. Only football, basketball and baseball have a season open.
+- **Schools** — 291 KHSAA member schools, slug and name only, attributed to
+  the `staff-entry` data source.
 - **Parsers** — `packages/parsers`, MaxPreps `.txt` only, written against a
   real export in `docs/reference/`. Also `matching.ts`: jersey → roster
   matching, because **the MaxPreps .txt carries no player names, only jersey
@@ -94,11 +101,12 @@ That skips migrations, which the pipeline runs and this command does not.
   basketball, baseball, softball, soccer, volleyball) but
   `UPDATE sport SET is_active = slug IN ('football','basketball')` means only
   two are live. The rest of the KHSAA sports are not in the schema at all.
-- **Schools, teams and rosters.** Production has none. Seed fixtures are
-  dev-only by design ("fixtures are refused in production"), so there is
-  nothing to grant, schedule, or import into yet. **This is now the single
-  blocker on exercising the importer end to end.** How this data arrives is a
-  provenance decision, not just a UI one — see the hard rules in CLAUDE.md.
+- **Teams, seasons and rosters.** 291 schools now exist, but a `school` is not
+  a `team`. Nothing creates `team`, `team_season`, `player` or `player_season`
+  rows, and 17 of 20 sports have no `sport_season` because we do not have KHSAA
+  calendar dates. That is the remaining blocker on a real import.
+- **School detail.** Only slug and name are populated. Mascot, city, county,
+  colors, venue and KHSAA id are all NULL.
 - **CSV and Excel parsers.** Only the MaxPreps `.txt` is handled. CSV with
   interactive column mapping is next; `import_column_mapping` is already in
   the schema for it. PDF stays deferred (confirmed 2026-08-30).
@@ -117,6 +125,16 @@ That skips migrations, which the pipeline runs and this command does not.
   classifier, so schema questions cannot be answered by querying prod.
 - A hand-deploy restarts the container but does **not** migrate. If the
   schema and the image disagree, that is why.
+- **`docker compose -f compose.dev.yml` used to recreate the PRODUCTION db.**
+  Compose derives its project name from the directory, and both
+  `/home/deploy/code/kyboxscore` and `/home/deploy/kyboxscore` resolve to
+  `kyboxscore`. It detached the live data volume and published 5432 with a dev
+  password. Fixed by pinning `name: kyboxscore-dev` in `compose.dev.yml` and
+  binding its port to loopback. **Check the project name before running any
+  compose command on this box.**
+- **A page with no route params gets prerendered at build time**, and the image
+  builds without a database. Any data-backed page needs
+  `export const dynamic = "force-dynamic"` or the Docker build fails at export.
 - **`npm run build` passing locally does not mean the image builds.** The local
   `node_modules` has every workspace symlinked, so a missing workspace manifest
   in the Dockerfile's deps stage only shows up in CI. After adding a new
@@ -136,7 +154,7 @@ That skips migrations, which the pipeline runs and this command does not.
    thing between here and a real import.
 2. **Refresh rollups after a commit** — imported stats do not reach team or
    leaderboard pages yet.
-3. Activate the full set of KHSAA sports (needs the sanctioned list confirmed).
+3. Season dates per sport, so the other 17 sports can open.
 4. CSV parser with interactive column mapping, then Excel.
 5. Column maps for basketball and football.
 6. Front page is bare — reads as a stub rather than a product.

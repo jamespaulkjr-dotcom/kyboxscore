@@ -1,3 +1,12 @@
+# Local development database only.
+#
+# The explicit project name is load-bearing. Compose otherwise derives it from
+# the directory, and BOTH the source checkout and the production compose
+# directory are named "kyboxscore" - so `compose -f compose.dev.yml up` would
+# recreate the PRODUCTION db container, detaching it from its data volume and
+# publishing 5432 with a development password. That happened once.
+name: kyboxscore-dev
+
 services:
   db:
     image: postgres:17-alpine
@@ -6,7 +15,9 @@ services:
       POSTGRES_PASSWORD: localdev
       POSTGRES_DB: kyboxscore
     ports:
-      - "5432:5432"
+      # Loopback only. This box has a public IP; an unauthenticated-from-the-
+      # internet Postgres with the password "localdev" is not a dev convenience.
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata_dev:/var/lib/postgresql/data
 volumes:
