@@ -185,6 +185,12 @@ export type ScheduleCommitRow = {
   awaySchoolId: number;
   homeScore: number | null;
   awayScore: number | null;
+  /**
+   * Defaults to a regular season game. Scrimmages matter: RPI counts regular
+   * season only, so importing one as a real game would corrupt every rating
+   * that touches it.
+   */
+  stage?: "regular_season" | "scrimmage" | "district_tournament";
 };
 
 export type ScheduleCommitResult = {
@@ -228,9 +234,11 @@ export async function commitSchedule(
         const awayTeam = await ensureTeam(tx, row.awaySchoolId, sportId, gender, level, ss.id);
 
         const status = row.homeScore !== null ? "final" : "scheduled";
+        const stage = row.stage ?? "regular_season";
         const [g] = await tx<{ id: number }[]>`
-          INSERT INTO game (sport_season_id, short_code, local_date, status)
-          VALUES (${ss.id}, ${shortCode()}, ${row.date}::date, ${status}::game_status)
+          INSERT INTO game (sport_season_id, short_code, local_date, status, stage)
+          VALUES (${ss.id}, ${shortCode()}, ${row.date}::date, ${status}::game_status,
+                  ${stage}::game_stage)
           RETURNING id::int`;
         await tx`
           INSERT INTO game_participant (game_id, team_id, role, score)

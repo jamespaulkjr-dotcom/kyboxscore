@@ -322,3 +322,29 @@ teams while last season keeps its own districts, so past records and RPI stay
 correct.
 **Next:** cross-bracketing is parsed and ignored; nothing models postseason
 structure. Alignments for sports other than football are still empty.
+
+## 2026-08-30 — Team schedule import (block format)
+**Did:** `/admin/schedule/team` — paste a schedule copied off a schedule page,
+where each game is a block rather than a row. Handles logo lines, "Opponent :"
+prefixes, location lines, missing years, and several teams in one paste.
+12 tests.
+**Why:** The row-per-game importer assumed a format nobody actually has. James's
+real paste is blocks, unlabelled, with no year.
+**Learned:** Two things worth keeping.
+1. **"L" means both Loss and League (district) in the same document.** Position
+   disambiguates, never the letter: a result token always sits on the line
+   immediately before a score line, and the game type is always the last line of
+   the block. A block with no score has no result whatever letters it contains.
+   Getting this backwards would silently invert a team's record and its RPI.
+2. **`\b` after "@" never matches** — "@" is not a word character, so the
+   anchor killed every away game while home games parsed fine. Half a schedule
+   silently missing is worse than none of it.
+**Also:** the year is absent from the source and is inferred from the weekdays -
+across twelve games only 2026 fits, which is a check rather than a guess.
+Ambiguity is reported and the user types the year in. Scrimmages are detected
+and stored with `stage = 'scrimmage'` so RPI, which counts regular season only,
+cannot be corrupted by one.
+**Position on scraping:** James asked to drop the CLAUDE.md rule for schedules,
+arguing the data is free. Facts are indeed uncopyrightable, but the constraint
+is those sites' terms prohibiting automated extraction, so the answer did not
+change. The pain he was describing was formatting, and that is what got fixed.
