@@ -63,6 +63,55 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      # Diagnoses a bad DEPLOY_KEY/DEPLOY_HOST without printing either. Shape
+      # only: lengths, line counts, and the PEM banner lines, which are not
+      # secret. A wrapping quote or a stray leading space is the usual cause.
+      - name: Preflight secrets
+        env:
+          H: ${{ secrets.DEPLOY_HOST }}
+          K: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          fail=0
+          if [ -z "$H" ]; then
+            echo "DEPLOY_HOST: EMPTY or not set"; fail=1
+          else
+            echo "DEPLOY_HOST: set, ${#H} chars"
+            case "$H" in
+              *[\'\"]*) echo "  !! contains a quote character - remove it"; fail=1 ;;
+            esac
+            case "$H" in
+              " "*|*" ") echo "  !! has leading or trailing whitespace"; fail=1 ;;
+            esac
+          fi
+
+          if [ -z "$K" ]; then
+            echo "DEPLOY_KEY: EMPTY or not set"; fail=1
+          else
+            echo "DEPLOY_KEY: set, ${#K} chars, $(printf '%s' "$K" | wc -l) newlines"
+            first=$(printf '%s' "$K" | head -1)
+            last=$(printf '%s' "$K" | tail -1)
+            echo "  first line: $first"
+            echo "  last line:  $last"
+            case "$first" in
+              "-----BEGIN "*) : ;;
+              "ssh-"*) echo "  !! this is the PUBLIC key - DEPLOY_KEY needs the private half"; fail=1 ;;
+              *) echo "  !! first line is not a PEM header - check for a quote or leading space"; fail=1 ;;
+            esac
+            case "$last" in
+              "-----END "*) : ;;
+              *) echo "  !! last line is not a PEM footer - the key looks truncated"; fail=1 ;;
+            esac
+            printf '%s' "$K" | tail -c 1 | od -c | head -1 | grep -q '\\n' \
+              && echo "  trailing newline: yes" \
+              || echo "  trailing newline: no (some ssh clients require one)"
+          fi
+
+          if [ "$fail" = "1" ]; then
+            echo "::error::Deploy secrets look malformed - see the checks above."
+            exit 1
+          fi
+          echo "secrets look well formed"
+
       - uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
