@@ -99,7 +99,9 @@ ON CONFLICT (sport_id, season_id) DO UPDATE
 -- permitted channels like any other record.
 --
 -- Basketball: 16 regions, 4 districts each (64), boys and girls.
--- Football: 6 classes, 4 districts each, boys.
+-- Football: 6 classes, 8 districts each (48), boys. Confirmed against the
+-- published 2026 alignment, which runs District 1 through District 8 in every
+-- class. An earlier draft of this seed said four and was wrong.
 -- Effective from the start of the 2026-28 alignment cycle.
 
 INSERT INTO alignment (sport_id, gender, kind, name, slug, ordinal, effective_from)
@@ -140,6 +142,6 @@ SELECT sp.id, 'boys', 'district',
 FROM sport sp
 JOIN alignment cls
   ON cls.sport_id = sp.id AND cls.kind = 'classification'
-CROSS JOIN generate_series(1, 4) AS d
+CROSS JOIN generate_series(1, 8) AS d
 WHERE sp.slug = 'football'
 ON CONFLICT (sport_id, gender, kind, slug, effective_from) DO NOTHING;

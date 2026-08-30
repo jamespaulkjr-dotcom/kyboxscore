@@ -366,3 +366,76 @@ test("RPI runs against real games, reproduces its own arithmetic, and ranks only
     "shadow RPI must differ once the out-of-state record is known"
   );
 });
+
+test("a KHSAA alignment block assigns districts and is safe to re-run", opts, async () => {
+  const db = await import("../src/index.ts");
+  const { parseAlignmentText } = await import("@kyboxscore/parsers");
+  const { sql } = db;
+
+  const [football] = await sql<{ id: number }[]>`
+    SELECT id::int FROM sport WHERE slug = 'football'`;
+
+  // Names written the way the published document writes them: bare, with a
+  // parenthetical, and one that is only a substring of two other schools.
+  const block = `Class 1A
+District 3- Bellevue, Dayton, Newport, Newport Central Catholic
+
+For postseason competition, District 7 will cross-bracket with District 8.
+
+Class 6A
+District 5- Ballard, Eastern, Oldham County, Trinity (Louisville)
+
+WITHDRAWN FROM PLAY- Holmes, Ohio County`;
+
+  const parsed = parseAlignmentText(block);
+  assert.equal(parsed.rows.length, 8);
+  assert.deepEqual(parsed.withdrawn, ["Holmes", "Ohio County"]);
+  assert.equal(parsed.issues.filter((i) => i.severity === "error").length, 0);
+
+  const matches = await db.matchSchoolNames(parsed.rows.map((r) => r.schoolName));
+  const byInput = new Map(matches.map((m) => [m.input.toLowerCase(), m]));
+
+  // "Newport" and "Ballard" are each a substring of another school. The bare
+  // name is exact, so they must resolve rather than reading as ambiguous.
+  assert.equal(byInput.get("newport")?.schoolName, "Newport High School");
+  assert.equal(byInput.get("ballard")?.schoolName, "Ballard High School");
+  assert.equal(
+    byInput.get("newport central catholic")?.schoolName,
+    "Newport Central Catholic High School"
+  );
+
+  const targets = parsed.rows.flatMap((r) => {
+    const m = byInput.get(r.schoolName.toLowerCase());
+    return m?.schoolId
+      ? [{
+          lineNumber: r.lineNumber,
+          schoolId: m.schoolId,
+          schoolName: m.schoolName!,
+          classOrdinal: r.classOrdinal,
+          districtNumber: r.districtNumber,
+        }]
+      : [];
+  });
+  assert.equal(targets.length, 8, "every school in the block must resolve");
+
+  const first = await db.commitAlignments(targets, football.id, "boys", "varsity");
+  assert.equal(first.failed.length, 0);
+
+  // Re-running the same block must change nothing: a realignment paste is
+  // re-run, and a second run must not thrash the data.
+  const second = await db.commitAlignments(targets, football.id, "boys", "varsity");
+  assert.equal(second.assigned, 0, "nothing should change on a second run");
+  assert.equal(second.unchanged, 8);
+  assert.equal(second.teamsCreated, 0);
+
+  // The assignment must land on the right class and district.
+  const [row] = await sql<{ className: string; district: number }[]>`
+    SELECT parent.name AS "className", a.ordinal::int AS district
+    FROM school sc
+    JOIN team t       ON t.school_id = sc.id AND t.sport_id = ${football.id}
+    JOIN team_season ts ON ts.team_id = t.id
+    JOIN alignment a  ON a.id = ts.alignment_id
+    JOIN alignment parent ON parent.id = a.parent_id
+    WHERE sc.slug = 'trinity-louisville'`;
+  assert.deepEqual([row?.className, row?.district], ["6A", 5]);
+});

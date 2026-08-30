@@ -294,3 +294,31 @@ whole time; only the recompute was broken, which is the half nobody looks at.
 **Learned:** **The runtime image is not the build image.** A maintenance script
 can typecheck, test, build and deploy green and still be unrunnable on the
 server. Verify a new script by executing it inside the built image.
+
+## 2026-08-30 — KHSAA football alignment import
+**Did:** `/admin/alignments` — paste the published block, preview what resolved,
+commit. Parser handles class headings, district lines, the real document's
+"District -8" typo, cross-bracketing prose, and the withdrawal list. Verified
+against the actual 2026 football alignment: 219 schools, **219 matched, 0
+unmatched**, second run idempotent.
+**Why:** James has the alignment for every football team and did not want to
+enter 219 schools one at a time — and KHSAA realigns every two years, so this
+gets re-run rather than done once.
+**Learned:** Three things, none catchable without real data.
+1. **Football has 8 districts per class, not 4.** The seed said four. Half the
+   document would have had nowhere to land.
+2. **Dev fixtures flatter the school matcher.** A fixture school literally
+   named "St. Xavier" made that name resolve exactly on a dev database;
+   production refuses fixtures and would have missed it. Re-verified against a
+   `NODE_ENV=production` seed — where it resolves by similarity at 0.53
+   against "Saint Xavier High School", correctly and visibly.
+3. **Exact-match on the bare name is the single highest-value matching rule.**
+   17 of 219 names failed because "Newport" is a substring of "Newport Central
+   Catholic" — but "Newport" IS the school's name once "High School" is
+   stripped. Adding that step took matching from 202/219 to 219/219.
+**Design note:** assignment lands on `team_season`, not `team`. That is what
+makes realignment non-destructive: next cycle's paste moves this season's
+teams while last season keeps its own districts, so past records and RPI stay
+correct.
+**Next:** cross-bracketing is parsed and ignored; nothing models postseason
+structure. Alignments for sports other than football are still empty.

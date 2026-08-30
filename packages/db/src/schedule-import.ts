@@ -44,7 +44,28 @@ export async function matchSchoolNames(names: string[]): Promise<SchoolMatch[]> 
       continue;
     }
 
-    // 2. Substring, which catches "John Hardin" -> "John Hardin High School".
+    // 2. Exact on the bare name. "Newport" IS the school's name; "High School"
+    // is boilerplate. Without this step "Newport" looks ambiguous because
+    // Newport Central Catholic also contains it, when in fact there is an
+    // exact answer. This resolves the large majority of real-world misses.
+    const bare = await sql<{ id: number; name: string }[]>`
+      SELECT id::int, name FROM school
+      WHERE is_active
+        AND lower(regexp_replace(name, '[[:space:]]+(Senior[[:space:]]+)?High[[:space:]]+School$', '', 'i'))
+            = lower(${input})`;
+    if (bare.length === 1) {
+      out.push({
+        input,
+        schoolId: bare[0].id,
+        schoolName: bare[0].name,
+        method: "exact",
+        confidence: 1,
+        candidates: [],
+      });
+      continue;
+    }
+
+    // 3. Substring, which catches "John Hardin" -> "John Hardin High School".
     const contains = await sql<{ id: number; name: string }[]>`
       SELECT id::int, name FROM school
       WHERE name ILIKE ${"%" + input + "%"} AND is_active
@@ -61,7 +82,7 @@ export async function matchSchoolNames(names: string[]): Promise<SchoolMatch[]> 
       continue;
     }
 
-    // 3. Trigram similarity, for spelling drift and abbreviations.
+    // 4. Trigram similarity, for spelling drift and abbreviations.
     //
     // Compared against the bare name as well as the full one: a schedule says
     // "Paducah Tilghman", the database says "Paducah Tilghman High School",

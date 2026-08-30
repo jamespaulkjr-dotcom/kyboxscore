@@ -98,6 +98,12 @@ That skips migrations, which the pipeline runs and this command does not.
   name like "Trinity" is **never guessed**: the row is skipped and both
   candidates are shown. Teams are created on demand for schools that lack one.
   Re-pasting is safe; the schema's natural key recognises an existing game.
+- **Alignment import** — `/admin/alignments`: paste the published KHSAA block
+  (class headings, `District 1- School, School, ...` lines, cross-bracketing
+  prose and withdrawal lists all mixed together) and it assigns a whole sport
+  in one go. Verified against the real 2026 football document: **219 schools,
+  219 matched, 0 unmatched**, and re-running changes nothing. KHSAA realigns
+  every two years, so this is built to be re-run each cycle.
 - **Alignments** — a team's district is set on its team page, from the
   districts that exist for its sport and gender. Drives district records and
   the RPI class factor. Left unassigned rather than guessed.
@@ -144,10 +150,12 @@ That skips migrations, which the pipeline runs and this command does not.
 - **Season dates for 17 of 20 sports.** Only football, basketball and baseball
   have a `sport_season`, so only those can hold teams. Needs the KHSAA
   calendar.
-- **Which school is in which district.** The structure exists and the
-  assignment UI exists, but no team is placed yet — that is a factual claim
-  that has to come from a permitted source. Until then `district_wins` and
-  `district_losses` stay 0 and RPI has no class factor.
+- **Alignments for sports other than football.** Football's 2026 alignment can
+  be imported; basketball and the rest still have empty region/district
+  membership.
+- **Playoff cross-bracketing.** The published alignment carries postseason
+  cross-bracket rules ("District 3 and 5 bracket as Region 2"). These are
+  parsed as prose and ignored — nothing models postseason structure yet.
 - **School detail.** Only slug and name are populated. Mascot, city, county,
   colors, venue and KHSAA id are all NULL.
 - **CSV and Excel parsers.** Only the MaxPreps `.txt` is handled. CSV with
@@ -184,6 +192,13 @@ That skips migrations, which the pipeline runs and this command does not.
   import test clears its own roster and prior game first, and deletion order
   matters: `game` cascades to `stat_line`, but `import_batch` references
   `game` and `stat_line` references `import_batch`.
+- **Football has 8 districts per class, not 4.** The first seed said four and
+  was wrong; half a real alignment had nowhere to land. Corrected against the
+  published 2026 document.
+- **Dev fixtures make school matching look better than it is.** A fixture
+  school named "St. Xavier" made an ambiguous name resolve exactly on a dev
+  database while production, which refuses fixtures, would have missed it.
+  Verify matching against a `NODE_ENV=production` seed.
 - **A game cannot be deleted once an RPI run references it.** `rpi_input`
   pins its games so a past rating stays reproducible; `deleteGame` reports
   that rather than surfacing a foreign key error.
@@ -214,7 +229,9 @@ That skips migrations, which the pipeline runs and this command does not.
 ## Open items
 
 1. Season dates per sport, so the other 17 sports can open.
-2. District assignments, once the alignment data is to hand.
+2. Re-run the alignment import each realignment cycle; the structure carries
+   `effective_from`/`effective_to` and assignment lands on `team_season`, so
+   past seasons keep their own districts.
 3. Schedule the hourly RPI recompute the brief calls for — `npm run rpi` is
    the command; nothing runs it automatically yet.
 4. Football's WP assignment is still the standard 1/0.5/0. The brief says

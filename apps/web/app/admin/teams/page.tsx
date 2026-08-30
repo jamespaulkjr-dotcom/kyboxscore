@@ -34,6 +34,7 @@ export default async function Page(props: PageProps<"/admin/teams">) {
         <div className="flex flex-wrap gap-4 text-sm">
           <Link href="/admin/users" className="text-link underline">← Accounts</Link>
           <Link href="/admin/schedule" className="text-link underline">Import a schedule</Link>
+          <Link href="/admin/alignments" className="text-link underline">Import an alignment</Link>
         </div>
         <h1 className="mt-3 text-xl font-bold tracking-tight sm:text-2xl">Teams</h1>
         <p className="mt-1 text-sm text-fg-muted">
