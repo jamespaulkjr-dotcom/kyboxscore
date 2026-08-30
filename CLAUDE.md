@@ -131,6 +131,8 @@ Ask when a product decision is genuinely ambiguous. Do not ask permission to wri
 
 ## Related documents
 
+- `docs/STATUS.md` — **current state: what is built, what is not, and the
+  gotchas. Read this first, it is kept up to date.**
 - `docs/kyboxscore-setup.md` — droplet provisioning, compose, CI/CD, backups
 - `docs/ky-scoreboard-build-prompt.md` — the full product brief and phase one scope
 - `packages/db/schema.sql` — data model

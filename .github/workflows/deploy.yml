@@ -24,8 +24,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://kyboxscore:test@localhost:5432/kyboxscore_test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -43,14 +43,14 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
@@ -74,33 +74,9 @@ jobs:
         env:
           K: ${{ secrets.DEPLOY_KEY }}
           H: ${{ secrets.DEPLOY_HOST }}
-          # Probe the names a key is commonly saved under, so a misnamed
-          # secret is identified instead of just reading as absent.
-          ALT1: ${{ secrets.DEPLOYKEY }}
-          ALT2: ${{ secrets.DEPLOY_SSH_KEY }}
-          ALT3: ${{ secrets.SSH_KEY }}
-          ALT4: ${{ secrets.DEPLOY_PRIVATE_KEY }}
-          ALT5: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           python3 <<'EOF'
           import os, re, sys, textwrap
-
-          # If DEPLOY_KEY reads as absent, say whether the key turned up under
-          # another common name. Only presence is reported, never a value.
-          probes = {
-              "DEPLOY_KEY": "K", "DEPLOYKEY": "ALT1", "DEPLOY_SSH_KEY": "ALT2",
-              "SSH_KEY": "ALT3", "DEPLOY_PRIVATE_KEY": "ALT4",
-              "SSH_PRIVATE_KEY": "ALT5",
-          }
-          present = [n for n, e in probes.items() if os.environ.get(e, "").strip()]
-          # Emitted as annotations so the diagnosis is visible from the API,
-          # not only in the raw log, which needs admin rights to download.
-          print("::warning::secret names carrying a value: "
-                + (", ".join(present) or "NONE of DEPLOY_KEY/DEPLOYKEY/DEPLOY_SSH_KEY/"
-                                        "SSH_KEY/DEPLOY_PRIVATE_KEY/SSH_PRIVATE_KEY"))
-          print("::warning::DEPLOY_HOST is "
-                + ("set, %d chars" % len(os.environ.get("H", "").strip())
-                   if os.environ.get("H", "").strip() else "EMPTY"))
 
           k = os.environ.get("K", "")
           if not k.strip():
