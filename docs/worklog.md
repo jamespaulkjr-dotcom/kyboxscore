@@ -175,3 +175,30 @@ empty: `search_document` (now handled) and `player_season_stat` /
 deploy by checking the page a user would actually look at catches this class of
 bug; checking that the write succeeded does not.
 **Next:** teams, seasons and rosters; then rollup refresh on import commit.
+
+## 2026-08-30 — Staff flow for teams and rosters
+**Did:** `/admin/teams` (create a team, search existing) and
+`/admin/teams/[id]` (add players, correct jersey and grade in place, remove).
+Extended `packages/db/src/admin.ts`. Also ran the whole import chain end to end
+against a throwaway database first — see below.
+**Why:** 291 schools existed but a school is not a team, so nothing could hold
+a roster and the importer had nothing to import into.
+**Learned:** **Typecheck and `next build` do not execute SQL.** `listTeamsAdmin`
+ordered by `sp.display_order` without grouping it — both passed, and it would
+have been a 500 the first time anyone opened the page. Only running it against
+a real database caught it. New queries get exercised against the dev database
+before pushing, same as the Docker build rule.
+Player slugs are globally unique and students really do share names, so a taken
+slug gets a numeric suffix. Separately, entering a roster is repetitive enough
+that a double-submit is easy: same name AND same jersey on one roster is now
+refused, while the same name on a different number is allowed.
+Removing a player who has statistics is refused outright rather than cascading
+— the stat lines reference the player row and the record must not be orphaned.
+**Earlier the same day:** verified the full import chain (parse → map → match →
+commit) against the real Caverna export in a throwaway database. 11 rows, 11
+matched, 206 stat values, and every line reconciled exactly against the PDF box
+score of the same game (16 AB, 4 R, 2 H team totals). Re-commit refused,
+stat_line count held. Nothing was written to production: the site is public and
+that would publish real students' names before launch.
+**Next:** schedule entry — `game` and `game_participant` — is the last blocker
+on a real import.

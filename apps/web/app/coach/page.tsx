@@ -97,6 +97,9 @@ export default async function Page() {
             <Link href="/admin/users" className="mt-2 block text-link underline">
               Accounts and team access
             </Link>
+            <Link href="/admin/teams" className="mt-1 block text-link underline">
+              Teams and rosters
+            </Link>
           </>
         )}
       </main>

@@ -128,3 +128,244 @@ export async function countTeams(): Promise<number> {
   const [row] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM team`;
   return row?.n ?? 0;
 }
+
+/* ------------------------------------------------------------ teams */
+
+export type AdminTeamRow = {
+  teamId: number;
+  schoolName: string;
+  schoolSlug: string;
+  sportName: string;
+  sportSlug: string;
+  gender: string;
+  level: string;
+  teamSeasonId: number | null;
+  seasonLabel: string | null;
+  rosterCount: number;
+};
+
+export async function listTeamsAdmin(query?: string) {
+  const q = (query ?? "").trim();
+  return sql<AdminTeamRow[]>`
+    SELECT t.id::int AS "teamId", sc.name AS "schoolName", sc.slug::text AS "schoolSlug",
+           sp.name AS "sportName", sp.slug::text AS "sportSlug",
+           t.gender::text AS gender, t.level::text AS level,
+           ts.id::int AS "teamSeasonId", se.label AS "seasonLabel",
+           count(ps.id)::int AS "rosterCount"
+    FROM team t
+    JOIN school sc ON sc.id = t.school_id
+    JOIN sport sp  ON sp.id = t.sport_id
+    LEFT JOIN sport_season ss ON ss.sport_id = t.sport_id AND ss.is_current
+    LEFT JOIN team_season ts  ON ts.team_id = t.id AND ts.sport_season_id = ss.id
+    LEFT JOIN season se       ON se.id = ss.season_id
+    LEFT JOIN player_season ps ON ps.team_season_id = ts.id
+    ${q ? sql`WHERE sc.name ILIKE ${"%" + q + "%"} OR sp.name ILIKE ${"%" + q + "%"}` : sql``}
+    GROUP BY t.id, sc.name, sc.slug, sp.name, sp.slug, sp.display_order,
+             t.gender, t.level, ts.id, se.label
+    ORDER BY sc.name, sp.display_order
+    LIMIT 300`;
+}
+
+/**
+ * Creating a team also attaches it to the current season when one exists.
+ * A team with no season cannot hold a roster or a game, so leaving that to a
+ * second step would just produce dead-end teams.
+ */
+export async function createTeam(
+  schoolId: number,
+  sportId: number,
+  gender: string,
+  level: string
+): Promise<{ teamId: number; teamSeasonId: number | null }> {
+  return sql.begin(async (tx) => {
+    const [t] = await tx<{ id: number }[]>`
+      INSERT INTO team (school_id, sport_id, gender, level)
+      VALUES (${schoolId}, ${sportId}, ${gender}::gender, ${level}::team_level)
+      ON CONFLICT (school_id, sport_id, gender, level)
+        DO UPDATE SET level = EXCLUDED.level
+      RETURNING id::int`;
+
+    const [ss] = await tx<{ id: number }[]>`
+      SELECT id::int FROM sport_season
+      WHERE sport_id = ${sportId} AND is_current`;
+    if (!ss) return { teamId: t.id, teamSeasonId: null };
+
+    const [ts] = await tx<{ id: number }[]>`
+      INSERT INTO team_season (team_id, sport_season_id)
+      VALUES (${t.id}, ${ss.id})
+      ON CONFLICT (team_id, sport_season_id)
+        DO UPDATE SET team_id = EXCLUDED.team_id
+      RETURNING id::int`;
+    return { teamId: t.id, teamSeasonId: ts.id };
+  });
+}
+
+export type AdminTeamDetail = {
+  teamId: number;
+  schoolName: string;
+  sportName: string;
+  sportSlug: string;
+  gender: string;
+  level: string;
+  teamSeasonId: number | null;
+  seasonLabel: string | null;
+};
+
+export async function getTeamAdmin(teamId: number) {
+  const rows = await sql<AdminTeamDetail[]>`
+    SELECT t.id::int AS "teamId", sc.name AS "schoolName",
+           sp.name AS "sportName", sp.slug::text AS "sportSlug",
+           t.gender::text AS gender, t.level::text AS level,
+           ts.id::int AS "teamSeasonId", se.label AS "seasonLabel"
+    FROM team t
+    JOIN school sc ON sc.id = t.school_id
+    JOIN sport sp  ON sp.id = t.sport_id
+    LEFT JOIN sport_season ss ON ss.sport_id = t.sport_id AND ss.is_current
+    LEFT JOIN team_season ts  ON ts.team_id = t.id AND ts.sport_season_id = ss.id
+    LEFT JOIN season se       ON se.id = ss.season_id
+    WHERE t.id = ${teamId}`;
+  return rows[0] ?? null;
+}
+
+/* ----------------------------------------------------------- roster */
+
+export type RosterAdminRow = {
+  playerSeasonId: number;
+  playerId: number;
+  firstName: string;
+  lastName: string;
+  jersey: string | null;
+  grade: number | null;
+  hasStats: boolean;
+};
+
+export async function listRosterAdmin(teamSeasonId: number) {
+  return sql<RosterAdminRow[]>`
+    SELECT ps.id::int AS "playerSeasonId", p.id::int AS "playerId",
+           p.first_name AS "firstName", p.last_name AS "lastName",
+           ps.jersey, ps.grade::int,
+           EXISTS (SELECT 1 FROM stat_line sl WHERE sl.player_id = p.id) AS "hasStats"
+    FROM player_season ps
+    JOIN player p ON p.id = ps.player_id
+    WHERE ps.team_season_id = ${teamSeasonId}
+    ORDER BY nullif(regexp_replace(coalesce(ps.jersey,''), '\D', '', 'g'), '')::int
+             NULLS LAST, p.last_name, p.first_name`;
+}
+
+function slugifyName(first: string, last: string): string {
+  return `${first} ${last}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/**
+ * Adds a player to a roster.
+ *
+ * Player slugs are globally unique and two students really can share a name,
+ * so a taken slug gets a numeric suffix rather than colliding or silently
+ * reusing somebody else's player row.
+ */
+export async function addRosterPlayer(input: {
+  teamSeasonId: number;
+  firstName: string;
+  lastName: string;
+  jersey: string | null;
+  grade: number | null;
+}): Promise<{ playerId: number | null; duplicate?: boolean }> {
+  return sql.begin(async (tx) => {
+    // Entering a roster is repetitive and a double-submit is easy. Same name
+    // AND same jersey on the same roster is a mistake, not two students.
+    // Same name with a different jersey is allowed - siblings exist.
+    const [dupe] = await tx<{ one: number }[]>`
+      SELECT 1 AS one
+      FROM player_season ps
+      JOIN player p ON p.id = ps.player_id
+      WHERE ps.team_season_id = ${input.teamSeasonId}
+        AND lower(p.first_name) = lower(${input.firstName})
+        AND lower(p.last_name)  = lower(${input.lastName})
+        AND coalesce(ps.jersey, '') = coalesce(${input.jersey}, '')`;
+    if (dupe) return { playerId: null, duplicate: true };
+
+    const base = slugifyName(input.firstName, input.lastName) || "player";
+    let slug = base;
+    for (let n = 2; n < 60; n++) {
+      const [taken] = await tx<{ one: number }[]>`
+        SELECT 1 AS one FROM player WHERE slug = ${slug}`;
+      if (!taken) break;
+      slug = `${base}-${n}`;
+    }
+
+    const [p] = await tx<{ id: number }[]>`
+      INSERT INTO player (slug, first_name, last_name, data_source_id)
+      SELECT ${slug}, ${input.firstName}, ${input.lastName}, ds.id
+      FROM data_source ds WHERE ds.slug = 'staff-entry'
+      RETURNING id::int`;
+
+    await tx`
+      INSERT INTO player_season (player_id, team_season_id, jersey, grade, data_source_id)
+      SELECT ${p.id}, ${input.teamSeasonId}, ${input.jersey}, ${input.grade}, ds.id
+      FROM data_source ds WHERE ds.slug = 'staff-entry'`;
+
+    return { playerId: p.id };
+  });
+}
+
+export async function updateRosterEntry(
+  teamSeasonId: number,
+  playerSeasonId: number,
+  jersey: string | null,
+  grade: number | null
+) {
+  await sql`
+    UPDATE player_season SET jersey = ${jersey}, grade = ${grade}
+    WHERE id = ${playerSeasonId} AND team_season_id = ${teamSeasonId}`;
+}
+
+/**
+ * Removes a player from this roster. The player row itself stays: stat lines
+ * reference it, and deleting it would break the record and any URL pointing
+ * at it. Refused outright once statistics exist.
+ */
+export async function removeRosterEntry(
+  teamSeasonId: number,
+  playerSeasonId: number
+): Promise<{ removed: boolean; reason?: string }> {
+  const [row] = await sql<{ playerId: number; hasStats: boolean }[]>`
+    SELECT ps.player_id::int AS "playerId",
+           EXISTS (SELECT 1 FROM stat_line sl WHERE sl.player_id = ps.player_id)
+             AS "hasStats"
+    FROM player_season ps
+    WHERE ps.id = ${playerSeasonId} AND ps.team_season_id = ${teamSeasonId}`;
+  if (!row) return { removed: false, reason: "That roster entry no longer exists." };
+  if (row.hasStats) {
+    return {
+      removed: false,
+      reason:
+        "This player already has statistics recorded, so removing them would " +
+        "orphan part of the record. Correct the jersey instead.",
+    };
+  }
+  await sql`DELETE FROM player_season WHERE id = ${playerSeasonId}`;
+  return { removed: true };
+}
+
+/* ------------------------------------------------- selects for forms */
+
+export async function listSchoolsForSelect() {
+  return sql<{ id: number; name: string }[]>`
+    SELECT id::int, name FROM school
+    WHERE is_active AND state = 'KY'
+    ORDER BY name`;
+}
+
+/** Only sports with a season open: a team in a closed sport has nowhere to go. */
+export async function listSportsForSelect() {
+  return sql<{ id: number; name: string; hasSeason: boolean }[]>`
+    SELECT sp.id::int, sp.name,
+           EXISTS (SELECT 1 FROM sport_season ss
+                    WHERE ss.sport_id = sp.id AND ss.is_current) AS "hasSeason"
+    FROM sport sp
+    WHERE sp.is_active
+    ORDER BY sp.display_order`;
+}

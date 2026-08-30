@@ -74,6 +74,13 @@ That skips migrations, which the pipeline runs and this command does not.
   team; re-committing overwrites rather than duplicating, because `stat_line`
   is unique on `(game_id, player_id)`. Corrections are remembered in
   `player_name_alias` so the next upload matches automatically. Baseball only.
+- **Staff data entry** — `/admin/teams` creates teams (school + sport +
+  gender + level, attached to the current season automatically) and
+  `/admin/teams/[id]` manages the roster: add players, correct jersey and
+  grade in place, remove. Name and jersey only — the schema has nowhere to put
+  anything else about a minor. A player with statistics cannot be removed, only
+  corrected. Duplicate name + jersey on one roster is refused as a
+  double-submit; the same name on a different number is allowed.
 - **Admin** — `/admin/users` and `/admin/users/[id]`: search accounts, grant
   and revoke team access, see who issued each grant and when. Restricted to
   `admin` and `staff`; a signed-in coach who guesses the URL gets a 404 rather
@@ -101,10 +108,10 @@ That skips migrations, which the pipeline runs and this command does not.
   basketball, baseball, softball, soccer, volleyball) but
   `UPDATE sport SET is_active = slug IN ('football','basketball')` means only
   two are live. The rest of the KHSAA sports are not in the schema at all.
-- **Teams, seasons and rosters.** 291 schools now exist, but a `school` is not
-  a `team`. Nothing creates `team`, `team_season`, `player` or `player_season`
-  rows, and 17 of 20 sports have no `sport_season` because we do not have KHSAA
-  calendar dates. That is the remaining blocker on a real import.
+- **Games and schedules.** Nothing creates `game` or `game_participant` rows.
+  The importer attaches a box score to a game, so **this is now the last
+  blocker on a real import**. 17 of 20 sports also have no `sport_season`,
+  because we do not have KHSAA calendar dates.
 - **School detail.** Only slug and name are populated. Mascot, city, county,
   colors, venue and KHSAA id are all NULL.
 - **CSV and Excel parsers.** Only the MaxPreps `.txt` is handled. CSV with
@@ -132,6 +139,9 @@ That skips migrations, which the pipeline runs and this command does not.
   password. Fixed by pinning `name: kyboxscore-dev` in `compose.dev.yml` and
   binding its port to loopback. **Check the project name before running any
   compose command on this box.**
+- **Typecheck and build do not execute SQL.** A `GROUP BY` bug in
+  `listTeamsAdmin` passed both and would have been a 500 on the page. Run new
+  queries against the dev database before pushing.
 - **A page with no route params gets prerendered at build time**, and the image
   builds without a database. Any data-backed page needs
   `export const dynamic = "force-dynamic"` or the Docker build fails at export.
@@ -150,8 +160,8 @@ That skips migrations, which the pipeline runs and this command does not.
 
 ## Open items
 
-1. **Staff data entry for schools, teams, seasons and rosters** — the last
-   thing between here and a real import.
+1. **Schedule entry** — create a game between two teams. Last blocker on a
+   real import.
 2. **Refresh rollups after a commit** — imported stats do not reach team or
    leaderboard pages yet.
 3. Season dates per sport, so the other 17 sports can open.

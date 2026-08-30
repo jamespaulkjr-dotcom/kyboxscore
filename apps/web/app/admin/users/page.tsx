@@ -24,9 +24,10 @@ export default async function Page(props: PageProps<"/admin/users">) {
     <>
       <SiteHeader sports={sports} />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
-        <Link href="/coach" className="text-sm text-link underline">
-          ← Back to your teams
-        </Link>
+        <div className="flex flex-wrap gap-4 text-sm">
+          <Link href="/coach" className="text-link underline">← Back to your teams</Link>
+          <Link href="/admin/teams" className="text-link underline">Teams and rosters</Link>
+        </div>
         <h1 className="mt-3 text-xl font-bold tracking-tight sm:text-2xl">Accounts</h1>
         <p className="mt-1 text-sm text-fg-muted">
           Who may enter statistics, and for which teams.
