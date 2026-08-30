@@ -21,6 +21,9 @@
 -- Hopkinsville are Central. Game start times will be an hour off for those
 -- schools until county or city data arrives and the zone is corrected.
 --
+-- A trailing "School" is only dropped when more than one word is left, so
+-- "Louisville Collegiate School" shortens but "David School" stays whole.
+--
 -- Idempotent: re-running updates the names and leaves everything else alone.
 
 INSERT INTO school (slug, name, short_name, state, data_source_id)
@@ -96,7 +99,7 @@ FROM (VALUES
   ('cumberland-county', 'Cumberland County High School', 'Cumberland County'),
   ('danville-christian-academy', 'Danville Christian Academy', 'Danville Christian Academy'),
   ('danville', 'Danville High School', 'Danville'),
-  ('david', 'David School', 'David'),
+  ('david', 'David School', 'David School'),
   ('daviess-county', 'Daviess County High School', 'Daviess County'),
   ('dawson-springs', 'Dawson Springs High School', 'Dawson Springs'),
   ('dayton', 'Dayton High School', 'Dayton'),

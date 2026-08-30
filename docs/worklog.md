@@ -369,3 +369,15 @@ District 2 and Seneca in 5A District 3, so it cannot be one. District status is
 computed from the alignment, which is why the district record reads 0-0 rather
 than 1-0. Either the source's marker means something other than district, or it
 is stale. Raised rather than reconciled.
+
+## 2026-08-30 — "David School" keeps its name
+**Did:** The short-name rule now drops a trailing "School" only when more than
+one word is left. One school in 291 is affected: "David School" stayed
+"David School" instead of becoming "David".
+**Why:** A bare "David" is not a school's name. The rule is a rule, not a
+special case - "Louisville Collegiate School" and "Highlands Latin School" still
+shorten correctly.
+**Context:** David School fields no football team. It is one of 72 Kentucky
+schools on file with no football alignment, which is expected: the alignment
+covers 219 of the 291 schools. The rest appear once basketball and baseball
+have teams.
