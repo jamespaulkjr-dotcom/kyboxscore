@@ -5,3 +5,4 @@ export * from "./auth.ts";
 export * from "./password.ts";
 export * from "./import.ts";
 export * from "./admin.ts";
+export * from "./rollups.ts";

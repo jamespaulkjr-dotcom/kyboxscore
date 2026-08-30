@@ -1,4 +1,5 @@
 import { sql } from "./client.ts";
+import { refreshTeamSeasonRollups } from "./rollups.ts";
 
 /**
  * Import pipeline queries.
@@ -461,6 +462,11 @@ export async function commitImportBatch(
     await tx`
       UPDATE game SET box_score_status = 'partial', updated_at = now()
       WHERE id = ${batch.gameId} AND box_score_status = 'none'`;
+
+    // Rebuild the read model in the same transaction. Without this the import
+    // is correct and completely invisible: team pages and leaderboards read
+    // the rollups, not stat_value.
+    await refreshTeamSeasonRollups(batch.teamSeasonId, tx as never);
 
     return { linesWritten, valuesWritten, rowsSkipped };
   });

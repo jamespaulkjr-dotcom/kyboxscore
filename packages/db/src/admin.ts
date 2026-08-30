@@ -369,3 +369,146 @@ export async function listSportsForSelect() {
     WHERE sp.is_active
     ORDER BY sp.display_order`;
 }
+
+/* ---------------------------------------------------------- schedule */
+
+export type TeamGameRow = {
+  gameId: number;
+  shortCode: string;
+  localDate: string;
+  status: string;
+  isHome: boolean;
+  opponentName: string;
+  ourScore: number | null;
+  theirScore: number | null;
+  boxScoreStatus: string;
+};
+
+export async function listTeamGames(teamSeasonId: number) {
+  return sql<TeamGameRow[]>`
+    SELECT g.id::int AS "gameId", g.short_code::text AS "shortCode",
+           g.local_date::text AS "localDate", g.status::text AS status,
+           (mine.role = 'home') AS "isHome",
+           opp_school.name AS "opponentName",
+           mine.score::int AS "ourScore", opp.score::int AS "theirScore",
+           g.box_score_status AS "boxScoreStatus"
+    FROM team_season ts
+    JOIN game_participant mine ON mine.team_id = ts.team_id
+    JOIN game g ON g.id = mine.game_id AND g.sport_season_id = ts.sport_season_id
+    JOIN game_participant opp ON opp.game_id = g.id AND opp.id <> mine.id
+    JOIN team opp_team     ON opp_team.id = opp.team_id
+    JOIN school opp_school ON opp_school.id = opp_team.school_id
+    WHERE ts.id = ${teamSeasonId}
+    ORDER BY g.local_date DESC`;
+}
+
+/** Opponents to schedule against: other teams in the same sport and season. */
+export async function listOpponentTeams(teamSeasonId: number) {
+  return sql<{ teamId: number; label: string }[]>`
+    SELECT other.id::int AS "teamId",
+           sc.name || ' (' || other.gender::text || ' ' || other.level::text || ')' AS label
+    FROM team_season ts
+    JOIN team mine ON mine.id = ts.team_id
+    JOIN team other ON other.sport_id = mine.sport_id AND other.id <> mine.id
+    JOIN team_season other_ts
+      ON other_ts.team_id = other.id AND other_ts.sport_season_id = ts.sport_season_id
+    JOIN school sc ON sc.id = other.school_id
+    WHERE ts.id = ${teamSeasonId}
+    ORDER BY sc.name`;
+}
+
+/**
+ * Short codes are the shareable permalink component (/baseball/2027/g/7fkq2m).
+ * Random rather than sequential so one game's URL does not disclose how many
+ * games exist or let someone walk the whole schedule.
+ */
+function shortCode(): string {
+  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789"; // no look-alikes
+  let out = "";
+  for (let i = 0; i < 6; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
+export type CreateGameResult =
+  | { ok: true; gameId: number }
+  | { ok: false; reason: string };
+
+export async function createGame(input: {
+  teamSeasonId: number;
+  opponentTeamId: number;
+  localDate: string;
+  isHome: boolean;
+  status: string;
+  ourScore: number | null;
+  theirScore: number | null;
+}): Promise<CreateGameResult> {
+  const [ts] = await sql<{ teamId: number; sportSeasonId: number }[]>`
+    SELECT team_id::int AS "teamId", sport_season_id::int AS "sportSeasonId"
+    FROM team_season WHERE id = ${input.teamSeasonId}`;
+  if (!ts) return { ok: false, reason: "That team season no longer exists." };
+  if (input.opponentTeamId === ts.teamId) {
+    return { ok: false, reason: "A team cannot play itself." };
+  }
+
+  try {
+    return await sql.begin(async (tx) => {
+      let code = shortCode();
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const [taken] = await tx<{ one: number }[]>`
+          SELECT 1 AS one FROM game WHERE short_code = ${code}`;
+        if (!taken) break;
+        code = shortCode();
+      }
+
+      const [g] = await tx<{ id: number }[]>`
+        INSERT INTO game (sport_season_id, short_code, local_date, status)
+        VALUES (${ts.sportSeasonId}, ${code}, ${input.localDate}::date,
+                ${input.status}::game_status)
+        RETURNING id::int`;
+
+      // Both participants must land in one transaction: the "exactly two
+      // participants" trigger is DEFERRABLE INITIALLY DEFERRED.
+      const rows = input.isHome
+        ? [
+            { team: ts.teamId, role: "home", score: input.ourScore },
+            { team: input.opponentTeamId, role: "away", score: input.theirScore },
+          ]
+        : [
+            { team: input.opponentTeamId, role: "home", score: input.theirScore },
+            { team: ts.teamId, role: "away", score: input.ourScore },
+          ];
+      for (const r of rows) {
+        await tx`
+          INSERT INTO game_participant (game_id, team_id, role, score)
+          VALUES (${g.id}, ${r.team}, ${r.role}::participant_role, ${r.score})`;
+      }
+      return { ok: true as const, gameId: g.id };
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // game_natural_key: (team_pair_key, local_date). These two teams already
+    // have a game on this date, which is the schema refusing a duplicate.
+    if (message.includes("game_natural_key")) {
+      return {
+        ok: false,
+        reason: "These two teams already have a game on that date.",
+      };
+    }
+    return { ok: false, reason: message };
+  }
+}
+
+export async function deleteGame(gameId: number): Promise<{ ok: boolean; reason?: string }> {
+  const [row] = await sql<{ hasStats: boolean }[]>`
+    SELECT EXISTS (SELECT 1 FROM stat_line WHERE game_id = ${gameId}) AS "hasStats"`;
+  if (row?.hasStats) {
+    return {
+      ok: false,
+      reason: "This game has a box score recorded. Delete the statistics first.",
+    };
+  }
+  await sql`DELETE FROM game WHERE id = ${gameId}`;
+  return { ok: true };
+}

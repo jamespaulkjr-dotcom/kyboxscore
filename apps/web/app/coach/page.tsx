@@ -37,14 +37,19 @@ export default async function Page() {
               {ROLE_LABEL[user.role] ?? user.role} · {user.email}
             </p>
           </div>
-          <form action={logout}>
+          <div className="flex items-center gap-3">
+            <Link href="/account/password" className="text-sm text-link underline">
+              Change password
+            </Link>
+            <form action={logout}>
             <button
               type="submit"
               className="min-h-11 rounded-md border border-border px-4 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-link"
             >
               Sign out
-            </button>
-          </form>
+              </button>
+            </form>
+          </div>
         </div>
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-fg-muted">

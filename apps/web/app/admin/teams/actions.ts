@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   addRosterPlayer,
+  createGame,
   createTeam,
+  deleteGame,
   getTeamAdmin,
   removeRosterEntry,
   updateRosterEntry,
@@ -115,5 +117,76 @@ export async function removeRosterAction(formData: FormData) {
   if (!team?.teamSeasonId) return;
 
   await removeRosterEntry(team.teamSeasonId, playerSeasonId);
+  revalidatePath(`/admin/teams/${teamId}`);
+}
+
+/* ---------------------------------------------------------- schedule */
+
+const STATUSES = new Set(["scheduled", "in_progress", "final", "postponed", "cancelled"]);
+
+export type GameState = { error?: string; added?: string };
+
+export async function addGameAction(
+  _prev: GameState,
+  formData: FormData
+): Promise<GameState> {
+  await requireAdmin("/admin/teams");
+
+  const teamId = Number(formData.get("teamId"));
+  const opponentTeamId = Number(formData.get("opponentTeamId"));
+  const localDate = String(formData.get("localDate") ?? "").trim();
+  const isHome = String(formData.get("venue") ?? "home") === "home";
+  const status = String(formData.get("status") ?? "scheduled");
+  const ourRaw = String(formData.get("ourScore") ?? "").trim();
+  const theirRaw = String(formData.get("theirScore") ?? "").trim();
+
+  if (!Number.isInteger(opponentTeamId) || opponentTeamId <= 0) {
+    return { error: "Choose an opponent." };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate)) {
+    return { error: "Enter the date as YYYY-MM-DD." };
+  }
+  if (!STATUSES.has(status)) return { error: "Choose a valid status." };
+
+  const num = (raw: string) => (raw === "" ? null : Number(raw));
+  const ourScore = num(ourRaw);
+  const theirScore = num(theirRaw);
+  for (const v of [ourScore, theirScore]) {
+    if (v !== null && (!Number.isInteger(v) || v < 0)) {
+      return { error: "Scores must be whole numbers, or left blank." };
+    }
+  }
+  // A final game without a score cannot produce a record or an RPI, so say so
+  // now rather than letting it sit wrong.
+  if (status === "final" && (ourScore === null || theirScore === null)) {
+    return { error: "A final game needs both scores." };
+  }
+
+  const team = await getTeamAdmin(teamId);
+  if (!team?.teamSeasonId) {
+    return { error: "This team has no season open, so it cannot be scheduled." };
+  }
+
+  const result = await createGame({
+    teamSeasonId: team.teamSeasonId,
+    opponentTeamId,
+    localDate,
+    isHome,
+    status,
+    ourScore,
+    theirScore,
+  });
+  if (!result.ok) return { error: result.reason };
+
+  revalidatePath(`/admin/teams/${teamId}`);
+  return { added: `Game on ${localDate} added.` };
+}
+
+export async function deleteGameAction(formData: FormData) {
+  await requireAdmin("/admin/teams");
+  const teamId = Number(formData.get("teamId"));
+  const gameId = Number(formData.get("gameId"));
+  if (!Number.isInteger(gameId)) return;
+  await deleteGame(gameId);
   revalidatePath(`/admin/teams/${teamId}`);
 }

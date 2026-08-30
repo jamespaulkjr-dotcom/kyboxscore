@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTeamAdmin, listRosterAdmin, listSports } from "@kyboxscore/db";
+import {
+  getTeamAdmin,
+  listOpponentTeams,
+  listRosterAdmin,
+  listSports,
+  listTeamGames,
+} from "@kyboxscore/db";
 import { SiteHeader } from "../../../components/site-header";
 import { requireAdmin } from "../../../../lib/auth";
-import { removeRosterAction, updateRosterAction } from "../actions";
+import { deleteGameAction, removeRosterAction, updateRosterAction } from "../actions";
+import { AddGameForm } from "./add-game-form";
 import { AddPlayerForm } from "./add-player-form";
 
 export const metadata: Metadata = {
@@ -21,8 +28,10 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
   const team = await getTeamAdmin(teamId);
   if (!team) notFound();
 
-  const [roster, navSports] = await Promise.all([
+  const [roster, games, opponents, navSports] = await Promise.all([
     team.teamSeasonId ? listRosterAdmin(team.teamSeasonId) : Promise.resolve([]),
+    team.teamSeasonId ? listTeamGames(team.teamSeasonId) : Promise.resolve([]),
+    team.teamSeasonId ? listOpponentTeams(team.teamSeasonId) : Promise.resolve([]),
     listSports(),
   ]);
 
@@ -125,6 +134,63 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
                           Remove
                         </button>
                       </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+              Add a game
+            </h2>
+            <AddGameForm teamId={teamId} opponents={opponents} />
+
+            <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+              Schedule · {games.length} game{games.length === 1 ? "" : "s"}
+            </h2>
+            {games.length === 0 ? (
+              <p className="mt-2 rounded-lg border border-border bg-surface px-4 py-5 text-sm text-fg-muted">
+                No games yet. A box score import attaches to a game, so at least
+                one has to exist before statistics can be uploaded.
+              </p>
+            ) : (
+              <ul className="mt-2 overflow-hidden rounded-lg border border-border bg-surface">
+                {games.map((g) => (
+                  <li
+                    key={g.gameId}
+                    className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-0"
+                  >
+                    <span>
+                      <span className="font-medium">
+                        {g.isHome ? "vs" : "at"} {g.opponentName}
+                      </span>
+                      <span className="ml-2 text-sm text-fg-muted">
+                        {g.localDate} · {g.status.replace("_", " ")}
+                        {g.ourScore !== null && g.theirScore !== null
+                          ? ` · ${g.ourScore}–${g.theirScore}`
+                          : ""}
+                      </span>
+                      <span className="block text-xs text-fg-muted">
+                        {g.boxScoreStatus === "none"
+                          ? "no box score yet"
+                          : `box score: ${g.boxScoreStatus}`}
+                      </span>
+                    </span>
+                    {g.boxScoreStatus === "none" ? (
+                      <form action={deleteGameAction}>
+                        <input type="hidden" name="teamId" value={teamId} />
+                        <input type="hidden" name="gameId" value={g.gameId} />
+                        <button
+                          type="submit"
+                          className="min-h-9 rounded-md border border-border px-3 text-sm font-medium text-loss"
+                        >
+                          Delete
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="text-xs text-fg-muted">
+                        has statistics — cannot be deleted
+                      </span>
                     )}
                   </li>
                 ))}

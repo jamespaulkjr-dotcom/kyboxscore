@@ -202,3 +202,30 @@ stat_line count held. Nothing was written to production: the site is public and
 that would publish real students' names before launch.
 **Next:** schedule entry — `game` and `game_participant` — is the last blocker
 on a real import.
+
+## 2026-08-30 — Schedules, rollups, password change, integration test
+**Did:** Four things, uninterrupted, on a standing go-ahead.
+1. **Schedule entry** on the team page — opponent, date, home/away, status,
+   scores. The schema's natural key (`team_pair_key`, `local_date`) already
+   refused duplicate games, so that error is caught and reported in plain
+   words rather than leaking a constraint name. A game with a box score cannot
+   be deleted.
+2. **Rollup refresh on import commit** — `refreshTeamSeasonRollups` rebuilds
+   `player_season_stat`, `team_season_stat` and `team_season_record` inside
+   the commit transaction. Recomputed wholesale rather than incremented, so a
+   re-import converges instead of drifting. Honours each stat's
+   `season_aggregation` (sum/avg/max/min) instead of assuming sum.
+3. **`/account/password`** — changing a password revokes every session and
+   reissues the current one, so the person making the change is not logged out
+   mid-task while a leaked session dies immediately.
+4. **`packages/db/test/import-pipeline.test.ts`** — the whole chain, asserted
+   against the PDF box score. Skips without `DATABASE_URL`, runs in CI.
+**Learned:** The prerender trap bit again on `/account/password` — any
+data-backed page with no route params needs `force-dynamic` or the image build
+fails at export. Caught locally this time because the rule was already written
+down, which is the waypoint files doing their job.
+**Still needs James:** school time zones (needs county data), the official name
+behind "Competitive", Cloudflare (needs his account), and KHSAA season dates
+for the other 17 sports.
+**Next:** alignments — no team is in a district or region, so records and RPI
+have nothing to classify against.
