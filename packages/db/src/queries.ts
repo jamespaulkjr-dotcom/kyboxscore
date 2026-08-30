@@ -469,3 +469,129 @@ export async function getDefaultSportSlug(): Promise<string> {
     LIMIT 1`;
   return rows[0]?.slug ?? "basketball";
 }
+
+export type DistrictStanding = {
+  teamId: number;
+  schoolName: string;
+  schoolSlug: string;
+  className: string;
+  classOrdinal: number;
+  districtName: string;
+  districtOrdinal: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  districtWins: number;
+  districtLosses: number;
+  districtRank: number;
+  stateRank: number | null;
+  rpi: number | null;
+};
+
+/**
+ * District standings, ordered by district record.
+ *
+ * District placement decides the postseason, and it is decided by district
+ * record - not by RPI and not by overall record. Those are shown alongside
+ * because they are what people argue about, but they do not drive the order.
+ *
+ * Ordering is district win percentage, then overall win percentage, then name.
+ * KHSAA's formal tie-breaking procedure (head to head, then common opponents,
+ * and so on) is NOT implemented: a tie here is displayed as a tie in position
+ * rather than silently resolved by a rule we made up.
+ */
+export async function getDistrictStandings(sportSeasonId: number) {
+  return sql<DistrictStanding[]>`
+    WITH latest_run AS (
+      SELECT max(id) AS id FROM rpi_run
+      WHERE sport_season_id = ${sportSeasonId} AND variant = 'official'
+    ),
+    base AS (
+      SELECT t.id AS team_id,
+             coalesce(sc.short_name, sc.name) AS school_name,
+             sc.slug::text AS school_slug,
+             parent.name AS class_name, parent.ordinal AS class_ordinal,
+             a.id AS alignment_id, a.name AS district_name, a.ordinal AS district_ordinal,
+             coalesce(rec.wins, 0) AS wins,
+             coalesce(rec.losses, 0) AS losses,
+             coalesce(rec.ties, 0) AS ties,
+             coalesce(rec.district_wins, 0) AS dw,
+             coalesce(rec.district_losses, 0) AS dl,
+             rr.state_rank, rr.rpi
+      FROM team_season ts
+      JOIN team t   ON t.id = ts.team_id
+      JOIN school sc ON sc.id = t.school_id
+      JOIN alignment a      ON a.id = ts.alignment_id
+      JOIN alignment parent ON parent.id = a.parent_id
+      LEFT JOIN team_season_record rec ON rec.team_season_id = ts.id
+      LEFT JOIN rpi_result rr
+             ON rr.team_id = t.id
+            AND rr.rpi_run_id = (SELECT id FROM latest_run)
+      WHERE ts.sport_season_id = ${sportSeasonId}
+    )
+    SELECT team_id::int AS "teamId", school_name AS "schoolName",
+           school_slug AS "schoolSlug",
+           class_name AS "className", class_ordinal::int AS "classOrdinal",
+           district_name AS "districtName", district_ordinal::int AS "districtOrdinal",
+           wins::int, losses::int, ties::int,
+           dw::int AS "districtWins", dl::int AS "districtLosses",
+           row_number() OVER (
+             PARTITION BY alignment_id
+             -- A team with no games is neutral, not last: 0-0 must outrank
+             -- 0-1 and be outranked by 1-0.
+             ORDER BY CASE WHEN dw + dl = 0 THEN 0.5
+                           ELSE dw::float8 / (dw + dl) END DESC,
+                      CASE WHEN wins + losses + ties = 0 THEN 0.5
+                           ELSE (wins + 0.5 * ties) / (wins + losses + ties) END DESC,
+                      school_name
+           )::int AS "districtRank",
+           state_rank::int AS "stateRank",
+           rpi::float8 AS rpi
+    FROM base
+    ORDER BY class_ordinal, district_ordinal, "districtRank"`;
+}
+
+/** One team's placement: statewide by RPI, and inside its district by record. */
+export async function getTeamRankings(sportSeasonId: number, schoolSlug: string) {
+  const rows = await sql<
+    { stateRank: number | null; classRank: number | null; districtRank: number | null; rpi: number | null }[]
+  >`
+    WITH latest_run AS (
+      SELECT max(id) AS id FROM rpi_run
+      WHERE sport_season_id = ${sportSeasonId} AND variant = 'official'
+    ),
+    district AS (
+      SELECT sc.slug AS slug,
+             row_number() OVER (
+               PARTITION BY a.id
+               ORDER BY CASE WHEN coalesce(rec.district_wins,0) + coalesce(rec.district_losses,0) = 0
+                             THEN 0.5
+                             ELSE coalesce(rec.district_wins,0)::float8
+                                  / (coalesce(rec.district_wins,0) + coalesce(rec.district_losses,0))
+                        END DESC,
+                        CASE WHEN coalesce(rec.wins,0) + coalesce(rec.losses,0) + coalesce(rec.ties,0) = 0
+                             THEN 0.5
+                             ELSE (coalesce(rec.wins,0) + 0.5 * coalesce(rec.ties,0))
+                                  / (coalesce(rec.wins,0) + coalesce(rec.losses,0) + coalesce(rec.ties,0))
+                        END DESC,
+                        coalesce(sc.short_name, sc.name)
+             ) AS rn
+      FROM team_season ts
+      JOIN team t    ON t.id = ts.team_id
+      JOIN school sc ON sc.id = t.school_id
+      JOIN alignment a ON a.id = ts.alignment_id
+      LEFT JOIN team_season_record rec ON rec.team_season_id = ts.id
+      WHERE ts.sport_season_id = ${sportSeasonId}
+    )
+    SELECT rr.state_rank::int AS "stateRank", rr.class_rank::int AS "classRank",
+           d.rn::int AS "districtRank", rr.rpi::float8 AS rpi
+    FROM school sc
+    JOIN team t ON t.school_id = sc.id
+    JOIN team_season ts ON ts.team_id = t.id AND ts.sport_season_id = ${sportSeasonId}
+    LEFT JOIN rpi_result rr
+           ON rr.team_id = t.id AND rr.rpi_run_id = (SELECT id FROM latest_run)
+    LEFT JOIN district d ON d.slug = sc.slug
+    WHERE sc.slug = ${schoolSlug}
+    LIMIT 1`;
+  return rows[0] ?? null;
+}

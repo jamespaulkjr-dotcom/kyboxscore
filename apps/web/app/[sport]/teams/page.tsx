@@ -28,7 +28,15 @@ export default async function Page(props: PageProps<"/[sport]/teams">) {
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
           {season.sportName} teams
         </h1>
-        <p className="text-sm text-fg-muted">
+        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <Link href={`/${sport}/standings`} className="text-link underline">
+            District standings →
+          </Link>
+          <Link href={`/${sport}/rpi`} className="text-link underline">
+            RPI ranking →
+          </Link>
+        </p>
+        <p className="mt-2 text-sm text-fg-muted">
           {teams.length} teams · {season.seasonLabel}
         </p>
         <ul className="mt-5 grid grid-cols-1 gap-x-6 overflow-hidden rounded-lg border border-border bg-surface px-4 sm:grid-cols-2">

@@ -381,3 +381,20 @@ shorten correctly.
 schools on file with no football alignment, which is expected: the alignment
 covers 219 of the 291 schools. The rest appear once basketball and baseball
 have teams.
+
+## 2026-08-30 — Rankings: statewide by RPI, district by record
+**Did:** `/[sport]/standings` — district standings ordered by district record,
+grouped by class. Team pages now show "State #1 · 1st in 4A District 2", each
+linking to the table it comes from. `getDistrictStandings` and
+`getTeamRankings` in the db package.
+**Why:** Two different questions. RPI answers "who is best in Kentucky";
+district record answers "who gets seeded where", and only the second decides
+the postseason.
+**Learned:** The first ordering ranked an 0-1 team above four teams that had not
+played, because "no games" was scored as worse than a loss. A team that has not
+played is neutral (0.5), not last — 0-0 must outrank 0-1 and be outranked by
+1-0. Caught only by looking at a real district table.
+**Deliberately not done:** KHSAA's tie-breaking procedure — head to head, then
+common opponents. Teams level on district record are ordered by overall record
+then alphabetically, and the page says so. Inventing a tie-break would be worse
+than showing a tie.

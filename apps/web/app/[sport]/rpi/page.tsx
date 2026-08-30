@@ -49,6 +49,12 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
           {season.sportName} RPI
         </h1>
 
+        <p className="mt-2 text-sm">
+          <Link href={`/${sport}/standings`} className="text-link underline">
+            District standings →
+          </Link>
+        </p>
+
         {run ? (
           <p className="mt-1 text-sm text-fg-muted">
             Through {run.throughDate} · computed {run.computedAt.slice(0, 16).replace("T", " ")}

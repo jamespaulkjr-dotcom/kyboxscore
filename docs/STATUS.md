@@ -112,6 +112,14 @@ That skips migrations, which the pipeline runs and this command does not.
 - **Alignments** — a team's district is set on its team page, from the
   districts that exist for its sport and gender. Drives district records and
   the RPI class factor. Left unassigned rather than guessed.
+- **Rankings** — two of them, answering different questions.
+  `/[sport]/rpi` is the statewide order by RPI. `/[sport]/standings` is
+  district placement **by district record**, which is what decides the
+  postseason — RPI and overall record are shown there but do not move a team
+  up the table. Team pages carry both: "State #1 · 1st in 4A District 2".
+  A team with no games ranks as neutral, not last, so 0-0 outranks 0-1.
+  KHSAA's formal tie-breaks (head to head, common opponents) are **not**
+  implemented; a real tie is displayed as a tie.
 - **Records** — overall and district, shown as `2-0 (District 0-0)` on team
   pages and in the teams index. **District games are determined by the
   alignment, not by whatever a schedule document claims** — two teams are in

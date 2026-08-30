@@ -5,6 +5,7 @@ import {
   getRoster,
   getSportSeason,
   getTeamSchedule,
+  getTeamRankings,
   getTeamSeason,
   getTeamSeasonStats,
   listSports,
@@ -44,12 +45,23 @@ export default async function Page(
   if (!data) notFound();
   const { season, team } = data;
 
-  const [sports, schedule, roster, stats] = await Promise.all([
+  const [sports, schedule, roster, stats, ranks] = await Promise.all([
     listSports(),
     getTeamSchedule(season.id, team.teamId),
     getRoster(team.teamSeasonId),
     getTeamSeasonStats(team.teamSeasonId),
+    getTeamRankings(season.id, team.schoolSlug),
   ]);
+
+  // "2nd" reads better than "#2" for a district position, which is a placing
+  // rather than a rank out of the whole state.
+  const ordinal = (n: number) => {
+    const suffix =
+      n % 100 >= 11 && n % 100 <= 13
+        ? "th"
+        : ["th", "st", "nd", "rd"][n % 10] ?? "th";
+    return `${n}${suffix}`;
+  };
 
   return (
     <>
@@ -72,6 +84,22 @@ export default async function Page(
             <span className="tabular text-fg-muted">
               (District {team.districtWins}-{team.districtLosses})
             </span>
+          )}
+          {ranks?.stateRank && (
+            <>
+              <span>·</span>
+              <Link href={`/${sport}/rpi`} className="text-link underline">
+                State #{ranks.stateRank}
+              </Link>
+            </>
+          )}
+          {ranks?.districtRank && team.districtName && (
+            <>
+              <span>·</span>
+              <Link href={`/${sport}/standings`} className="text-link underline">
+                {ordinal(ranks.districtRank)} in {team.districtName}
+              </Link>
+            </>
           )}
           <span>·</span>
           <span>{season.sportName} {season.seasonLabel}</span>
