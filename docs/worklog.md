@@ -229,3 +229,28 @@ behind "Competitive", Cloudflare (needs his account), and KHSAA season dates
 for the other 17 sports.
 **Next:** alignments — no team is in a district or region, so records and RPI
 have nothing to classify against.
+
+## 2026-08-30 — Alignments and schedule import
+**Did:** District assignment on the team page, and `/admin/schedule` — paste a
+block of games, preview what it resolved to, commit. `parseScheduleText` in
+`packages/parsers` (10 tests) and `matchSchoolNames` / `commitSchedule` in
+`packages/db`.
+**Why:** James asked for football schedules on the site. Scraping KHSAA,
+ArbiterLive or Riherds is a hard rule in CLAUDE.md — the constraint is those
+sites' terms, not copyright in the facts — so the answer is the same one that
+worked for the 291 schools: he supplies the data, we make ingesting it fast.
+**Learned:** **`\s` does not survive into a Postgres regex** from a JS template
+literal. `regexp_replace(name, '\s+...High\s+School$', ...)` silently matched
+nothing, so the similarity search was comparing against the full name and
+"Paduka Tilghman" scored 0.406 — under the floor. With `[[:space:]]` it scores
+0.65 and matches. A silent no-op regex is the worst kind: everything "works".
+Also: the integration test only passed on a clean database. It now clears its
+own prior game and roster, and the deletion order is fiddly — `game` cascades
+to `stat_line`, but `import_batch` references `game` while `stat_line`
+references `import_batch`, so the cascade cannot start until both are cleared
+by hand. Verified by running the suite twice: 60/60 both times.
+**Design note:** ambiguous school names are never guessed. "Trinity" matches
+two schools, so the row is skipped and both candidates are shown — the same
+rule the box score importer uses for a jersey worn by two players.
+**Next:** district data and season dates are both blocked on James. The RPI
+engine is unit tested but has never run against the database.

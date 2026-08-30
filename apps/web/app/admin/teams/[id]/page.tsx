@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getTeamAdmin,
+  getTeamSeasonAlignment,
+  listAlignmentsForTeam,
   listOpponentTeams,
   listRosterAdmin,
   listSports,
@@ -10,7 +12,12 @@ import {
 } from "@kyboxscore/db";
 import { SiteHeader } from "../../../components/site-header";
 import { requireAdmin } from "../../../../lib/auth";
-import { deleteGameAction, removeRosterAction, updateRosterAction } from "../actions";
+import {
+  deleteGameAction,
+  removeRosterAction,
+  setAlignmentAction,
+  updateRosterAction,
+} from "../actions";
 import { AddGameForm } from "./add-game-form";
 import { AddPlayerForm } from "./add-player-form";
 
@@ -28,12 +35,15 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
   const team = await getTeamAdmin(teamId);
   if (!team) notFound();
 
-  const [roster, games, opponents, navSports] = await Promise.all([
-    team.teamSeasonId ? listRosterAdmin(team.teamSeasonId) : Promise.resolve([]),
-    team.teamSeasonId ? listTeamGames(team.teamSeasonId) : Promise.resolve([]),
-    team.teamSeasonId ? listOpponentTeams(team.teamSeasonId) : Promise.resolve([]),
-    listSports(),
-  ]);
+  const [roster, games, opponents, alignments, currentAlignment, navSports] =
+    await Promise.all([
+      team.teamSeasonId ? listRosterAdmin(team.teamSeasonId) : Promise.resolve([]),
+      team.teamSeasonId ? listTeamGames(team.teamSeasonId) : Promise.resolve([]),
+      team.teamSeasonId ? listOpponentTeams(team.teamSeasonId) : Promise.resolve([]),
+      team.teamSeasonId ? listAlignmentsForTeam(team.teamSeasonId) : Promise.resolve([]),
+      team.teamSeasonId ? getTeamSeasonAlignment(team.teamSeasonId) : Promise.resolve(null),
+      listSports(),
+    ]);
 
   return (
     <>
@@ -58,6 +68,37 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
           </p>
         ) : (
           <>
+            <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+              District
+            </h2>
+            <form action={setAlignmentAction} className="mt-2 flex flex-wrap items-end gap-2">
+              <input type="hidden" name="teamId" value={teamId} />
+              <div className="min-w-[16rem] flex-1">
+                <label htmlFor="alignmentId" className="sr-only">District</label>
+                <select
+                  id="alignmentId"
+                  name="alignmentId"
+                  defaultValue={currentAlignment?.alignmentId ?? ""}
+                  className="min-h-11 w-full rounded-md border border-border bg-surface px-3 text-fg"
+                >
+                  <option value="">Not assigned</option>
+                  {alignments.map((a) => (
+                    <option key={a.alignmentId} value={a.alignmentId}>
+                      {a.parentName ? `${a.parentName} · ` : ""}{a.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button type="submit" className="min-h-11 rounded-md border border-border px-4 font-medium">
+                Save
+              </button>
+            </form>
+            <p className="mt-2 text-xs text-fg-muted">
+              {alignments.length === 0
+                ? "No district structure exists for this sport yet."
+                : "District membership drives district records and the RPI class factor. Leave it unassigned rather than guessing."}
+            </p>
+
             <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-fg-muted">
               Add a player
             </h2>

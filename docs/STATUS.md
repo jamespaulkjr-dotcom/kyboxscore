@@ -74,6 +74,16 @@ That skips migrations, which the pipeline runs and this command does not.
   team; re-committing overwrites rather than duplicating, because `stat_line`
   is unique on `(game_id, player_id)`. Corrections are remembered in
   `player_name_alias` so the next upload matches automatically. Baseball only.
+- **Schedule import** — `/admin/schedule`: paste a block of games (comma, tab
+  or pipe separated; ISO or US dates; optional scores) and it becomes real
+  fixtures. Schools are matched by name — exact, then substring, then trigram
+  similarity against both the full and the suffix-stripped name. An ambiguous
+  name like "Trinity" is **never guessed**: the row is skipped and both
+  candidates are shown. Teams are created on demand for schools that lack one.
+  Re-pasting is safe; the schema's natural key recognises an existing game.
+- **Alignments** — a team's district is set on its team page, from the
+  districts that exist for its sport and gender. Drives district records and
+  the RPI class factor. Left unassigned rather than guessed.
 - **Schedules** — games are created on the team page: opponent, date,
   home/away, status, scores. Duplicate games are refused by the schema's
   natural key (same two teams, same date). A game with a box score cannot be
@@ -117,9 +127,10 @@ That skips migrations, which the pipeline runs and this command does not.
 - **Season dates for 17 of 20 sports.** Only football, basketball and baseball
   have a `sport_season`, so only those can hold teams. Needs the KHSAA
   calendar.
-- **Alignments are not assigned.** Districts and regions exist as structure but
-  no team is placed in one, so `district_wins`/`district_losses` stay 0 and RPI
-  has no class factor to work with.
+- **Which school is in which district.** The structure exists and the
+  assignment UI exists, but no team is placed yet — that is a factual claim
+  that has to come from a permitted source. Until then `district_wins` and
+  `district_losses` stay 0 and RPI has no class factor.
 - **School detail.** Only slug and name are populated. Mascot, city, county,
   colors, venue and KHSAA id are all NULL.
 - **CSV and Excel parsers.** Only the MaxPreps `.txt` is handled. CSV with
@@ -148,6 +159,14 @@ That skips migrations, which the pipeline runs and this command does not.
   (`packages/db/test/import-pipeline.test.ts`). It skips without
   `DATABASE_URL` and runs in CI, asserting every batting line against the PDF
   box score of the same game. 49 tests total.
+- **`\s` does not survive into a Postgres regex** the way you expect from a
+  JS template literal — a `regexp_replace` using it silently matched nothing
+  and the similarity search quietly under-performed. Use POSIX classes
+  (`[[:space:]]`) in SQL.
+- **A DB test that only passes on a pristine database is a weak test.** The
+  import test clears its own roster and prior game first, and deletion order
+  matters: `game` cascades to `stat_line`, but `import_batch` references
+  `game` and `stat_line` references `import_batch`.
 - **Typecheck and build do not execute SQL.** A `GROUP BY` bug in
   `listTeamsAdmin` passed both and would have been a 500 on the page. Run new
   queries against the dev database before pushing.
@@ -170,7 +189,9 @@ That skips migrations, which the pipeline runs and this command does not.
 ## Open items
 
 1. Season dates per sport, so the other 17 sports can open.
-2. Assign teams to districts/regions so records and RPI mean something.
+2. District assignments, once the alignment data is to hand.
+3. Wire the RPI engine to real data — it is unit tested but never run against
+   the database.
 4. CSV parser with interactive column mapping, then Excel.
 5. Column maps for basketball and football.
 6. Front page is bare — reads as a stub rather than a product.

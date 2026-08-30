@@ -512,3 +512,53 @@ export async function deleteGame(gameId: number): Promise<{ ok: boolean; reason?
   await sql`DELETE FROM game WHERE id = ${gameId}`;
   return { ok: true };
 }
+
+/* -------------------------------------------------------- alignments */
+
+export type AlignmentOption = {
+  alignmentId: number;
+  label: string;
+  parentName: string | null;
+};
+
+/**
+ * Leaf alignments (districts) a team could belong to, for its own sport and
+ * gender, still in effect. The parent — class or region — travels with it,
+ * because "District 3" is meaningless without knowing which class it is in.
+ */
+export async function listAlignmentsForTeam(teamSeasonId: number) {
+  return sql<AlignmentOption[]>`
+    SELECT a.id::int AS "alignmentId", a.name AS label,
+           parent.name AS "parentName"
+    FROM team_season ts
+    JOIN team t ON t.id = ts.team_id
+    JOIN alignment a
+      ON a.sport_id = t.sport_id
+     AND a.gender = t.gender
+     AND a.kind = 'district'
+     AND a.effective_to IS NULL
+    LEFT JOIN alignment parent ON parent.id = a.parent_id
+    WHERE ts.id = ${teamSeasonId}
+    ORDER BY parent.ordinal NULLS LAST, a.ordinal`;
+}
+
+export async function setTeamSeasonAlignment(
+  teamSeasonId: number,
+  alignmentId: number | null
+) {
+  await sql`
+    UPDATE team_season SET alignment_id = ${alignmentId}
+    WHERE id = ${teamSeasonId}`;
+}
+
+export async function getTeamSeasonAlignment(teamSeasonId: number) {
+  const rows = await sql<
+    { alignmentId: number; name: string; parentName: string | null }[]
+  >`
+    SELECT a.id::int AS "alignmentId", a.name, parent.name AS "parentName"
+    FROM team_season ts
+    JOIN alignment a ON a.id = ts.alignment_id
+    LEFT JOIN alignment parent ON parent.id = a.parent_id
+    WHERE ts.id = ${teamSeasonId}`;
+  return rows[0] ?? null;
+}

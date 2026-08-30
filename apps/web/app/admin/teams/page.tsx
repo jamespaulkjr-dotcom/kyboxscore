@@ -31,9 +31,10 @@ export default async function Page(props: PageProps<"/admin/teams">) {
     <>
       <SiteHeader sports={navSports} />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-        <Link href="/admin/users" className="text-sm text-link underline">
-          ← Accounts
-        </Link>
+        <div className="flex flex-wrap gap-4 text-sm">
+          <Link href="/admin/users" className="text-link underline">← Accounts</Link>
+          <Link href="/admin/schedule" className="text-link underline">Import a schedule</Link>
+        </div>
         <h1 className="mt-3 text-xl font-bold tracking-tight sm:text-2xl">Teams</h1>
         <p className="mt-1 text-sm text-fg-muted">
           A school is not a team. A team is a school, a sport, boys or girls,

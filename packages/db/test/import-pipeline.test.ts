@@ -9,13 +9,22 @@
  * The expected numbers come from the PDF box score of the same game, an
  * independent source the importer never sees.
  */
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const opts = { skip: HAS_DB ? false : "DATABASE_URL is not set" };
+
+// The pool is shared across tests in this file, so it is closed once at the
+// end rather than in each test - closing it early left later tests with a dead
+// connection.
+after(async () => {
+  if (!HAS_DB) return;
+  const { sql } = await import("../src/index.ts");
+  await sql.end();
+});
 
 const FIXTURE = path.join(
   import.meta.dirname,
@@ -62,6 +71,25 @@ test("a real MaxPreps export imports and reconciles with the printed box score",
     const away = await db.createTeam(opponent.id, sport.id, "boys", "varsity");
     assert.ok(home.teamSeasonId, "baseball must have a current season");
 
+    // Re-runnable on a database that already has a previous run's game: the
+    // natural key (both teams, same date) would otherwise refuse it, and a
+    // test that only passes on a pristine database is a weak test.
+    //
+    // Order matters. game cascades to stat_line, but import_batch references
+    // game and stat_line references import_batch, so the cascade cannot get
+    // started until those are cleared by hand.
+    const stale = await sql<{ id: number }[]>`
+      SELECT DISTINCT g.id::int
+      FROM game g
+      JOIN game_participant gp ON gp.game_id = g.id
+      WHERE g.local_date = DATE '2027-05-13'
+        AND gp.team_id IN (${home.teamId}, ${away.teamId})`;
+    for (const g of stale) {
+      await sql`DELETE FROM stat_line WHERE game_id = ${g.id}`;
+      await sql`DELETE FROM import_batch WHERE game_id = ${g.id}`;
+      await sql`DELETE FROM game WHERE id = ${g.id}`;
+    }
+
     const game = await db.createGame({
       teamSeasonId: home.teamSeasonId!,
       opponentTeamId: away.teamId,
@@ -72,6 +100,12 @@ test("a real MaxPreps export imports and reconciles with the printed box score",
       theirScore: 17,
     });
     assert.equal(game.ok, true, "the game must be created");
+
+    // Each run adds its own roster; without this the same jersey ends up on
+    // several players and every row matches ambiguously, which is correct
+    // behaviour reported as a test failure.
+    await sql`
+      DELETE FROM player_season WHERE team_season_id = ${home.teamSeasonId!}`;
 
     for (const [first, last, jersey] of ROSTER) {
       await db.addRosterPlayer({
@@ -190,12 +224,50 @@ test("a real MaxPreps export imports and reconciles with the printed box score",
       SELECT count(*)::int FROM stat_line
       WHERE game_id = ${(game as { ok: true; gameId: number }).gameId}`;
     assert.equal(lines, 11, "a refused re-commit must not add lines");
-  } finally {
-    await db_end();
+  } catch (err) {
+    throw err;
   }
+});
 
-  async function db_end() {
-    const { sql } = await import("../src/index.ts");
-    await sql.end();
+test("school name matching resolves the easy cases and refuses the ambiguous ones", opts, async () => {
+  const { matchSchoolNames } = await import("../src/index.ts");
+  try {
+    const byInput = new Map(
+      (
+        await matchSchoolNames([
+          "John Hardin High School",
+          "John Hardin",
+          "Paduka Tilghman",
+          "Trinity",
+          "Nowhere Consolidated",
+        ])
+      ).map((m) => [m.input, m])
+    );
+
+    assert.equal(byInput.get("John Hardin High School")?.method, "exact");
+    assert.equal(
+      byInput.get("John Hardin")?.schoolName,
+      "John Hardin High School",
+      "a bare name resolves to the full one"
+    );
+
+    // The institutional suffix dilutes a trigram score enough to sink a real
+    // near miss, so matching also compares against the stripped name.
+    const typo = byInput.get("Paduka Tilghman");
+    assert.equal(typo?.schoolName, "Paducah Tilghman High School");
+    assert.ok((typo?.confidence ?? 0) > 0.5, "a one-letter typo should score well");
+
+    // Two Trinitys exist. Guessing between them would silently attribute games
+    // to the wrong school, so this must stay unresolved and show both.
+    const trinity = byInput.get("Trinity");
+    assert.equal(trinity?.schoolId, null, "an ambiguous name must not be guessed");
+    assert.ok(
+      trinity!.candidates.length >= 2,
+      "both candidates must be offered to the human"
+    );
+
+    assert.equal(byInput.get("Nowhere Consolidated")?.schoolId, null);
+  } catch (err) {
+    throw err;
   }
 });

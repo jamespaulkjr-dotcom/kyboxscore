@@ -7,6 +7,7 @@ import {
   createGame,
   createTeam,
   deleteGame,
+  setTeamSeasonAlignment,
   getTeamAdmin,
   removeRosterEntry,
   updateRosterEntry,
@@ -188,5 +189,21 @@ export async function deleteGameAction(formData: FormData) {
   const gameId = Number(formData.get("gameId"));
   if (!Number.isInteger(gameId)) return;
   await deleteGame(gameId);
+  revalidatePath(`/admin/teams/${teamId}`);
+}
+
+/* -------------------------------------------------------- alignments */
+
+export async function setAlignmentAction(formData: FormData) {
+  await requireAdmin("/admin/teams");
+  const teamId = Number(formData.get("teamId"));
+  const raw = String(formData.get("alignmentId") ?? "");
+  const alignmentId = raw === "" ? null : Number(raw);
+  if (alignmentId !== null && !Number.isInteger(alignmentId)) return;
+
+  const team = await getTeamAdmin(teamId);
+  if (!team?.teamSeasonId) return;
+
+  await setTeamSeasonAlignment(team.teamSeasonId, alignmentId);
   revalidatePath(`/admin/teams/${teamId}`);
 }
