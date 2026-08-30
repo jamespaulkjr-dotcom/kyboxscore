@@ -69,6 +69,14 @@ async function main() {
     }
   }
 
+  // search_document is a materialized view over school, player and coach. It
+  // does not update itself, so anything seeded above is invisible to search
+  // until this runs. This lived in the dev fixture seed, which production
+  // refuses - so production search silently never saw seeded schools.
+  process.stdout.write("  refreshing search index ... ");
+  await sql`REFRESH MATERIALIZED VIEW search_document`;
+  console.log("ok");
+
   const [{ count: sports }] = await sql`SELECT count(*)::int FROM sport`;
   const [{ count: defs }] = await sql`SELECT count(*)::int FROM stat_definition`;
   const [{ count: aligns }] = await sql`SELECT count(*)::int FROM alignment`;

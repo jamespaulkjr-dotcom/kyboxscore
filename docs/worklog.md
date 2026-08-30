@@ -158,3 +158,20 @@ structure is provisional. School `time_zone` defaults to Eastern, which is
 wrong for western Kentucky.
 **Next:** teams, seasons and rosters - a school is not a team, and 17 of 20
 sports have no season dates.
+
+## 2026-08-30 — Search index was never refreshed in production
+**Did:** Moved `REFRESH MATERIALIZED VIEW search_document` out of the dev
+fixture seed and into the end of `seed.mjs`, so every environment gets it.
+**Why:** `search_document` is a materialized view over school, player and
+coach. It does not update itself. The only refresh lived in
+`005_dev_fixture_boxscores.sql`, which production **refuses** by design — so
+production search had never seen a seeded row. Caught by searching the live
+site for "Caverna" right after seeding 291 schools and getting "Nothing
+matched".
+**Learned:** Two read models in this schema do not maintain themselves and are
+easy to forget, because the write side looks correct while the read side stays
+empty: `search_document` (now handled) and `player_season_stat` /
+`team_season_stat` (still not refreshed after an import commit). Verifying a
+deploy by checking the page a user would actually look at catches this class of
+bug; checking that the write succeeded does not.
+**Next:** teams, seasons and rosters; then rollup refresh on import commit.

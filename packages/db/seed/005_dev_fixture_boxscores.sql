@@ -154,4 +154,5 @@ ON CONFLICT (player_season_id, stat_definition_id) DO UPDATE
   SET value = EXCLUDED.value, computed_at = now();
 
 -- The search index is a materialized view; it is empty until refreshed.
-REFRESH MATERIALIZED VIEW search_document;
+-- The search index refresh now happens unconditionally at the end of
+-- seed.mjs, so every environment gets it, not just the one with fixtures.
