@@ -63,60 +63,75 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      # Diagnoses a bad DEPLOY_KEY/DEPLOY_HOST without printing either. Shape
-      # only: lengths, line counts, and the PEM banner lines, which are not
-      # secret. A wrapping quote or a stray leading space is the usual cause.
-      - name: Preflight secrets
+      # DEPLOY_KEY is pasted by hand, and hand-pasting a PEM block goes wrong
+      # in a small number of predictable ways: wrapping quotes, a leading
+      # space, a missing trailing newline, or the line breaks collapsed into
+      # one long line. Repair those here rather than making a human spot them.
+      # Nothing secret is printed - only the shape.
+      - name: Prepare deploy key
         env:
-          H: ${{ secrets.DEPLOY_HOST }}
           K: ${{ secrets.DEPLOY_KEY }}
+          H: ${{ secrets.DEPLOY_HOST }}
         run: |
-          fail=0
-          if [ -z "$H" ]; then
-            echo "DEPLOY_HOST: EMPTY or not set"; fail=1
-          else
-            echo "DEPLOY_HOST: set, ${#H} chars"
-            case "$H" in
-              *[\'\"]*) echo "  !! contains a quote character - remove it"; fail=1 ;;
-            esac
-            case "$H" in
-              " "*|*" ") echo "  !! has leading or trailing whitespace"; fail=1 ;;
-            esac
-          fi
+          python3 <<'EOF'
+          import os, re, sys, textwrap
 
-          if [ -z "$K" ]; then
-            echo "DEPLOY_KEY: EMPTY or not set"; fail=1
-          else
-            echo "DEPLOY_KEY: set, ${#K} chars, $(printf '%s' "$K" | wc -l) newlines"
-            first=$(printf '%s' "$K" | head -1)
-            last=$(printf '%s' "$K" | tail -1)
-            echo "  first line: $first"
-            echo "  last line:  $last"
-            case "$first" in
-              "-----BEGIN "*) : ;;
-              "ssh-"*) echo "  !! this is the PUBLIC key - DEPLOY_KEY needs the private half"; fail=1 ;;
-              *) echo "  !! first line is not a PEM header - check for a quote or leading space"; fail=1 ;;
-            esac
-            case "$last" in
-              "-----END "*) : ;;
-              *) echo "  !! last line is not a PEM footer - the key looks truncated"; fail=1 ;;
-            esac
-            printf '%s' "$K" | tail -c 1 | od -c | head -1 | grep -q '\\n' \
-              && echo "  trailing newline: yes" \
-              || echo "  trailing newline: no (some ssh clients require one)"
-          fi
+          k = os.environ.get("K", "")
+          if not k.strip():
+              print("::error::DEPLOY_KEY is empty or not set.")
+              sys.exit(1)
 
-          if [ "$fail" = "1" ]; then
-            echo "::error::Deploy secrets look malformed - see the checks above."
-            exit 1
-          fi
-          echo "secrets look well formed"
+          k = k.strip()
+          # strip one layer of wrapping quotes
+          if len(k) > 1 and k[0] == k[-1] and k[0] in "'\"":
+              k = k[1:-1].strip()
+          # a literal backslash-n paste
+          if "\\n" in k and "\n" not in k:
+              k = k.replace("\\n", "\n")
+
+          if k.startswith("ssh-"):
+              print("::error::DEPLOY_KEY is a PUBLIC key. It needs the private half.")
+              sys.exit(1)
+
+          m = re.search(r"-----BEGIN ([A-Z ]+)-----(.*?)-----END \1-----", k, re.S)
+          if not m:
+              print("::error::DEPLOY_KEY has no BEGIN/END block. Paste the whole file, no quotes.")
+              print(f"  first 30 chars looked like: {k[:30]!r}")
+              sys.exit(1)
+
+          label, body = m.group(1), m.group(2)
+          # collapsed to one line? rebuild the wrapping. PEM ignores where the
+          # breaks fall, so re-wrapping at 70 is safe.
+          compact = re.sub(r"\s+", "", body)
+          rewrapped = "\n".join(textwrap.wrap(compact, 70))
+          key = f"-----BEGIN {label}-----\n{rewrapped}\n-----END {label}-----\n"
+
+          with open("/tmp/deploy_key", "w") as f:
+              f.write(key)
+
+          lines = key.strip().split("\n")
+          print(f"deploy key: {label}, {len(lines)} lines, {len(compact)} base64 chars")
+          if k != key.strip():
+              print("note: the pasted value needed repair (quotes, whitespace or line wrapping)")
+
+          h = os.environ.get("H", "").strip().strip("'\"").strip()
+          if not h:
+              print("::error::DEPLOY_HOST is empty or not set.")
+              sys.exit(1)
+          print(f"deploy host: {len(h)} chars")
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"CLEAN_HOST={h}\n")
+          EOF
+          chmod 600 /tmp/deploy_key
+          ssh-keygen -y -f /tmp/deploy_key > /tmp/deploy_key.pub \
+            && echo "key is valid; fingerprint: $(ssh-keygen -lf /tmp/deploy_key.pub)" \
+            || { echo "::error::The key is structurally intact but OpenSSH will not read it."; exit 1; }
 
       - uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
+          host: ${{ env.CLEAN_HOST }}
           username: deploy
-          key: ${{ secrets.DEPLOY_KEY }}
+          key_path: /tmp/deploy_key
           script: |
             set -e
             cd /home/deploy/kyboxscore
