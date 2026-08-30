@@ -74,20 +74,27 @@ jobs:
         env:
           K: ${{ secrets.DEPLOY_KEY }}
           H: ${{ secrets.DEPLOY_HOST }}
-          ALL_SECRETS: ${{ toJSON(secrets) }}
+          # Probe the names a key is commonly saved under, so a misnamed
+          # secret is identified instead of just reading as absent.
+          ALT1: ${{ secrets.DEPLOYKEY }}
+          ALT2: ${{ secrets.DEPLOY_SSH_KEY }}
+          ALT3: ${{ secrets.SSH_KEY }}
+          ALT4: ${{ secrets.DEPLOY_PRIVATE_KEY }}
+          ALT5: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           python3 <<'EOF'
-          import os, re, sys, textwrap, json
+          import os, re, sys, textwrap
 
-          # Which secrets can this workflow actually see? Names only - GitHub
-          # masks the values. If DEPLOY_KEY is missing from this list it was
-          # saved somewhere the job cannot read: an Environment secret, a
-          # different repository, or under a different name.
-          try:
-              names = sorted(json.loads(os.environ.get("ALL_SECRETS", "{}")).keys())
-              print("secrets visible to this job:", ", ".join(names) or "(none)")
-          except Exception as e:
-              print("could not enumerate secrets:", e)
+          # If DEPLOY_KEY reads as absent, say whether the key turned up under
+          # another common name. Only presence is reported, never a value.
+          probes = {
+              "DEPLOY_KEY": "K", "DEPLOYKEY": "ALT1", "DEPLOY_SSH_KEY": "ALT2",
+              "SSH_KEY": "ALT3", "DEPLOY_PRIVATE_KEY": "ALT4",
+              "SSH_PRIVATE_KEY": "ALT5",
+          }
+          present = [n for n, e in probes.items() if os.environ.get(e, "").strip()]
+          print("secret names carrying a value:", ", ".join(present) or "(none of the probed names)")
+          print("DEPLOY_HOST:", "set" if os.environ.get("H", "").strip() else "EMPTY")
 
           k = os.environ.get("K", "")
           if not k.strip():
