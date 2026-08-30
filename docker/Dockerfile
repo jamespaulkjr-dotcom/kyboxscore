@@ -39,11 +39,18 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 
-# Migrations run from this image via `docker compose exec web`. Next inlines
+# Maintenance scripts run from this image via `docker compose exec web`:
+# migrations, seeding, account provisioning and the RPI recompute. Next inlines
 # postgres.js into the server bundle, so it is not present as a resolvable
 # package - the scripts need their own copy. postgres.js has no dependencies.
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db ./packages/db
+#
+# All workspace packages, not just db: the RPI script imports @kyboxscore/rpi
+# through the db package, and a missing one fails at runtime with a bare
+# ERR_MODULE_NOT_FOUND that does not point back here. The @kyboxscore symlinks
+# npm created resolve because ./packages sits where they expect it.
+COPY --from=builder --chown=nextjs:nodejs /app/packages ./packages
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@kyboxscore ./node_modules/@kyboxscore
 
 USER nextjs
 EXPOSE 3000

@@ -282,3 +282,15 @@ in words instead of throwing a foreign key error.
 **Next:** nothing runs the recompute automatically — the brief asks for hourly.
 Football's WP assignment is still the standard 1/0.5/0; the real table is a
 documented unknown.
+
+## 2026-08-30 — RPI could not actually run in production
+**Did:** The runtime image copied only `packages/db`, so
+`packages/db/scripts/rpi.ts` failed inside the container with a bare
+`ERR_MODULE_NOT_FOUND` — it imports `@kyboxscore/rpi` through the db package.
+Now copies every workspace package plus the `@kyboxscore` symlinks npm made.
+**Why:** Caught by running the command against the deployed container rather
+than assuming a green deploy meant a working feature. The pages served 200 the
+whole time; only the recompute was broken, which is the half nobody looks at.
+**Learned:** **The runtime image is not the build image.** A maintenance script
+can typecheck, test, build and deploy green and still be unrunnable on the
+server. Verify a new script by executing it inside the built image.

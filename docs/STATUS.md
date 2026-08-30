@@ -75,6 +75,10 @@ That skips migrations, which the pipeline runs and this command does not.
   constants change. `/[sport]/rpi` shows the table with the shadow rating and
   the delta beside it, linked from the stats page.
 
+  Run it on the droplet with
+  `docker compose exec -T web node --experimental-strip-types packages/db/scripts/rpi.ts --sport football`.
+  The through-date clamps to today, so only games already played count.
+
   Two rules encoded here: **out-of-state teams are computed but never ranked**
   (their record feeds everyone's OWP; ranking them in Kentucky standings would
   be a category error), and **the stored rating is derived from the stored
@@ -189,6 +193,11 @@ That skips migrations, which the pipeline runs and this command does not.
 - **A page with no route params gets prerendered at build time**, and the image
   builds without a database. Any data-backed page needs
   `export const dynamic = "force-dynamic"` or the Docker build fails at export.
+- **The runtime image is not the build image.** It carries only what is
+  explicitly copied, so a maintenance script can build fine and then fail with
+  a bare `ERR_MODULE_NOT_FOUND` on the server. All four workspace packages and
+  the `@kyboxscore` symlinks are copied now. Test a new script by running it
+  inside the built image, not just locally.
 - **`npm run build` passing locally does not mean the image builds.** The local
   `node_modules` has every workspace symlinked, so a missing workspace manifest
   in the Dockerfile's deps stage only shows up in CI. After adding a new
