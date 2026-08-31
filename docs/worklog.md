@@ -475,3 +475,18 @@ Also: the test passed once and failed on re-run, because the
 `out_of_state_record` it creates survived into the next run and spoiled the
 "before a record exists" phase. It now clears that too, and was verified three
 times in a row.
+
+## 2026-08-31 — Full season imported; canceled games were being filed as upcoming
+**Did:** Imported the state-wide 2026 football schedule into production — 1,304
+games created, 1,253 duplicate copies recognised, 57 out-of-state teams
+created, in 18 seconds. RPI over 221 teams. Then fixed a bug the import
+surfaced.
+**The bug:** `commitSchedule` derived a game's status purely from whether it had
+scores, ignoring the status the parser had already worked out. The sheet marks
+18 games Canceled and 2 Forfeit; every one landed as "scheduled" — sitting on a
+schedule forever as a game that will never be played. Status now passes
+through, defaulting to the derived value only when the source does not say.
+**Learned:** the parser knowing something is not the same as it reaching the
+database. Two layers, and only one of them was asked about it in review. Caught
+by checking the imported counts against the source counts rather than trusting
+"1,304 created, 0 failed".

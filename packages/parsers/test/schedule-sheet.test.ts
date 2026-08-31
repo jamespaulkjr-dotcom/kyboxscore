@@ -95,3 +95,12 @@ test("quoted fields containing commas survive", () => {
   assert.equal(rows.length, 2);
   assert.equal(rows[1][0], "multi\nline");
 });
+
+test("a canceled game is not left looking like an upcoming fixture", () => {
+  // It has no score, so deriving status from the score alone would file it as
+  // "scheduled" and it would sit on the schedule forever as a game that never
+  // happens. The export says Canceled and that has to survive to the database.
+  const r = sheet("Adair County,10/9/2026,7:00 PM,at,Taylor County,,,,Canceled,");
+  assert.equal(r.games[0].status, "canceled");
+  assert.equal(r.games[0].teamScore, null);
+});

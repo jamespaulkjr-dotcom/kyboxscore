@@ -211,6 +211,13 @@ export type ScheduleCommitRow = {
    * that touches it.
    */
   stage?: "regular_season" | "scrimmage" | "district_tournament";
+  /**
+   * Defaults to final when scores are present and scheduled otherwise. Passed
+   * explicitly when the source knows better - a canceled game has no scores
+   * but is not upcoming, and deriving status from scores alone would leave it
+   * on the schedule forever as a game that never happens.
+   */
+  status?: "scheduled" | "final" | "canceled" | "forfeit" | "postponed";
 };
 
 export type ScheduleCommitResult = {
@@ -253,7 +260,8 @@ export async function commitSchedule(
         const homeTeam = await ensureTeam(tx, row.homeSchoolId, sportId, gender, level, ss.id);
         const awayTeam = await ensureTeam(tx, row.awaySchoolId, sportId, gender, level, ss.id);
 
-        const status = row.homeScore !== null ? "final" : "scheduled";
+        const status =
+          row.status ?? (row.homeScore !== null ? "final" : "scheduled");
         const stage = row.stage ?? "regular_season";
         const [g] = await tx<{ id: number }[]>`
           INSERT INTO game (sport_season_id, short_code, local_date, status, stage)
