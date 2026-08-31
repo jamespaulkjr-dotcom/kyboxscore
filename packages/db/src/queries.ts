@@ -190,12 +190,23 @@ export async function getTeamSchedule(
            me.score::int AS "teamScore", opp.score::int AS "opponentScore",
            CASE WHEN me.score IS NULL OR opp.score IS NULL THEN NULL
                 WHEN me.score > opp.score THEN 'W'
-                WHEN me.score < opp.score THEN 'L' ELSE 'T' END AS result
+                WHEN me.score < opp.score THEN 'L' ELSE 'T' END AS result,
+           g.stage::text AS stage,
+           -- A district game is two teams sharing a district in this season's
+           -- alignment. Never taken from what a schedule document claimed: the
+           -- real 2026 documents mark cross-class games as district, which they
+           -- cannot be.
+           (mine_ts.alignment_id IS NOT NULL
+            AND mine_ts.alignment_id = opp_ts.alignment_id) AS "isDistrict"
     FROM game g
     JOIN game_participant me ON me.game_id = g.id AND me.team_id = ${teamId}
     JOIN game_participant opp ON opp.game_id = g.id AND opp.id <> me.id
     JOIN team ot ON ot.id = opp.team_id
     JOIN school osc ON osc.id = ot.school_id
+    LEFT JOIN team_season mine_ts
+           ON mine_ts.team_id = me.team_id AND mine_ts.sport_season_id = ${sportSeasonId}
+    LEFT JOIN team_season opp_ts
+           ON opp_ts.team_id = opp.team_id AND opp_ts.sport_season_id = ${sportSeasonId}
     WHERE g.sport_season_id = ${sportSeasonId}
     ORDER BY g.local_date`;
 }

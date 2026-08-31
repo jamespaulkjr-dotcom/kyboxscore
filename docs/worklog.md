@@ -398,3 +398,19 @@ played is neutral (0.5), not last — 0-0 must outrank 0-1 and be outranked by
 common opponents. Teams level on district record are ordered by overall record
 then alphabetically, and the page says so. Inventing a tie-break would be worse
 than showing a tie.
+
+## 2026-08-31 — District asterisk, and correcting a mislabelled game
+**Did:** District games are marked with `*` beside the opponent on a team's
+schedule, with a one-line legend. Scrimmages are labelled inline. Admins can
+change a game's type from the team page.
+**Why:** James reported that the Aug 6 Central Hardin game was a scrimmage.
+His source document labels it "District Game" — and Central Hardin is 6A
+District 2 while John Hardin is 4A District 2, so it could never have been a
+district game at all. That is the second independent sign the type markers in
+these documents are unreliable, after the Seneca game.
+**Design note:** the asterisk is derived from the alignment — two teams sharing
+a district this season — never from what a schedule claimed. Nothing in the
+file can be trusted to say so. Since a document also cannot be trusted to
+identify a scrimmage, and a scrimmage counts for no record and no RPI, a human
+needs to be able to correct it: hence the game-type control. Changing it warns
+that existing ratings are stale rather than silently leaving them wrong.

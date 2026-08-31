@@ -55,6 +55,9 @@ export type TeamScheduleRow = {
   teamScore: number | null;
   opponentScore: number | null;
   result: "W" | "L" | "T" | null;
+  stage: string;
+  /** Both teams in the same district this season. Derived, never asserted. */
+  isDistrict: boolean;
 };
 
 export type RosterRow = {

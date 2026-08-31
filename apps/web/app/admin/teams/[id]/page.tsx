@@ -15,6 +15,7 @@ import { requireAdmin } from "../../../../lib/auth";
 import {
   deleteGameAction,
   removeRosterAction,
+  setGameStageAction,
   setAlignmentAction,
   updateRosterAction,
 } from "../actions";
@@ -216,6 +217,28 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
                           ? "no box score yet"
                           : `box score: ${g.boxScoreStatus}`}
                       </span>
+                      {/* Published schedules mislabel this, so it has to be
+                          correctable by hand. A scrimmage counts for nothing. */}
+                      <form action={setGameStageAction} className="mt-1 flex items-center gap-2">
+                        <input type="hidden" name="teamId" value={teamId} />
+                        <input type="hidden" name="gameId" value={g.gameId} />
+                        <label className="sr-only" htmlFor={`stage-${g.gameId}`}>
+                          Game type
+                        </label>
+                        <select
+                          id={`stage-${g.gameId}`}
+                          name="stage"
+                          defaultValue={g.stage}
+                          className="min-h-8 rounded-md border border-border bg-surface-raised px-2 text-xs"
+                        >
+                          <option value="regular_season">Regular season</option>
+                          <option value="scrimmage">Scrimmage — counts for nothing</option>
+                          <option value="district_tournament">District tournament</option>
+                        </select>
+                        <button type="submit" className="min-h-8 rounded-md border border-border px-2 text-xs font-medium">
+                          Set
+                        </button>
+                      </form>
                     </span>
                     {g.boxScoreStatus === "none" ? (
                       <form action={deleteGameAction}>

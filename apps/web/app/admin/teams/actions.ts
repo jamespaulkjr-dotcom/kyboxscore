@@ -7,6 +7,7 @@ import {
   createGame,
   createTeam,
   deleteGame,
+  setGameStage,
   setTeamSeasonAlignment,
   getTeamAdmin,
   removeRosterEntry,
@@ -205,5 +206,18 @@ export async function setAlignmentAction(formData: FormData) {
   if (!team?.teamSeasonId) return;
 
   await setTeamSeasonAlignment(team.teamSeasonId, alignmentId);
+  revalidatePath(`/admin/teams/${teamId}`);
+}
+
+const STAGES = new Set(["regular_season", "scrimmage", "district_tournament"]);
+
+export async function setGameStageAction(formData: FormData) {
+  await requireAdmin("/admin/teams");
+  const teamId = Number(formData.get("teamId"));
+  const gameId = Number(formData.get("gameId"));
+  const stage = String(formData.get("stage") ?? "");
+  if (!Number.isInteger(gameId) || !STAGES.has(stage)) return;
+
+  await setGameStage(gameId, stage as "regular_season" | "scrimmage");
   revalidatePath(`/admin/teams/${teamId}`);
 }

@@ -128,7 +128,23 @@ export default async function Page(
                   <span className="w-8 shrink-0 text-sm text-fg-muted">
                     {row.neutralSite ? "vs" : row.isHome ? "vs" : "at"}
                   </span>
-                  <span className="min-w-0 flex-1 truncate">{row.opponentName}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {row.opponentName}
+                    {row.isDistrict && (
+                      // Marked, not spelled out: a schedule is scanned, and the
+                      // legend below carries the meaning once.
+                      <span
+                        className="ml-0.5 font-bold text-accent"
+                        title="District game"
+                        aria-label="District game"
+                      >
+                        *
+                      </span>
+                    )}
+                    {row.stage === "scrimmage" && (
+                      <span className="ml-2 text-xs text-fg-muted">scrimmage</span>
+                    )}
+                  </span>
                   {row.result ? (
                     <span className="shrink-0 text-sm">
                       <span
@@ -151,6 +167,16 @@ export default async function Page(
               </li>
             ))}
           </ul>
+          {schedule.some((r) => r.isDistrict) && (
+            <p className="mt-2 text-xs text-fg-muted">
+              <span className="font-bold text-accent">*</span> district game —
+              these decide{" "}
+              <Link href={`/${sport}/standings`} className="text-link underline">
+                district standings
+              </Link>
+              . Scrimmages count for nothing: no record, no RPI.
+            </p>
+          )}
         </section>
 
         <section className="mt-8" aria-labelledby="stats">

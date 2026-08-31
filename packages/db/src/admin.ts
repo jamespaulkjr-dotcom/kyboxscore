@@ -382,6 +382,7 @@ export type TeamGameRow = {
   ourScore: number | null;
   theirScore: number | null;
   boxScoreStatus: string;
+  stage: string;
 };
 
 export async function listTeamGames(teamSeasonId: number) {
@@ -391,7 +392,7 @@ export async function listTeamGames(teamSeasonId: number) {
            (mine.role = 'home') AS "isHome",
            opp_school.name AS "opponentName",
            mine.score::int AS "ourScore", opp.score::int AS "theirScore",
-           g.box_score_status AS "boxScoreStatus"
+           g.box_score_status AS "boxScoreStatus", g.stage::text AS stage
     FROM team_season ts
     JOIN game_participant mine ON mine.team_id = ts.team_id
     JOIN game g ON g.id = mine.game_id AND g.sport_season_id = ts.sport_season_id
@@ -573,4 +574,31 @@ export async function getTeamSeasonAlignment(teamSeasonId: number) {
     LEFT JOIN alignment parent ON parent.id = a.parent_id
     WHERE ts.id = ${teamSeasonId}`;
   return rows[0] ?? null;
+}
+
+/**
+ * Changes what kind of game this is.
+ *
+ * Published schedules mislabel this: the real 2026 John Hardin document marks
+ * a pre-season scrimmage as "District Game". Nothing in the file can be
+ * trusted to say so, and the difference matters - a scrimmage counts for no
+ * record and no RPI - so a human needs to be able to correct it.
+ */
+export async function setGameStage(
+  gameId: number,
+  stage: "regular_season" | "scrimmage" | "district_tournament"
+): Promise<{ ok: boolean; reason?: string }> {
+  const [row] = await sql<{ inRpi: boolean }[]>`
+    SELECT EXISTS (SELECT 1 FROM rpi_input WHERE game_id = ${gameId}) AS "inRpi"`;
+  await sql`
+    UPDATE game SET stage = ${stage}::game_stage, updated_at = now()
+    WHERE id = ${gameId}`;
+  // Not a refusal: correcting a mislabelled game is exactly the point. But the
+  // ratings that already counted it are now stale and must be recomputed.
+  return {
+    ok: true,
+    reason: row?.inRpi
+      ? "An RPI run already counted this game. Recompute the ratings."
+      : undefined,
+  };
 }
