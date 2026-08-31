@@ -61,6 +61,15 @@ That skips migrations, which the pipeline runs and this command does not.
   sports carry a scoring unit, periods and an RPI; the rest are NULL rather
   than filled with a plausible lie. `/sports` lists everything; the header
   links to it. Only football, basketball and baseball have a season open.
+- **School aliases** — `school_alias` maps an alternate name to a school, and
+  is checked **before every other matching rule** because a person decided it.
+  Seeded with "The Academy @ Shawnee" → Shawnee: the 2026 schedule export uses
+  the current official name while the alignment uses the short one, and the two
+  strings share almost nothing.
+- **Out-of-state opponents** — 51 schools created from the 2026 schedule so
+  Kentucky records are not short. Their `state` is `'XX'`, deliberately not a
+  guess: the column is never displayed and is used only as "Kentucky or not",
+  which is all RPI needs. `is_khsaa_member` is false, so they are never ranked.
 - **Schools** — 291 KHSAA member schools, attributed to `staff-entry`. Each
   carries the full legal name **and** a `short_name` scoreboard label
   ("John Hardin", not "John Hardin High School"). **Display reads
@@ -84,7 +93,14 @@ That skips migrations, which the pipeline runs and this command does not.
   `docker compose exec -T web node --experimental-strip-types packages/db/scripts/rpi.ts --sport football`.
   The through-date clamps to today, so only games already played count.
 
-  Two rules encoded here: **out-of-state teams are computed but never ranked**
+  A third: **an out-of-state opponent with no `out_of_state_record` is left out
+  of the computation entirely.** We only know its games against Kentucky, so
+  computing a winning percentage from those invents a record — usually 0-1 —
+  and Shadow RPI would then compare the official .500 assumption against a
+  number we made up. Left out, it falls back to .500 under both formulas and
+  the delta is honestly zero until a real record is entered.
+
+  Two more rules encoded here: **out-of-state teams are computed but never ranked**
   (their record feeds everyone's OWP; ranking them in Kentucky standings would
   be a category error), and **the stored rating is derived from the stored
   components**, not from the engine's unrounded output — `class_factor` is

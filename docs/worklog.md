@@ -438,3 +438,25 @@ reconciled.
 under its current name; there is no school-alias mechanism yet, so those games
 are skipped. Out-of-state opponents are skipped because creating them needs a
 state, which is a factual claim we do not have.
+
+## 2026-08-31 — School aliases, out-of-state opponents, and an honest shadow RPI
+**Did:** `school_alias` table checked before every other matching rule, seeded
+with "The Academy @ Shawnee" → Shawnee. 51 out-of-state schools created from
+the 2026 schedule export. Fixed Shadow RPI so it no longer invents records.
+**Why:** The state-wide schedule named 284 schools; 52 did not match. One was
+Kentucky under its current official name, 51 were genuine out-of-state
+opponents. Skipping them would have left Kentucky teams' records short.
+**Learned — the important one:** the first full run produced shadow deltas that
+were **negative**, implying the flat .500 assumption *helps* teams that play out
+of state. It does not. The engine was falling back to a winning percentage
+computed from the only games we know about — the single game against the
+Kentucky team, usually a loss — so Shadow RPI was comparing .500 against a
+fabricated 0-1. An out-of-state team with no `out_of_state_record` is now left
+out of the computation entirely, falls back to .500 under both formulas, and
+the delta reads an honest zero. Raceland moved 4th to 7th once its opponent
+stopped being treated as 0-1.
+**On the placeholder state:** `'XX'`, not a guess. The column is never
+displayed and is used only as "Kentucky or not". Inventing 51 state codes from
+memory would put wrong facts in a record book to fill a field nobody reads.
+**Dress rehearsal:** 2,557 rows became 1,316 unique games with 1,241 duplicate
+copies recognised, in 28 seconds; RPI over 221 teams runs in under a second.

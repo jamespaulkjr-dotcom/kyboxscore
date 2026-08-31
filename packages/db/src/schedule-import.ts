@@ -29,6 +29,25 @@ export async function matchSchoolNames(names: string[]): Promise<SchoolMatch[]> 
   const out: SchoolMatch[] = [];
 
   for (const input of unique) {
+    // 0. A confirmed alias beats every other rule. A person decided this, and
+    // no amount of string similarity should be allowed to overrule them.
+    const alias = await sql<{ id: number; name: string }[]>`
+      SELECT sc.id::int, sc.name
+      FROM school_alias a
+      JOIN school sc ON sc.id = a.school_id
+      WHERE a.alias = ${input} AND sc.is_active`;
+    if (alias.length === 1) {
+      out.push({
+        input,
+        schoolId: alias[0].id,
+        schoolName: alias[0].name,
+        method: "exact",
+        confidence: 1,
+        candidates: [],
+      });
+      continue;
+    }
+
     // 1. Exact, case-insensitive. school.name is text, so lower() both sides.
     const exact = await sql<{ id: number; name: string }[]>`
       SELECT id::int, name FROM school

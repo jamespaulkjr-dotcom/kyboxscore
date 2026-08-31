@@ -91,7 +91,30 @@ export async function loadTeamInputs(
   const byTeam = new Map<number, TeamInput>();
   const externalWp = new Map<number, number>();
 
+  // Which teams are Kentucky members, so an out-of-state opponent is not given
+  // a winning percentage derived from our own partial view of its season.
+  const memberRows = await sql<{ teamId: number }[]>`
+    SELECT ts.team_id::int AS "teamId"
+    FROM team_season ts
+    JOIN team t    ON t.id = ts.team_id
+    JOIN school sc ON sc.id = t.school_id
+    WHERE ts.sport_season_id = ${sportSeasonId}
+      AND sc.state = 'KY' AND NOT sc.is_home_school`;
+  const isMember = new Set(memberRows.map((r) => r.teamId));
+
   for (const r of rows) {
+    // Only Kentucky teams get a computed record.
+    //
+    // We know an out-of-state team's games against Kentucky and nothing else,
+    // so computing its winning percentage from those would invent a record -
+    // usually 0-1 - and Shadow RPI would then compare the official .500
+    // assumption against a number we made up. Left out entirely, such an
+    // opponent falls back to .500 under both formulas and the delta is
+    // honestly zero until a real record is entered in out_of_state_record.
+    if (!isMember.has(r.teamId)) {
+      if (r.opponentExternalWp !== null) externalWp.set(r.opponentId, r.opponentExternalWp);
+      continue;
+    }
     if (!byTeam.has(r.teamId)) {
       byTeam.set(r.teamId, { teamId: r.teamId, teamClass: r.teamClass, games: [] });
     }
@@ -119,10 +142,14 @@ export async function loadTeamInputs(
     });
   }
 
-  // Real out-of-state records, used only by Shadow RPI.
+  // Real out-of-state records, used only by Shadow RPI. An out-of-state team
+  // with a known record is added as an opponent carrying that record and no
+  // games of its own, so the engine uses the real number rather than deriving
+  // one from the handful of games we happen to see.
   for (const [teamId, wp] of externalWp) {
-    const t = byTeam.get(teamId);
-    if (t) t.externalWinPct = wp;
+    const existing = byTeam.get(teamId);
+    if (existing) existing.externalWinPct = wp;
+    else byTeam.set(teamId, { teamId, teamClass: null, games: [], externalWinPct: wp });
   }
 
   return [...byTeam.values()];
