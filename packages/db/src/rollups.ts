@@ -81,13 +81,17 @@ export async function refreshTeamSeasonRollups(
   await db`
     INSERT INTO team_season_record
       (team_season_id, wins, losses, ties, district_wins, district_losses,
-       computed_at)
+       preseason_wins, preseason_losses, computed_at)
     SELECT ts.id,
-           count(*) FILTER (WHERE mine.score > opp.score),
-           count(*) FILTER (WHERE mine.score < opp.score),
-           count(*) FILTER (WHERE mine.score = opp.score),
-           count(*) FILTER (WHERE mine.score > opp.score AND same_district),
-           count(*) FILTER (WHERE mine.score < opp.score AND same_district),
+           -- The official record counts regular season games only. A game
+           -- played before the season opened is real but counts for nothing.
+           count(*) FILTER (WHERE mine.score > opp.score AND counts),
+           count(*) FILTER (WHERE mine.score < opp.score AND counts),
+           count(*) FILTER (WHERE mine.score = opp.score AND counts),
+           count(*) FILTER (WHERE mine.score > opp.score AND counts AND same_district),
+           count(*) FILTER (WHERE mine.score < opp.score AND counts AND same_district),
+           count(*) FILTER (WHERE mine.score > opp.score AND NOT counts),
+           count(*) FILTER (WHERE mine.score < opp.score AND NOT counts),
            now()
     FROM team_season ts
     JOIN game_participant mine ON mine.team_id = ts.team_id
@@ -98,13 +102,16 @@ export async function refreshTeamSeasonRollups(
           AND opp_ts.sport_season_id = ts.sport_season_id
     CROSS JOIN LATERAL (
       SELECT ts.alignment_id IS NOT NULL
-         AND ts.alignment_id = opp_ts.alignment_id AS same_district
+         AND ts.alignment_id = opp_ts.alignment_id AS same_district,
+             g.stage = 'regular_season' AS counts
     ) d
     WHERE ts.id = ${teamSeasonId}
       AND g.status = 'final'
       AND mine.score IS NOT NULL
       AND opp.score IS NOT NULL
-      AND g.stage = 'regular_season'
+      -- Scrimmages are excluded entirely: they have no record of any kind.
+      -- Preseason games are kept so they can be counted separately.
+      AND g.stage IN ('regular_season', 'preseason')
     GROUP BY ts.id
     ON CONFLICT (team_season_id) DO UPDATE
       SET wins = EXCLUDED.wins,
@@ -112,6 +119,8 @@ export async function refreshTeamSeasonRollups(
           ties = EXCLUDED.ties,
           district_wins = EXCLUDED.district_wins,
           district_losses = EXCLUDED.district_losses,
+          preseason_wins = EXCLUDED.preseason_wins,
+          preseason_losses = EXCLUDED.preseason_losses,
           computed_at = now()`;
 }
 

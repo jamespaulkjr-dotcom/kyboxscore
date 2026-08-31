@@ -490,3 +490,22 @@ through, defaulting to the derived value only when the source does not say.
 database. Two layers, and only one of them was asked about it in review. Caught
 by checking the imported counts against the source counts rather than trusting
 "1,304 created, 0 failed".
+
+## 2026-08-31 — Preseason games were counting toward records and RPI
+**Did:** Added a `preseason` game stage, classified every game before its
+season's `starts_on`, kept a separate preseason record, and set football 2026 to
+open on 19 August.
+**Why:** James pointed out that KHSAA counts nothing played before the first
+permissible date. 185 games sat before that date and 22 of them had results
+counting toward records, district standings and RPI. Raceland was ranked 7th in
+the state at 2-1; they are 1-1 with a preseason win.
+**Design note:** driven by `sport_season.starts_on` rather than a literal date,
+so it is correct for every sport and every future season — the seeded date is
+the single thing to get right. An explicit scrimmage keeps that label rather
+than being overwritten: a scrimmage is more specific than "before the season
+opened", and a human may have set it deliberately.
+**Postgres note:** a new enum value cannot be used in the transaction that adds
+it, so `ALTER TYPE ... ADD VALUE` and the reclassifying UPDATE are two
+migrations.
+**Also corrected:** the football season start was seeded as 21 August, which was
+invented in an early session. It is 19 August.

@@ -586,7 +586,7 @@ export async function getTeamSeasonAlignment(teamSeasonId: number) {
  */
 export async function setGameStage(
   gameId: number,
-  stage: "regular_season" | "scrimmage" | "district_tournament"
+  stage: "regular_season" | "preseason" | "scrimmage" | "district_tournament"
 ): Promise<{ ok: boolean; reason?: string }> {
   const [row] = await sql<{ inRpi: boolean }[]>`
     SELECT EXISTS (SELECT 1 FROM rpi_input WHERE game_id = ${gameId}) AS "inRpi"`;

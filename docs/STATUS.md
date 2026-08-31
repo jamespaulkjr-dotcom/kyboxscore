@@ -136,6 +136,14 @@ That skips migrations, which the pipeline runs and this command does not.
   A team with no games ranks as neutral, not last, so 0-0 outranks 0-1.
   KHSAA's formal tie-breaks (head to head, common opponents) are **not**
   implemented; a real tie is displayed as a tie.
+- **Preseason** — KHSAA counts nothing played before the season's first
+  permissible date. Games before `sport_season.starts_on` are stage
+  `preseason`: real, visible on a schedule, and counting toward **no** record,
+  district standing or RPI. A separate preseason record is kept and shown,
+  labelled as not counting. The rule is driven by `starts_on`, not a literal
+  date, so it holds for every sport and every future season — **correct the
+  season dates and the classification follows**. Football 2026 opens
+  2026-08-19.
 - **Records** — overall and district, shown as `2-0 (District 0-0)` on team
   pages and in the teams index. **District games are determined by the
   alignment, not by whatever a schedule document claims** — two teams are in

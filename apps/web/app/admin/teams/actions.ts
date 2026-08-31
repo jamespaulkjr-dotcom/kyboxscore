@@ -209,7 +209,7 @@ export async function setAlignmentAction(formData: FormData) {
   revalidatePath(`/admin/teams/${teamId}`);
 }
 
-const STAGES = new Set(["regular_season", "scrimmage", "district_tournament"]);
+const STAGES = new Set(["regular_season", "preseason", "scrimmage", "district_tournament"]);
 
 export async function setGameStageAction(formData: FormData) {
   await requireAdmin("/admin/teams");
@@ -218,6 +218,6 @@ export async function setGameStageAction(formData: FormData) {
   const stage = String(formData.get("stage") ?? "");
   if (!Number.isInteger(gameId) || !STAGES.has(stage)) return;
 
-  await setGameStage(gameId, stage as "regular_season" | "scrimmage");
+  await setGameStage(gameId, stage as "regular_season" | "preseason" | "scrimmage");
   revalidatePath(`/admin/teams/${teamId}`);
 }

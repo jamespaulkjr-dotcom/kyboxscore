@@ -75,10 +75,15 @@ ON CONFLICT (start_year) DO NOTHING;
 -- url_year is the year that appears in URLs and is NOT derivable from the
 -- academic year: football 2026 is played in the fall of 2026-27, while
 -- basketball for that same academic year is called 2027.
+--
+-- starts_on is load-bearing, not decoration: a game before it is preseason and
+-- counts for no record, no district standing and no RPI. Football 2026 opens on
+-- the 19th of August. Correct these dates per sport and the classification
+-- follows automatically.
 INSERT INTO sport_season (sport_id, season_id, url_year, starts_on, ends_on, regular_season_ends_on, is_current)
 SELECT sp.id, se.id, v.url_year, v.starts_on, v.ends_on, v.reg_ends, true
 FROM (VALUES
-  ('football',   2026, DATE '2026-08-21', DATE '2026-12-05', DATE '2026-10-31'),
+  ('football',   2026, DATE '2026-08-19', DATE '2026-12-05', DATE '2026-10-31'),
   ('basketball', 2027, DATE '2026-11-09', DATE '2027-03-21', DATE '2027-02-21'),
   -- PROVISIONAL: these baseball dates are approximate and have not been
   -- checked against the published KHSAA calendar. They exist so the importer

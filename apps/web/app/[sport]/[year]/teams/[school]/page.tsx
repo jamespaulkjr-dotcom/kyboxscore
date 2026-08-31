@@ -85,6 +85,11 @@ export default async function Page(
               (District {team.districtWins}-{team.districtLosses})
             </span>
           )}
+          {(team.preseasonWins > 0 || team.preseasonLosses > 0) && (
+            <span className="tabular text-fg-muted">
+              (Preseason {team.preseasonWins}-{team.preseasonLosses})
+            </span>
+          )}
           {ranks?.stateRank && (
             <>
               <span>·</span>
@@ -144,6 +149,9 @@ export default async function Page(
                     {row.stage === "scrimmage" && (
                       <span className="ml-2 text-xs text-fg-muted">scrimmage</span>
                     )}
+                    {row.stage === "preseason" && (
+                      <span className="ml-2 text-xs text-fg-muted">preseason</span>
+                    )}
                   </span>
                   {row.result ? (
                     <span className="shrink-0 text-sm">
@@ -174,7 +182,8 @@ export default async function Page(
               <Link href={`/${sport}/standings`} className="text-link underline">
                 district standings
               </Link>
-              . Scrimmages count for nothing: no record, no RPI.
+              . Games before the season opens, and scrimmages, count for
+              nothing: no record, no district standing, no RPI.
             </p>
           )}
         </section>

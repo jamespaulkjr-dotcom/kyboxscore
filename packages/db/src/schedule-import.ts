@@ -210,7 +210,7 @@ export type ScheduleCommitRow = {
    * season only, so importing one as a real game would corrupt every rating
    * that touches it.
    */
-  stage?: "regular_season" | "scrimmage" | "district_tournament";
+  stage?: "regular_season" | "preseason" | "scrimmage" | "district_tournament";
   /**
    * Defaults to final when scores are present and scheduled otherwise. Passed
    * explicitly when the source knows better - a canceled game has no scores
@@ -233,8 +233,9 @@ export async function commitSchedule(
   gender: string,
   level: string
 ): Promise<ScheduleCommitResult> {
-  const [ss] = await sql<{ id: number }[]>`
-    SELECT id::int FROM sport_season WHERE sport_id = ${sportId} AND is_current`;
+  const [ss] = await sql<{ id: number; startsOn: string }[]>`
+    SELECT id::int, starts_on::text AS "startsOn"
+    FROM sport_season WHERE sport_id = ${sportId} AND is_current`;
   if (!ss) {
     return {
       created: 0,
@@ -262,7 +263,14 @@ export async function commitSchedule(
 
         const status =
           row.status ?? (row.homeScore !== null ? "final" : "scheduled");
-        const stage = row.stage ?? "regular_season";
+        // A game before the season opens counts for nothing, whatever the
+        // source called it. An explicit scrimmage keeps that label: it is more
+        // specific, and a human may have set it deliberately.
+        const requested = row.stage ?? "regular_season";
+        const stage =
+          requested === "regular_season" && row.date < ss.startsOn
+            ? "preseason"
+            : requested;
         const [g] = await tx<{ id: number }[]>`
           INSERT INTO game (sport_season_id, short_code, local_date, status, stage)
           VALUES (${ss.id}, ${shortCode()}, ${row.date}::date, ${status}::game_status,

@@ -157,6 +157,8 @@ export async function getTeamSeason(
       ties: number;
       districtWins: number;
       districtLosses: number;
+      preseasonWins: number;
+      preseasonLosses: number;
     }[]
   >`
     SELECT ts.id::int AS "teamSeasonId", t.id::int AS "teamId",
@@ -167,7 +169,9 @@ export async function getTeamSeason(
            coalesce(rec.losses, 0)::int AS losses,
            coalesce(rec.ties, 0)::int AS ties,
            coalesce(rec.district_wins, 0)::int AS "districtWins",
-           coalesce(rec.district_losses, 0)::int AS "districtLosses"
+           coalesce(rec.district_losses, 0)::int AS "districtLosses",
+           coalesce(rec.preseason_wins, 0)::int AS "preseasonWins",
+           coalesce(rec.preseason_losses, 0)::int AS "preseasonLosses"
     FROM team_season ts
     JOIN team t ON t.id = ts.team_id
     JOIN school sc ON sc.id = t.school_id
@@ -362,7 +366,9 @@ export async function listTeams(sportSeasonId: number) {
            r.name AS "regionName", d.name AS "districtName",
            coalesce(rec.wins, 0)::int AS wins, coalesce(rec.losses, 0)::int AS losses,
            coalesce(rec.district_wins, 0)::int AS "districtWins",
-           coalesce(rec.district_losses, 0)::int AS "districtLosses"
+           coalesce(rec.district_losses, 0)::int AS "districtLosses",
+           coalesce(rec.preseason_wins, 0)::int AS "preseasonWins",
+           coalesce(rec.preseason_losses, 0)::int AS "preseasonLosses"
     FROM team_season ts
     JOIN team t ON t.id = ts.team_id
     JOIN school sc ON sc.id = t.school_id

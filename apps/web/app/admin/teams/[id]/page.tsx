@@ -232,6 +232,7 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
                           className="min-h-8 rounded-md border border-border bg-surface-raised px-2 text-xs"
                         >
                           <option value="regular_season">Regular season</option>
+                          <option value="preseason">Preseason — counts for nothing</option>
                           <option value="scrimmage">Scrimmage — counts for nothing</option>
                           <option value="district_tournament">District tournament</option>
                         </select>
