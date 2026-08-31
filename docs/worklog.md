@@ -460,3 +460,18 @@ displayed and is used only as "Kentucky or not". Inventing 51 state codes from
 memory would put wrong facts in a record book to fill a field nobody reads.
 **Dress rehearsal:** 2,557 rows became 1,316 unique games with 1,241 duplicate
 copies recognised, in 28 seconds; RPI over 221 teams runs in under a second.
+
+## 2026-08-31 — CI caught what local testing did not
+**Did:** Fixed the RPI test, which asserted that four teams were computed when
+the correct answer is now three.
+**Why:** The assertion encoded the old, wrong behaviour — it counted an
+out-of-state team that was being given an invented record. The fix that stopped
+inventing records broke it, which is the test doing its job.
+**Learned:** `npm test` silently skips the database tests when `DATABASE_URL` is
+unset, so "94 passed, 4 skipped" locally became a red CI. Running them locally
+needs the dev database up. Written into STATUS.md as a pre-push step for any
+change under `packages/db`.
+Also: the test passed once and failed on re-run, because the
+`out_of_state_record` it creates survived into the next run and spoiled the
+"before a record exists" phase. It now clears that too, and was verified three
+times in a row.

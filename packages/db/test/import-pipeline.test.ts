@@ -287,6 +287,12 @@ test("RPI runs against real games, reproduces its own arithmetic, and ranks only
   // rpi_input references game, so past runs pin their games in place. Clearing
   // the season's runs first is what makes this test re-runnable.
   await sql`DELETE FROM rpi_run WHERE sport_season_id = ${ss.id}`;
+  // The test asserts behaviour BEFORE an out-of-state record exists and again
+  // after, so a record left behind by a previous run has to go too.
+  await sql`
+    DELETE FROM out_of_state_record oos
+    USING team t, school sc
+    WHERE oos.team_id = t.id AND sc.id = t.school_id AND sc.slug = 'rpi-test-tn'`;
   const stale = await sql<{ id: number }[]>`
     SELECT id::int FROM game
     WHERE sport_season_id = ${ss.id} AND local_date = ANY(${DATES}::date[])`;
@@ -319,8 +325,24 @@ test("RPI runs against real games, reproduces its own arithmetic, and ranks only
   assert.equal(commit.failed.length, 0, "the schedule must commit cleanly");
 
   const summary = await db.runRpi(ss.id, { throughDate: "2026-12-31" });
-  assert.ok(summary.teams >= 4, "every participating team is computed");
+  assert.ok(summary.teams >= 3, "every Kentucky participant is computed");
   assert.ok(summary.published > 0, "teams with complete scores are published");
+
+  // The out-of-state team has no out_of_state_record yet, so it must NOT be
+  // computed. We only know its games against Kentucky, and deriving a record
+  // from those would invent one - then Shadow RPI would compare the official
+  // .500 assumption against our own fabrication.
+  const computed = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n
+    FROM rpi_result r
+    JOIN team t    ON t.id = r.team_id
+    JOIN school sc ON sc.id = t.school_id
+    WHERE r.rpi_run_id = ${summary.officialRunId} AND sc.slug = 'rpi-test-tn'`;
+  assert.equal(
+    computed[0].n,
+    0,
+    "an out-of-state team with no known record must not be given one"
+  );
 
   const standings = await db.getRpiStandings("football");
   assert.ok(standings.length > 0, "there must be a published table");
@@ -357,14 +379,23 @@ test("RPI runs against real games, reproduces its own arithmetic, and ranks only
       AND ds.slug = 'staff-entry'
     ON CONFLICT (team_id, sport_season_id) DO UPDATE SET wins = 9, losses = 1`;
 
-  await db.runRpi(ss.id, { throughDate: "2026-12-31" });
+  const withRecord = await db.runRpi(ss.id, { throughDate: "2026-12-31" });
   const withShadow = await db.getRpiStandings("football");
   const male = withShadow.find((s) => s.schoolSlug === "male");
   assert.ok(male, "Male played the out-of-state team");
   assert.ok(
     male!.delta !== null && Math.abs(male!.delta) > 0.0001,
-    "shadow RPI must differ once the out-of-state record is known"
+    "shadow RPI must differ once a REAL out-of-state record is known"
   );
+
+  // And now it is computed, because there is a real record to carry.
+  const nowComputed = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n
+    FROM rpi_result r
+    JOIN team t    ON t.id = r.team_id
+    JOIN school sc ON sc.id = t.school_id
+    WHERE r.rpi_run_id = ${withRecord.officialRunId} AND sc.slug = 'rpi-test-tn'`;
+  assert.equal(nowComputed[0].n, 1, "a known out-of-state record is carried into the run");
 });
 
 test("a KHSAA alignment block assigns districts and is safe to re-run", opts, async () => {

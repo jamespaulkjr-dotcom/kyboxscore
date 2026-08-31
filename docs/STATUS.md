@@ -282,3 +282,19 @@ That skips migrations, which the pipeline runs and this command does not.
 7. Password change UI (only the CLI can reset a password today).
 8. Confirm the provisional baseball season dates in `seed/001_reference.sql`
    against the published KHSAA calendar.
+
+## Running the tests
+
+`npm test` **skips the database tests unless `DATABASE_URL` is set**, and CI
+sets it. A change to database behaviour can therefore pass locally and fail in
+CI. Before pushing anything that touches `packages/db`, run them for real:
+
+```
+docker compose -f compose.dev.yml up -d
+DATABASE_URL=postgresql://kyboxscore:localdev@127.0.0.1:5432/kyboxscore \
+  npm run db:migrate && npm run db:seed && npm test
+docker compose -f compose.dev.yml down -v
+```
+
+Run it twice. These tests write to the database, and one that only passes on a
+pristine copy is a weak test.
