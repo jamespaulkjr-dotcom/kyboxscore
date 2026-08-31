@@ -4,3 +4,4 @@ export * from "./matching.ts";
 export * from "./schedule.ts";
 export * from "./alignment.ts";
 export * from "./team-schedule.ts";
+export * from "./schedule-sheet.ts";

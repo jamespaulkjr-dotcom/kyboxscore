@@ -414,3 +414,27 @@ file can be trusted to say so. Since a document also cannot be trusted to
 identify a scrimmage, and a scrimmage counts for no record and no RPI, a human
 needs to be able to correct it: hence the game-type control. Changing it warns
 that existing ratings are stale rather than silently leaving them wrong.
+
+## 2026-08-31 — Whole-season schedule spreadsheet import
+**Did:** `/admin/schedule/sheet` — upload a CSV of one row per team per game and
+load a whole season at once. Parser in `packages/parsers/src/schedule-sheet.ts`
+with a dependency-free CSV reader; 12 tests.
+**Why:** James produced a state-wide export: 2,595 rows covering every 2026
+football game. Pasting 219 team schedules was the real cost of the previous
+importer, and this removes it entirely.
+**What the real file contains:** 2,473 rows where both schools are known, 72
+where the opponent is out of state, 26 with no opponent, 12 multi-team
+scrimmages ("Garrard County / Green County / Southwestern"), 12 where the
+subject school is unknown. 55 rows name a scrimmage in the title, 18 are
+canceled, 2 are forfeits, 476 carry scores.
+**Learned:** Columns are matched by header name rather than position, because a
+spreadsheet gains and loses columns between exports. Excel writes unformatted
+dates as a serial day count from 1899-12-30, so both that and written dates are
+accepted. A multi-team scrimmage row is skipped rather than split into invented
+pairings - three fabricated games in the record would be worse than one missing
+event. Where the result letter and the score disagree the row is refused, not
+reconciled.
+**Open:** "The Academy @ Shawnee" appears 12 times and is Shawnee High School
+under its current name; there is no school-alias mechanism yet, so those games
+are skipped. Out-of-state opponents are skipped because creating them needs a
+state, which is a factual claim we do not have.

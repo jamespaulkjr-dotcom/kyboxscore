@@ -105,6 +105,9 @@ export default async function Page() {
             <Link href="/admin/teams" className="mt-1 block text-link underline">
               Teams and rosters
             </Link>
+            <Link href="/admin/schedule/sheet" className="mt-1 block text-link underline">
+              Import a schedule spreadsheet (whole season)
+            </Link>
             <Link href="/admin/schedule" className="mt-1 block text-link underline">
               Import a schedule (row per game)
             </Link>
