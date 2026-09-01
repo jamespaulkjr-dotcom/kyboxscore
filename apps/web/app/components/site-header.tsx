@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AccountLink } from "./account-link";
 import { Wordmark } from "./logo";
 
 /**
@@ -6,10 +7,11 @@ import { Wordmark } from "./logo";
  * always sits on the ground it was drawn for. Sport and season stay visible
  * and changeable from every page.
  *
- * The sign-in link is deliberately stateless - it never reads the session.
- * Reading cookies here would opt every public page into dynamic rendering and
- * cost us the edge cache on the scoreboard, which is the one page that has to
- * be fast. /login redirects an already-signed-in user onward instead.
+ * The header never reads the session on the server: doing so would opt every
+ * public page into dynamic rendering and cost the edge cache on the
+ * scoreboard, which is the one page that has to be fast. AccountLink reads a
+ * role-only hint cookie in the browser instead, so a signed-in coach is not
+ * told to "Sign in" on every page while the cached HTML stays anonymous.
  */
 export function SiteHeader({
   sports,
@@ -50,12 +52,7 @@ export function SiteHeader({
         >
           All sports
         </Link>
-        <Link
-          href="/login"
-          className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold text-[color:var(--chrome-muted)] hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-        >
-          Sign in
-        </Link>
+        <AccountLink />
       </div>
     </header>
   );

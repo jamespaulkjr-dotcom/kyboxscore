@@ -844,3 +844,46 @@ arriving as null; it is wrapped in coalesce now.
 added about 2 KB. The overage is the React 19 / Next 16 client runtime, so it
 needs its own look rather than being blamed on the next feature that touches
 the page.
+
+## 2026-09-01 — The JavaScript budget, and a header that knows you
+
+**The budget was not actually over.** I reported the scores page at 172 KB
+against a 150 KB budget. That was wrong, and the error was mine: I summed every
+`<script>` on the page, including Next's polyfill bundle. That bundle carries
+`nomodule`, which is the whole reason it exists — a browser that supports ES
+modules never fetches it. The real number a reader pays is **136 KB, under
+budget**, and it holds on production for the front page, the scoreboard and a
+team page.
+
+About 126 KB of that is React 19 plus the Next 16 app-router runtime. Our own
+code on the scoreboard is roughly 10 KB, and the live-scoring poller added 1.7
+KB of it. There is no meaningful win available in our code, so I did not
+manufacture one.
+
+Documents are already cheap over the wire: the scoreboard is 40 KB raw and 6.4
+KB gzipped; the team page 96 KB raw and 10.9 KB gzipped. Roughly half of each
+is the inlined RSC payload, which is near-duplicate text and compresses to
+nearly nothing. Production is compressing (verified: 41.6 KB → 7.6 KB) and
+serving chunks `immutable`.
+
+`scripts/page-weight.mjs` exists so this is measured the same way every time,
+and so the polyfill is never counted again.
+
+**The header now knows you are signed in.** James reported losing his admin
+rights when he left the coach page. He had not: the header was stateless on
+purpose, because reading the session there would opt every public page into
+dynamic rendering and cost the scoreboard its edge cache. But it said "Sign in"
+to somebody who was signed in, which is a lie the site was telling on every
+page.
+
+Fixed with a `kbs_who` cookie that carries a role and nothing else — no token,
+no name, no id. It is readable by JavaScript by design, so it had to be
+worthless if read: forging it changes one word in the header and then the
+server refuses you at the door. The cached HTML stays anonymous and correct for
+every viewer; the swap happens after hydration.
+
+The cookie-string parsing is unit tested, including the bug it would otherwise
+have: `startsWith("kbs_who=")` also matches `not_kbs_who=`.
+
+**Note for James:** existing sessions predate the cookie, so sign out and back
+in once to see it.

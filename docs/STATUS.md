@@ -189,6 +189,12 @@ That skips migrations, which the pipeline runs and this command does not.
   date, so it holds for every sport and every future season — **correct the
   season dates and the classification follows**. Football 2026 opens
   2026-08-19.
+- **Signed-in header** — the header cannot read the session (that would make
+  every public page dynamic and cost the scoreboard's edge cache), so it reads
+  a **role-only** `kbs_who` hint cookie in the browser and swaps "Sign in" for
+  "Admin" / "Your teams". The hint holds no token, no name and no id: it is
+  JavaScript-readable by design, so it must be worthless if read, and every
+  page behind it still checks the real session server-side.
 - **Live scoring** — a coach or AD with a team grant can keep a score play by
   play (TD/PAT/2PT/FG/Safety, per quarter, with undo) or just post a final.
   They can also mint a **per-game keeper link** for whoever is in the press box:
@@ -387,12 +393,23 @@ returns NULL for every row where the column is NULL, so a TypeScript field
 typed `boolean` quietly arrives as `null`. Wrap boolean projections in
 `coalesce(..., false)`.
 
-### The scores page is over the JavaScript budget
+### Measure page weight with the script, not by hand
 
-172 KB gzipped against the 150 KB in `CLAUDE.md`, and it was already over
-before live scoring was added (that cost about 2 KB). It is the React 19 /
-Next 16 client runtime, not any one feature. Measure before blaming a change:
-build, then sum the gzipped `/_next/static` scripts referenced by the page.
+`node scripts/page-weight.mjs <url>` — it separates the scripts a modern
+browser actually fetches from Next's polyfill bundle, which carries `nomodule`
+and is therefore **never fetched** by any browser that supports ES modules.
+
+This exists because measuring by hand got it wrong: summing every `<script>`
+counted the 38.7 KB polyfill and reported the scores page as 172 KB, over the
+150 KB budget. It is really **136 KB, under budget** — and about 126 KB of that
+is React 19 plus the Next 16 app-router runtime. Our own code on the scoreboard
+is roughly 10 KB, so there is nothing meaningful to trim there; a future
+session should not go hunting.
+
+Documents are small over the wire: the scoreboard is 40 KB raw and 6.4 KB
+gzipped, and the team page 96 KB raw and 10.9 KB gzipped. Roughly half of each
+document is the inlined RSC payload, which is near-duplicate text and
+compresses away almost entirely. Not worth chasing.
 
 ## Open items
 

@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { WHO_COOKIE } from "./who";
 import { redirect } from "next/navigation";
 import {
   findSessionUser,
@@ -8,6 +9,22 @@ import {
 } from "@kyboxscore/db";
 
 export const SESSION_COOKIE = "kbs_session";
+
+/**
+ * A hint, not a credential.
+ *
+ * The header cannot read the session: doing so would opt every public page
+ * into dynamic rendering and cost the edge cache on the scoreboard, which is
+ * the one page that has to be fast. But a signed-in coach browsing the site
+ * then sees "Sign in" on every page and reasonably concludes they have been
+ * logged out.
+ *
+ * So this carries the one bit the header actually needs - what kind of account
+ * is signed in - and nothing else. No token, no name, no id: it is readable by
+ * JavaScript by design, so it must be worthless if read. It is a label on the
+ * outside of the box, and the box is still locked.
+ */
+export { WHO_COOKIE } from "./who";
 const SESSION_DAYS = 30;
 
 export function sessionExpiry(): Date {
@@ -29,6 +46,21 @@ export async function setSessionCookie(token: string, expires: Date) {
 export async function clearSessionCookie() {
   const store = await cookies();
   store.delete(SESSION_COOKIE);
+  store.delete(WHO_COOKIE);
+}
+
+/** Set alongside the session, and expiring with it, so the two never disagree. */
+export async function setWhoCookie(role: string, expires: Date) {
+  const store = await cookies();
+  store.set(WHO_COOKIE, role, {
+    // Read by the header in the browser. Deliberately not httpOnly - and
+    // deliberately holding nothing worth stealing.
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires,
+  });
 }
 
 /**

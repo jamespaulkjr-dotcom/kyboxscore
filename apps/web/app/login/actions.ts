@@ -17,6 +17,7 @@ import {
   clientIp,
   sessionExpiry,
   setSessionCookie,
+  setWhoCookie,
   SESSION_COOKIE,
 } from "../../lib/auth";
 import { cookies } from "next/headers";
@@ -75,6 +76,7 @@ export async function login(
   const expires = sessionExpiry();
   await createSession(cred.id, hashToken(token), expires);
   await setSessionCookie(token, expires);
+  await setWhoCookie(cred.role, expires);
   await recordLoginAttempt(email, ip, true);
 
   // Only relative paths: an open redirect here would be a phishing primitive.
