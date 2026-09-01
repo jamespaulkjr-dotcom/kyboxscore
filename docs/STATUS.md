@@ -7,7 +7,52 @@ person) can pick up without reconstructing it from shell history.
 the state: what is true right now.** Update it whenever infrastructure changes
 or a phase completes.
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
+
+## Resume here
+
+Read this section first, then `## Gotchas learned the hard way`. Between them
+they are the whole handover; nothing needed to continue lives only in a chat
+transcript.
+
+**Where the work stands.** Football is the live sport: 291 schools, the KHSAA
+alignment, the full season schedule, 10,743 players with height and weight,
+records split district/season/preseason, RPI and Shadow RPI recomputed hourly,
+a front page, an admin area, and following a team. That is phase one working
+end to end for one sport.
+
+**What was in flight at the last compaction** (commit `736500a`, both parts
+finished, both on main):
+
+1. ALL-CAPS roster names — `normalizePersonName` in
+   `packages/parsers/src/person-name.ts`, wired into `roster-sheet.ts` so new
+   imports arrive clean, and applied to the 22 existing rows that were
+   genuinely shouting (18 rows; the other 69 candidates were initials like AJ
+   and D.K, which must not become "Aj"). `search_document` was refreshed after,
+   because player names live in it.
+2. Following a team — `apps/web/lib/favorites.ts` (localStorage),
+   `follow-button.tsx` on the team page, `following.tsx` on the front page,
+   `/api/following` for the live next/last game.
+
+**The obvious next things**, in the order they are probably worth doing:
+
+- Basketball. The schema is sport-agnostic and the RPI engine already runs per
+  sport; what is missing is schedules and rosters, which means asking James for
+  the files. Everything else should follow the football path.
+- The stat importer end to end with a real Hudl `.txt` from a coach. The parser
+  exists and is tested against fixtures; it has never been run on a file that
+  arrived from an actual coach's export.
+- Browser notifications for followed teams. Deliberately not started: it needs
+  a service worker, a push subscription per device, VAPID keys and a sending
+  job. Worth doing after following proves people want it. Push subscriptions
+  are per-device, so this can still be built without accounts.
+
+**How to talk to James about data.** He supplies files (Excel, mostly) by
+uploading to `/home/deploy/kyboxscore/data-inbox/` over WinSCP. He has a friend
+named Nathan backing the project who compiles roster data. Ask for a file
+rather than reaching for a website: the hard rules in `CLAUDE.md` about
+scraping KHSAA, ArbiterLive and Riherds are not negotiable, and that extends to
+state associations for out-of-state records.
 
 ## Infrastructure
 
@@ -301,6 +346,18 @@ That skips migrations, which the pipeline runs and this command does not.
 - `AUTH_SECRET` is the pepper for session token hashes. **Changing it logs
   everyone out**, because every stored `token_hash` becomes unmatchable. That
   is acceptable now and will not be once coaches depend on it.
+
+### `search_document` cannot be refreshed CONCURRENTLY
+
+It has no unique index, so `REFRESH MATERIALIZED VIEW CONCURRENTLY
+search_document` errors out. Plain `REFRESH MATERIALIZED VIEW` works and takes
+a moment, during which search returns nothing. That is fine at current size and
+current traffic; if it stops being fine, add a unique index on
+`(entity_type, entity_id)` in a migration rather than reaching for CONCURRENTLY
+and being surprised again.
+
+Also: it does not update itself. Anything that changes a school, team or player
+**name** has to refresh it. This has been forgotten three times now.
 
 ## Open items
 

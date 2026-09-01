@@ -25,6 +25,11 @@ export function FollowButton({
     setFollowing(isFollowing(slug, sport));
   }, [slug, sport]);
 
+  // The accessible name starts with the visible label so voice control
+  // ("click Follow") still works, then adds the school for anyone who lands on
+  // the button out of context.
+  const label = following ? `Following ${name}` : `Follow ${name}`;
+
   if (!mounted) {
     return <span className="inline-block h-9 w-28" aria-hidden />;
   }
@@ -34,6 +39,7 @@ export function FollowButton({
       type="button"
       onClick={() => setFollowing(toggleFollowing({ slug, name, sport }))}
       aria-pressed={following}
+      aria-label={label}
       className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-link ${
         following
           ? "border-accent bg-accent/10 text-accent"
@@ -42,9 +48,6 @@ export function FollowButton({
     >
       <span aria-hidden>{following ? "★" : "☆"}</span>
       {following ? "Following" : "Follow"}
-      <span className="sr-only">
-        {following ? `Stop following ${name}` : `Follow ${name}`}
-      </span>
     </button>
   );
 }

@@ -755,7 +755,7 @@ eighth grade. The input round-trips: type "Sr" or "12", store 12, show "Sr".
 **Did:** Names arriving in ALL CAPS are calmed at import and in the existing
 data. Added following: a star on a team page, and a "Your teams" block on the
 front page with next and last game.
-**On the names:** 82 players had an all-caps part, but only 22 were the actual
+**On the names:** 87 players had an all-caps part, but only 18 were the actual
 problem. The rest were initials — AJ, TJ, D.K — and "Aj" is worse than "AJ".
 The rule only touches a part that is entirely uppercase and long enough not to
 be initials, and never touches a name that already carries lower case, because
@@ -763,6 +763,10 @@ MeJean, DeShields and DuLany-Waugh were typed deliberately. MCLEROY becomes
 McLeroy, not Mcleroy. "JR" is left alone: it is a suffix, and it is also a boy
 called J.R., and leaving it is the only answer that cannot be wrong about
 somebody's name.
+**Applied to production:** 18 rows updated in `player`, and `search_document`
+refreshed afterwards because player names live in it. Slugs were left alone —
+they were already lowercased at import, so `/players/makhai-baylor` did not
+move. The 69 rows left untouched are all initials: AJ, TJ, D.K, JB, ZT.
 **On following:** kept in localStorage rather than behind an account. The brief
 is careful about minors, and a database associating an email address with the
 teams whose rosters a person watches is a different kind of record from a
