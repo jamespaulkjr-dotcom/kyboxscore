@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getScoringGame } from "@kyboxscore/db";
+import { getScoringGame, listGameRoster } from "@kyboxscore/db";
 import { ScoringConsole } from "../../components/scoring-console";
 import { resolveScorer } from "../../../lib/scoring-auth";
 import { formatSlateDate } from "../../../lib/format";
@@ -28,6 +28,8 @@ export default async function Page(props: PageProps<"/score/[code]">) {
   const scorer = await resolveScorer(game.id);
   if (!scorer) notFound();
 
+  const roster = await listGameRoster(game.id);
+
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 pb-24">
       <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
@@ -40,7 +42,7 @@ export default async function Page(props: PageProps<"/score/[code]">) {
       </p>
 
       <div className="mt-5">
-        <ScoringConsole game={game} scorerLabel={scorer.label} />
+        <ScoringConsole game={game} scorerLabel={scorer.label} roster={roster} />
       </div>
 
       <p className="mt-10 border-t border-border pt-4 text-sm text-fg-muted">

@@ -46,6 +46,14 @@ export type ScoringPlay = {
   points: number;
   description: string;
   enteredAt: string;
+  playKey: string | null;
+  method: string | null;
+  clock: string | null;
+  playerId: number | null;
+  playerName: string | null;
+  playerJersey: string | null;
+  assistPlayerId: number | null;
+  assistName: string | null;
 };
 
 export type ScoringGame = {
@@ -115,9 +123,22 @@ export async function getScoringGame(
   const plays = await sql<ScoringPlay[]>`
     SELECT p.id::int, p.game_participant_id::int AS "participantId",
            p.period_number::int AS "periodNumber", p.points::int,
-           p.description, p.entered_at::text AS "enteredAt"
+           p.description, p.entered_at::text AS "enteredAt",
+           p.play_key AS "playKey", p.method, p.clock,
+           p.player_id::int AS "playerId",
+           nullif(trim(scorer.first_name || ' ' || scorer.last_name), '') AS "playerName",
+           ps.jersey AS "playerJersey",
+           p.assist_player_id::int AS "assistPlayerId",
+           nullif(trim(passer.first_name || ' ' || passer.last_name), '') AS "assistName"
     FROM scoring_play p
     JOIN game_participant gp ON gp.id = p.game_participant_id
+    JOIN game g ON g.id = gp.game_id
+    LEFT JOIN player scorer ON scorer.id = p.player_id
+    LEFT JOIN player passer ON passer.id = p.assist_player_id
+    LEFT JOIN team_season ts
+      ON ts.team_id = gp.team_id AND ts.sport_season_id = g.sport_season_id
+    LEFT JOIN player_season ps
+      ON ps.player_id = p.player_id AND ps.team_season_id = ts.id
     WHERE gp.game_id = ${game.id} AND p.voided_at IS NULL
     ORDER BY p.sequence`;
 
@@ -237,7 +258,7 @@ export async function startScoring(gameId: number) {
        RETURNING id::int`;
     if (!g) return;
     await tx`
-      UPDATE game_participant SET score = 0
+      UPDATE game_participant SET score = score_adjustment
       WHERE game_id = ${gameId} AND score IS NULL`;
   });
 }
@@ -248,17 +269,99 @@ export async function startScoring(gameId: number) {
  * points, so nobody can hand themselves a 50-point play.
  */
 export const FOOTBALL_PLAYS = [
-  { key: "td", label: "TD", points: 6, description: "Touchdown" },
-  { key: "pat", label: "PAT", points: 1, description: "Extra point" },
-  { key: "two", label: "2PT", points: 2, description: "Two-point conversion" },
-  { key: "fg", label: "FG", points: 3, description: "Field goal" },
-  { key: "safety", label: "Safety", points: 2, description: "Safety" },
+  {
+    key: "td",
+    label: "TD",
+    points: 6,
+    description: "Touchdown",
+    // "Who threw it" only makes sense for a passing touchdown, which is why
+    // the passer is a property of the method rather than of the play.
+    methods: [
+      { key: "rush", label: "Rush", noun: "rushing touchdown", passer: false },
+      { key: "pass", label: "Pass", noun: "touchdown catch", passer: true },
+      { key: "kick_return", label: "Kickoff return", noun: "kickoff return touchdown", passer: false },
+      { key: "punt_return", label: "Punt return", noun: "punt return touchdown", passer: false },
+      { key: "interception", label: "Interception return", noun: "interception return touchdown", passer: false },
+      { key: "fumble", label: "Fumble return", noun: "fumble return touchdown", passer: false },
+      { key: "blocked_kick", label: "Blocked kick return", noun: "blocked kick return touchdown", passer: false },
+    ],
+  },
+  {
+    key: "pat",
+    label: "PAT",
+    points: 1,
+    description: "Extra point",
+    methods: [
+      { key: "kick", label: "Kick", noun: "extra point", passer: false },
+    ],
+  },
+  {
+    key: "two",
+    label: "2PT",
+    points: 2,
+    description: "Two-point conversion",
+    methods: [
+      { key: "rush", label: "Rush", noun: "two-point run", passer: false },
+      { key: "pass", label: "Pass", noun: "two-point catch", passer: true },
+    ],
+  },
+  {
+    key: "fg",
+    label: "FG",
+    points: 3,
+    description: "Field goal",
+    methods: [{ key: "kick", label: "Kick", noun: "field goal", passer: false }],
+  },
+  {
+    key: "safety",
+    label: "Safety",
+    points: 2,
+    description: "Safety",
+    methods: [],
+  },
 ] as const;
 
 export type ScoringPlayKey = (typeof FOOTBALL_PLAYS)[number]["key"];
 
 export function playByKey(key: string) {
   return FOOTBALL_PLAYS.find((p) => p.key === key) ?? null;
+}
+
+export function methodByKey(playKey: string, methodKey: string) {
+  const play = playByKey(playKey);
+  if (!play) return null;
+  return (play.methods as readonly { key: string; label: string; noun: string; passer: boolean }[])
+    .find((m) => m.key === methodKey) ?? null;
+}
+
+/**
+ * The sentence a reader sees, built from the parts rather than typed.
+ *
+ * Kept on the server so every play reads the same way, and regenerated on
+ * every edit - which is the reason `play_key` and `method` are stored
+ * separately from the prose.
+ */
+export function describePlay(input: {
+  playKey: string | null;
+  method: string | null;
+  scorer: string | null;
+  passer: string | null;
+}): string {
+  const play = input.playKey ? playByKey(input.playKey) : null;
+  const fallback = play?.description ?? "Score";
+  if (!play) return fallback;
+
+  const method = input.method ? methodByKey(play.key, input.method) : null;
+  if (!method) return input.scorer ? `${input.scorer} ${fallback.toLowerCase()}` : fallback;
+
+  if (!input.scorer) {
+    const noun = method.noun;
+    return noun.charAt(0).toUpperCase() + noun.slice(1);
+  }
+  if (method.passer && input.passer) {
+    return `${input.passer} to ${input.scorer}, ${method.noun}`;
+  }
+  return `${input.scorer} ${method.noun}`;
 }
 
 /**
@@ -272,8 +375,10 @@ export async function recordScoringPlay(input: {
   periodNumber: number;
   points: number;
   description: string;
+  playKey?: string | null;
+  clock?: string | null;
   actor: ScoringActor;
-}): Promise<{ ok: boolean; reason?: string }> {
+}): Promise<{ ok: boolean; reason?: string; playId?: number }> {
   const { userId, keeperId } = actorColumns(input.actor);
 
   return sql.begin(async (tx) => {
@@ -291,15 +396,17 @@ export async function recordScoringPlay(input: {
       JOIN game_participant gp ON gp.id = p.game_participant_id
       WHERE gp.game_id = ${input.gameId}`;
 
-    await tx`
+    const [row] = await tx<{ id: number }[]>`
       INSERT INTO scoring_play
         (game_participant_id, period_number, sequence, points, description,
-         entered_by_user_id, scorekeeper_id)
+         play_key, clock, entered_by_user_id, scorekeeper_id)
       VALUES (${input.participantId}, ${input.periodNumber}, ${next},
-              ${input.points}, ${input.description}, ${userId}, ${keeperId})`;
+              ${input.points}, ${input.description}, ${input.playKey ?? null},
+              ${input.clock ?? null}, ${userId}, ${keeperId})
+      RETURNING id::int`;
 
     await resyncScores(tx, input.gameId, input.periodNumber);
-    return { ok: true };
+    return { ok: true, playId: row.id };
   });
 }
 
@@ -328,12 +435,15 @@ async function resyncScores(
   gameId: number,
   periodNumber: number
 ) {
+  // Plays plus the adjustment, never plays alone. Somebody who typed "14-7"
+  // because they picked the game up at half time must not lose it the moment
+  // they tap the next touchdown.
   await tx`
     UPDATE game_participant gp
        SET score = coalesce((
              SELECT sum(p.points)::smallint FROM scoring_play p
              WHERE p.game_participant_id = gp.id AND p.voided_at IS NULL
-           ), 0)
+           ), 0) + gp.score_adjustment
      WHERE gp.game_id = ${gameId}`;
 
   // Quarter-by-quarter, which is most of what a box score reader wants and
@@ -372,15 +482,23 @@ export async function setFinalScore(input: {
   final: boolean;
 }): Promise<{ ok: boolean; reason?: string }> {
   return sql.begin(async (tx) => {
-    const sides = await tx<{ id: number; role: string }[]>`
-      SELECT id::int, role::text FROM game_participant WHERE game_id = ${input.gameId}`;
+    const sides = await tx<{ id: number; role: string; played: number }[]>`
+      SELECT gp.id::int, gp.role::text,
+             coalesce((SELECT sum(p.points)::int FROM scoring_play p
+                        WHERE p.game_participant_id = gp.id
+                          AND p.voided_at IS NULL), 0) AS played
+      FROM game_participant gp WHERE gp.game_id = ${input.gameId}`;
     if (sides.length !== 2) return { ok: false, reason: "That game is incomplete." };
 
     for (const s of sides) {
+      const wanted = s.role === "home" ? input.homeScore : input.awayScore;
+      // The adjustment is the difference the plays cannot explain. Storing it
+      // rather than the score means a later tap adds to what was typed
+      // instead of overwriting it.
       await tx`
-        UPDATE game_participant SET score = ${
-          s.role === "home" ? input.homeScore : input.awayScore
-        } WHERE id = ${s.id}`;
+        UPDATE game_participant
+           SET score = ${wanted}, score_adjustment = ${wanted - s.played}
+         WHERE id = ${s.id}`;
     }
 
     await tx`
@@ -511,7 +629,7 @@ export async function resetGameScoring(gameId: number): Promise<ResetResult> {
       DELETE FROM game_period_score
        WHERE game_participant_id IN
              (SELECT id FROM game_participant WHERE game_id = ${gameId})`;
-    await tx`UPDATE game_participant SET score = NULL WHERE game_id = ${gameId}`;
+    await tx`UPDATE game_participant SET score = NULL, score_adjustment = 0 WHERE game_id = ${gameId}`;
     await tx`
       UPDATE game
          SET status = 'scheduled', periods_played = NULL,
@@ -545,4 +663,189 @@ export async function resetGameScoring(gameId: number): Promise<ResetResult> {
   }
 
   return { ok: true, ...result, wasStatus: guard.status };
+}
+
+/* ------------------------------------------------------- play detail */
+
+export type GameRosterPlayer = {
+  participantId: number;
+  playerId: number;
+  name: string;
+  jersey: string | null;
+};
+
+/**
+ * Both rosters, for the "who scored?" pickers.
+ *
+ * Ordered by jersey the way a programme is, because whoever is entering this
+ * is reading a number off a shirt, not searching for a name.
+ */
+export async function listGameRoster(gameId: number) {
+  return sql<GameRosterPlayer[]>`
+    SELECT gp.id::int AS "participantId", pl.id::int AS "playerId",
+           trim(pl.first_name || ' ' || pl.last_name) AS name,
+           ps.jersey
+    FROM game_participant gp
+    JOIN game g ON g.id = gp.game_id
+    JOIN team_season ts
+      ON ts.team_id = gp.team_id AND ts.sport_season_id = g.sport_season_id
+    JOIN player_season ps ON ps.team_season_id = ts.id
+    JOIN player pl ON pl.id = ps.player_id
+    WHERE gp.game_id = ${gameId} AND pl.merged_into_id IS NULL
+    ORDER BY gp.role DESC,
+             -- Numeric where it is a number, so 2 comes before 10.
+             nullif(regexp_replace(ps.jersey, '[^0-9]', '', 'g'), '')::int
+               NULLS LAST,
+             pl.last_name`;
+}
+
+/** Clock as printed on a scoreboard. Blank is fine; wrong is not. */
+export function normalizeClock(raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+  const m = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const minutes = Number(m[1]);
+  const seconds = Number(m[2]);
+  if (minutes > 20 || seconds > 59) return null;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+/**
+ * Add the detail to a play that was already tapped in.
+ *
+ * Detail is always a second step, never a condition of scoring. The tap has to
+ * land in the moment the crowd reacts; who caught it and at what clock can be
+ * filled in during the next timeout, or after the game, or never.
+ */
+export async function updateScoringPlay(input: {
+  gameId: number;
+  playId: number;
+  playerId: number | null;
+  assistPlayerId: number | null;
+  method: string | null;
+  clock: string | null;
+  periodNumber: number | null;
+}): Promise<{ ok: boolean; reason?: string }> {
+  const [play] = await sql<
+    { id: number; playKey: string | null; participantId: number }[]
+  >`
+    SELECT p.id::int, p.play_key AS "playKey",
+           p.game_participant_id::int AS "participantId"
+    FROM scoring_play p
+    JOIN game_participant gp ON gp.id = p.game_participant_id
+    WHERE p.id = ${input.playId} AND gp.game_id = ${input.gameId}
+      AND p.voided_at IS NULL`;
+  if (!play) return { ok: false, reason: "That play is no longer there." };
+
+  // A player has to actually be on the roster of the team credited with the
+  // score. Otherwise a stray id could hang somebody else's name on it.
+  const roster = await listGameRoster(input.gameId);
+  const ours = new Set(
+    roster.filter((r) => r.participantId === play.participantId).map((r) => r.playerId)
+  );
+  for (const id of [input.playerId, input.assistPlayerId]) {
+    if (id !== null && !ours.has(id)) {
+      return { ok: false, reason: "That player is not on this team's roster." };
+    }
+  }
+
+  const method =
+    input.method && play.playKey && methodByKey(play.playKey, input.method)
+      ? input.method
+      : null;
+
+  const name = (id: number | null) =>
+    id === null ? null : (roster.find((r) => r.playerId === id)?.name ?? null);
+
+  const description = describePlay({
+    playKey: play.playKey,
+    method,
+    scorer: name(input.playerId),
+    passer: name(input.assistPlayerId),
+  });
+
+  await sql.begin(async (tx) => {
+    await tx`
+      UPDATE scoring_play
+         SET player_id = ${input.playerId},
+             assist_player_id = ${input.assistPlayerId},
+             method = ${method},
+             clock = ${input.clock},
+             period_number = coalesce(${input.periodNumber}, period_number),
+             description = ${description}
+       WHERE id = ${input.playId}`;
+    // The period may have moved, so the quarter tallies are rebuilt for every
+    // period this game has, not just one.
+    await resyncAllPeriods(tx, input.gameId);
+  });
+
+  return { ok: true };
+}
+
+/** Rebuild every period tally. Used when a play moves between quarters. */
+async function resyncAllPeriods(tx: TransactionSql, gameId: number) {
+  await tx`
+    DELETE FROM game_period_score
+     WHERE game_participant_id IN
+           (SELECT id FROM game_participant WHERE game_id = ${gameId})`;
+  await tx`
+    INSERT INTO game_period_score (game_participant_id, period_number, score)
+    SELECT p.game_participant_id, p.period_number, sum(p.points)::smallint
+    FROM scoring_play p
+    JOIN game_participant gp ON gp.id = p.game_participant_id
+    WHERE gp.game_id = ${gameId} AND p.voided_at IS NULL
+    GROUP BY p.game_participant_id, p.period_number`;
+  await tx`
+    UPDATE game
+       SET periods_played = greatest(
+             coalesce(periods_played, 0),
+             coalesce((SELECT max(p.period_number) FROM scoring_play p
+                        JOIN game_participant gp ON gp.id = p.game_participant_id
+                       WHERE gp.game_id = ${gameId} AND p.voided_at IS NULL), 0)),
+           score_updated_at = now(), updated_at = now()
+     WHERE id = ${gameId}`;
+}
+
+/**
+ * The scoring summary for the public game page: every play in order, with the
+ * running score after each one, so a reader can follow how it got there.
+ */
+export async function getScoringSummary(gameId: number) {
+  return sql<
+    {
+      periodNumber: number;
+      clock: string | null;
+      role: "home" | "away";
+      schoolName: string;
+      points: number;
+      description: string;
+      homeAfter: number;
+      awayAfter: number;
+    }[]
+  >`
+    WITH plays AS (
+      SELECT p.sequence, p.period_number, p.clock, p.points, p.description,
+             gp.role, coalesce(sc.short_name, sc.name) AS school_name,
+             sum(CASE WHEN gp.role = 'home' THEN p.points ELSE 0 END)
+               OVER (ORDER BY p.sequence) AS home_after,
+             sum(CASE WHEN gp.role = 'away' THEN p.points ELSE 0 END)
+               OVER (ORDER BY p.sequence) AS away_after
+      FROM scoring_play p
+      JOIN game_participant gp ON gp.id = p.game_participant_id
+      JOIN team t ON t.id = gp.team_id
+      JOIN school sc ON sc.id = t.school_id
+      WHERE gp.game_id = ${gameId} AND p.voided_at IS NULL
+    )
+    SELECT period_number::int AS "periodNumber", clock, role::text,
+           school_name AS "schoolName", points::int, description,
+           -- The typed-in baseline travels with the running score, so the
+           -- last row matches the score at the top of the page.
+           (home_after + (SELECT score_adjustment FROM game_participant
+                           WHERE game_id = ${gameId} AND role = 'home'))::int
+             AS "homeAfter",
+           (away_after + (SELECT score_adjustment FROM game_participant
+                           WHERE game_id = ${gameId} AND role = 'away'))::int
+             AS "awayAfter"
+    FROM plays ORDER BY sequence`;
 }

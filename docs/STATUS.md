@@ -203,6 +203,19 @@ That skips migrations, which the pipeline runs and this command does not.
   Public pages show a red LIVE pill and poll `/api/live` every 30s.
   **LIVE is a human claim, never inferred from the clock**, and it expires
   after five hours of no change so nothing blinks overnight.
+  The score can also just be **typed in** at any point — "Type the score
+  instead" sits with the score, not at the end. What is typed is kept as
+  `game_participant.score_adjustment`, and the published score is
+  `sum(plays) + adjustment`, so somebody who picks a game up at half time and
+  types 14-7 does not lose it the moment they tap the next touchdown.
+  Each play can then be given **detail**: who scored, how (rush, pass, kickoff
+  return…), who threw it, and the clock. Detail is always a second step and
+  never a condition of scoring — the tap has to land while the crowd is still
+  reacting. The description a reader sees is composed on the server from those
+  parts and regenerated on every edit, which is why `play_key` and `method` are
+  stored separately from the prose.
+  The public game page shows a **Scoring** summary above the box scores, with
+  the running score after each play.
   An **admin** sees a "Reset this game" control at the bottom of the console:
   it clears every play, quarter score and score, puts the game back to
   scheduled, revokes any keeper links and rebuilds both teams' records. It

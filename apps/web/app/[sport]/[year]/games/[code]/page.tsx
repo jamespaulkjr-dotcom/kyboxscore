@@ -5,6 +5,7 @@ import {
   getBoxScore,
   getGameByCode,
   getGameSides,
+  getScoringSummary,
   listSports,
 } from "@kyboxscore/db";
 import { SiteHeader } from "../../../../components/site-header";
@@ -49,7 +50,11 @@ export default async function Page(
   const game = await getGameByCode(code);
   if (!game) notFound();
 
-  const [sports, sides] = await Promise.all([listSports(), getGameSides(game.id)]);
+  const [sports, sides, scoring] = await Promise.all([
+    listSports(),
+    getGameSides(game.id),
+    getScoringSummary(game.id),
+  ]);
   const boxes = await Promise.all(
     sides.map(async (s) => ({ side: s, rows: await getBoxScore(s.participantId) }))
   );
@@ -136,6 +141,41 @@ export default async function Page(
         </p>
 
         {/* Box scores */}
+        {/* How the game got to its score. Sits above the box scores because a
+            reader who was not there wants the story before the statistics. */}
+        {scoring.length > 0 && (
+          <section className="mt-8" aria-labelledby="scoring">
+            <h2 id="scoring" className="mb-2 text-sm font-bold">
+              Scoring
+            </h2>
+            <ol className="overflow-hidden rounded-lg border border-border bg-surface">
+              {scoring.map((p, i) => (
+                <li
+                  key={i}
+                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border px-4 py-2.5 text-sm last:border-0"
+                >
+                  <span className="tabular w-16 shrink-0 text-fg-muted">
+                    {p.periodNumber > game.regulationPeriods
+                      ? `OT${p.periodNumber - game.regulationPeriods}`
+                      : `${game.periodNoun.charAt(0).toUpperCase()}${p.periodNumber}`}
+                    {p.clock ? ` ${p.clock}` : ""}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium">{p.schoolName}</span>{" "}
+                    <span className="text-fg-muted">{p.description}</span>
+                  </span>
+                  <span className="tabular shrink-0 font-semibold">
+                    {p.awayAfter}–{p.homeAfter}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-1.5 text-xs text-fg-muted">
+              Running score shown away–home.
+            </p>
+          </section>
+        )}
+
         {boxes.map(({ side, rows }) => (
           <section key={side.participantId} className="mt-8" aria-labelledby={`box-${side.participantId}`}>
             <h2 id={`box-${side.participantId}`} className="mb-2 text-sm font-bold">

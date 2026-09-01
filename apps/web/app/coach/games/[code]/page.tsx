@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getScoringGame, listScorekeepers, listSports } from "@kyboxscore/db";
+import {
+  getScoringGame,
+  listGameRoster,
+  listScorekeepers,
+  listSports,
+} from "@kyboxscore/db";
 import { SiteHeader } from "../../../components/site-header";
 import { ScoringConsole } from "../../../components/scoring-console";
 import { isAdmin, requireUser } from "../../../../lib/auth";
@@ -29,8 +34,9 @@ export default async function Page(props: PageProps<"/coach/games/[code]">) {
   const scorer = await resolveScorer(game.id);
   if (!scorer) notFound();
 
-  const [sports, homeKeepers, awayKeepers] = await Promise.all([
+  const [sports, roster, homeKeepers, awayKeepers] = await Promise.all([
     listSports(),
+    listGameRoster(game.id),
     listScorekeepers(game.id, game.home.teamId),
     listScorekeepers(game.id, game.away.teamId),
   ]);
@@ -58,7 +64,7 @@ export default async function Page(props: PageProps<"/coach/games/[code]">) {
         </p>
 
         <div className="mt-5">
-          <ScoringConsole game={game} scorerLabel={scorer.label} />
+          <ScoringConsole game={game} scorerLabel={scorer.label} roster={roster} />
         </div>
 
         {scorer.canDelegate && (

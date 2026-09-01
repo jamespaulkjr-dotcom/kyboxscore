@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import {
   createScorekeeperLink,
+  normalizeClock,
   resetGameScoring,
+  updateScoringPlay,
   getScoringGame,
   playByKey,
   recordScoringPlay,
@@ -93,6 +95,7 @@ export async function addPlayAction(
     periodNumber: period,
     points: play.points,
     description: play.description,
+    playKey: play.key,
     actor: scorer.actor,
   });
   if (!result.ok) return { error: result.reason ?? "That did not save." };
@@ -151,6 +154,60 @@ export async function finalScoreAction(
 
   revalidate(game.shortCode, game.sportSlug, game.urlYear);
   return { ok: true };
+}
+
+/**
+ * Who scored it and how, added after the fact.
+ *
+ * Detail is never a condition of scoring. The tap has to land while the crowd
+ * is still reacting; the name, the method and the clock can be filled in at
+ * the next timeout, after the game, or never.
+ */
+export async function updatePlayAction(
+  _prev: ScoreState,
+  formData: FormData
+): Promise<ScoreState> {
+  const auth = await authorize(formData);
+  if ("error" in auth) return auth;
+  const { game } = auth;
+
+  const playId = Number(formData.get("playId"));
+  if (!Number.isInteger(playId)) return { error: "Unknown play." };
+
+  const optionalId = (name: string) => {
+    const raw = String(formData.get(name) ?? "");
+    if (raw === "") return null;
+    const n = Number(raw);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  };
+
+  const clockRaw = String(formData.get("clock") ?? "");
+  const clock = normalizeClock(clockRaw);
+  if (clockRaw.trim() !== "" && clock === null) {
+    return { error: "Write the clock as minutes:seconds, like 4:12." };
+  }
+
+  const periodRaw = String(formData.get("period") ?? "").trim();
+  const period = periodRaw === "" ? null : Number(periodRaw);
+  if (period !== null && (!Number.isInteger(period) || period < 1 || period > 10)) {
+    return { error: "Choose a quarter." };
+  }
+
+  const method = String(formData.get("method") ?? "") || null;
+
+  const result = await updateScoringPlay({
+    gameId: game.id,
+    playId,
+    playerId: optionalId("playerId"),
+    assistPlayerId: optionalId("assistPlayerId"),
+    method,
+    clock,
+    periodNumber: period,
+  });
+  if (!result.ok) return { error: result.reason ?? "That did not save." };
+
+  revalidate(game.shortCode, game.sportSlug, game.urlYear);
+  return { ok: true, note: "Play updated." };
 }
 
 /* ------------------------------------------------------------ delegation */

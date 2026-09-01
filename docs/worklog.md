@@ -913,3 +913,33 @@ moment's thought.
 **Also:** the live scoring path now has real database tests — scoring, undo as
 a void that keeps the row, reset, the box-score guard, and that play points
 come from the server's table rather than from the caller.
+
+## 2026-09-01 — Typing the score, and saying who scored
+**Did:** The score can be typed in directly at any point, and every scoring
+play can carry who scored, how, who threw it, and the clock. The public game
+page now has a Scoring summary with the running score.
+
+**The bug this exposed.** Scores were recomputed from the plays, so anybody who
+typed "14-7" because they picked the game up at half time had it wiped the
+moment they tapped the next touchdown. That is not an edge case — it is the
+normal way somebody starts keeping a game. `game_participant.score_adjustment`
+now holds whatever was typed and the published score is `sum(plays) +
+adjustment`, so a later tap adds to the typed baseline and an undo returns to
+it rather than to zero.
+
+**Detail is never a condition of scoring.** The tap has to land while the crowd
+is still reacting. So the buttons stay one tap, and the play then opens to ask
+who scored and how — at the next timeout, after the game, or never. The
+disclosure is a native `<details>` and the form inside is a real form, so all
+of it works if the client bundle never arrives.
+
+**Prose is composed, not typed.** `play_key` and `method` are stored separately
+from `description`, and the sentence is rebuilt on every edit. Matching on the
+prose to decide which follow-up questions to ask would have broken the first
+time somebody reworded "Touchdown". A pass reads "Trae Martin to Makhai Baylor,
+touchdown catch"; the passer is `assist_player_id`, which the schema already
+had waiting.
+
+**Guarded:** a player has to be on the roster of the team credited with the
+score, so a stray id cannot hang somebody else's name on it. The clock is
+accepted only as real minutes:seconds.
