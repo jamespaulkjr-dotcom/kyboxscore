@@ -255,7 +255,7 @@ function PlayList({
         Scoring plays
       </h2>
       <p className="mt-1 text-sm text-fg-muted">
-        Open one to say who scored and how. None of it is required — the score
+        Open one to say who scored and how. None of it is required. The score
         is already right without it.
       </p>
       <ol className="mt-2 space-y-2">

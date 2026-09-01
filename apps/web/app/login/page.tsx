@@ -26,7 +26,7 @@ export default async function Page(props: PageProps<"/login">) {
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Sign in</h1>
         <p className="mt-2 text-sm text-fg-muted">
           For coaches and athletic directors entering statistics. Accounts are
-          issued by KY BOXSCORE staff — there is no public sign up.
+          issued by KY BOXSCORE staff. There is no public sign up.
         </p>
 
         <LoginForm next={dest} />

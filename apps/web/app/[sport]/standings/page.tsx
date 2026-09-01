@@ -18,7 +18,7 @@ export async function generateMetadata(
   const { sport } = await props.params;
   return {
     title: "Standings",
-    description: `District standings for Kentucky high school ${sport}, by district record — the order that decides postseason placement.`,
+    description: `District standings for Kentucky high school ${sport}, by district record, the order that decides postseason placement.`,
   };
 }
 
@@ -53,7 +53,7 @@ export default async function Page(props: PageProps<"/[sport]/standings">) {
         </p>
         <p className="mt-3 max-w-prose text-sm text-fg-muted">
           District placement is what decides the postseason, and it is decided by{" "}
-          <strong>district record</strong> — not overall record and not RPI. Both
+          <strong>district record</strong>, not overall record and not RPI. Both
           are shown because they are what people argue about, but neither moves a
           team up this table.{" "}
           <Link href={`/${sport}/rpi`} className="text-link underline">
@@ -128,8 +128,8 @@ export default async function Page(props: PageProps<"/[sport]/standings">) {
 
         <p className="mt-8 max-w-prose text-xs text-fg-muted">
           Teams level on district record are ordered by overall record, then
-          alphabetically. KHSAA&rsquo;s formal tie-breaking procedure — head to
-          head, then common opponents — is not applied here, so a genuine tie is
+          alphabetically. KHSAA&rsquo;s formal tie-breaking procedure (head to
+          head, then common opponents) is not applied here, so a genuine tie is
           shown as a tie rather than resolved by a rule we invented.
         </p>
       </main>

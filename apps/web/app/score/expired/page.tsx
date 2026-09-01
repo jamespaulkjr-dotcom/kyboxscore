@@ -12,8 +12,8 @@ export default function Page() {
         This scoring link is not valid
       </h1>
       <p className="mt-3 text-fg-muted">
-        It has expired, been revoked, or was mistyped. Links cover one game and
-        one night — ask the coach to send a fresh one.
+        It has expired, been revoked, or was mistyped. Links cover one game
+        and one night, so ask the coach to send a fresh one.
       </p>
     </main>
   );

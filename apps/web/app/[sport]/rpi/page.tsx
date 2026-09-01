@@ -143,8 +143,8 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                 RPI is <strong>35% your own winning percentage</strong>,{" "}
                 <strong>35% your opponents&rsquo;</strong>, and{" "}
                 <strong>30% your opponents&rsquo; opponents&rsquo;</strong>. Margin of
-                victory never counts — beating someone by forty is worth exactly
-                what beating them by one is worth.
+                victory never counts. Beating someone by forty is worth
+                exactly what beating them by one is worth.
               </p>
               <p className="mt-2">
                 Under the official formula every out-of-state opponent is

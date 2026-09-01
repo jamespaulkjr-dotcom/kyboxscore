@@ -39,8 +39,8 @@ export function PasswordForm() {
         <input id="next" name="next" type="password" required minLength={12}
                autoComplete="new-password" className={FIELD} />
         <p className="mt-1 text-xs text-fg-muted">
-          At least 12 characters. Length matters more than symbols — a short
-          phrase you can remember beats something you will write down.
+          At least 12 characters. Length matters more than symbols, so a
+          short phrase you can remember beats something you will write down.
         </p>
       </div>
       <div>

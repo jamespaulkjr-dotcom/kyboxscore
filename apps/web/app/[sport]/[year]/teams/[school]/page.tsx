@@ -203,8 +203,8 @@ export default async function Page(
           </ul>
           {schedule.some((r) => r.isDistrict) && (
             <p className="mt-2 text-xs text-fg-muted">
-              <span className="font-bold text-accent">*</span> district game —
-              these decide{" "}
+              <span className="font-bold text-accent">*</span> district game.
+              These decide{" "}
               <Link href={`/${sport}/standings`} className="text-link underline">
                 district standings
               </Link>

@@ -37,7 +37,7 @@ export function ShareScoring({
       </h2>
       <p className="mt-1 max-w-prose text-sm text-fg-muted">
         Creates a link for this game only. It expires tonight, you can revoke it
-        here, and whoever holds it can move the score but nothing else — no
+        here, and whoever holds it can move the score but nothing else. No
         rosters, no other games.
       </p>
 
@@ -49,7 +49,7 @@ export function ShareScoring({
             name="label"
             required
             maxLength={60}
-            placeholder="Press box — Dana"
+            placeholder="Press box, Dana"
             className="mt-1 min-h-12 w-full rounded-md border border-border bg-surface px-3"
           />
         </label>
@@ -84,7 +84,7 @@ export function ShareScoring({
       {state.link && (
         <div className="mt-3 rounded-lg border border-accent bg-surface p-3">
           <p className="text-sm font-medium">
-            Copy this now — it is not shown again.
+            Copy this now. It is not shown again.
           </p>
           <p className="mt-2 break-all rounded bg-bg px-2 py-1.5 font-mono text-xs">
             {state.link}

@@ -53,7 +53,7 @@ export default async function Page(props: PageProps<"/score/[code]">) {
         >
           the game page
         </Link>
-        . If you get something wrong, undo it — nobody minds.
+        . If you get something wrong, undo it. Nobody minds.
       </p>
     </main>
   );

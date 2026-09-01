@@ -41,8 +41,8 @@ export function CommitForm({
       {unmatched > 0 && (
         <p className="mb-3 rounded-md border border-border bg-surface px-3 py-2 text-sm text-fg-muted">
           {unmatched} row{unmatched === 1 ? "" : "s"} still {unmatched === 1 ? "has" : "have"} no
-          player. Committing now will skip {unmatched === 1 ? "it" : "them"} — the
-          rest will be saved and you can re-upload the corrected file later.
+          player. Committing now will skip {unmatched === 1 ? "it" : "them"}.
+          The rest will be saved and you can re-upload the corrected file later.
         </p>
       )}
 

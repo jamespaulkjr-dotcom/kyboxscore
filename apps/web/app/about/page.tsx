@@ -11,15 +11,15 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "Why KY BOXSCORE exists: a free, independent record of Kentucky high school sports — scores, box scores, statistics, district standings and KHSAA RPI, for every sport.",
+    "Why KY BOXSCORE exists: a free, independent record of Kentucky high school sports. Scores, box scores, statistics, district standings and KHSAA RPI, for every sport.",
 };
 
 /**
  * The page the front page's "Why this exists" link points at.
  *
  * It carries the claims that do not belong above a scoreboard: free, every
- * sport, independent, and honest about what is not here yet. Text only — the
- * performance budget applies to this page too.
+ * sport, independent, and honest about what is not here yet. Text only,
+ * because the performance budget applies to this page too.
  */
 export default async function Page() {
   const [sports, summaries] = await Promise.all([listSports(), getHomeSummaries()]);
@@ -56,8 +56,8 @@ export default async function Page() {
           <p>
             Nothing. There is no subscription, no paywall over a box score, and
             no account needed to read anything. You can follow your teams
-            without signing up — that list is kept in your own browser, not on
-            our servers.
+            without signing up, and that list is kept in your own browser
+            rather than on our servers.
           </p>
           <p>
             Coaches and athletic directors do get accounts, because submitting
@@ -88,7 +88,7 @@ export default async function Page() {
             ))}
             {waiting.length > 0 && (
               <li className="text-sm text-fg-muted">
-                {waiting.map((s) => s.sportName).join(", ")} —{" "}
+                {waiting.map((s) => s.sportName).join(", ")}:{" "}
                 {waiting.length === 1 ? "its season" : "their seasons"} will go
                 up before the first game is played.
               </li>
@@ -105,14 +105,14 @@ export default async function Page() {
           <p>
             Coaches and athletic directors submit them, through our own forms or
             by uploading the same export file they already send elsewhere. We do
-            not scrape the KHSAA, ArbiterLive or the Riherds archive — those
+            not scrape the KHSAA, ArbiterLive or the Riherds archive. Those
             sites prohibit it, and a record built that way would be somebody
             else&rsquo;s to take away.
           </p>
           <p>
             Every record carries where it came from and when it arrived. When a
             coach says a number is wrong, we can show them exactly where it came
-            from — and fix it.
+            from, and then fix it.
           </p>
         </Section>
 
@@ -144,7 +144,7 @@ export default async function Page() {
         <Section title="Found something wrong?">
           <p>
             Tell us and it gets fixed. A wrong score, a misspelled name, a
-            missing game, a player on the wrong roster —{" "}
+            missing game, a player on the wrong roster: write to{" "}
             <a className="text-link underline" href="mailto:help@kyboxscore.com">
               help@kyboxscore.com
             </a>

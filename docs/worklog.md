@@ -943,3 +943,20 @@ had waiting.
 **Guarded:** a player has to be on the roster of the team credited with the
 score, so a stray id cannot hang somebody else's name on it. The clock is
 accepted only as real minutes:seconds.
+
+## 2026-09-01 — Taking the em dashes out
+**Did:** Removed em dashes from every sentence a reader sees. James asked for
+it on the about page; I swept the rest of the public copy and the coach and
+keeper screens too, because leaving the identical tell on the front page would
+have defeated the point of fixing it on one page.
+**Why he asked:** they read as machine-written, and this site is asking
+Kentucky coaches and parents to trust it with their kids' names and numbers.
+Prose that reads as generated undermines that before anybody gets to the data.
+**Rewritten, not swapped.** An em dash usually joins two clauses, so most
+became a full stop and a new sentence, a couple became a colon, and one pair
+became parentheses. Nothing was replaced with a hyphen or a comma splice.
+**Kept:** the `—` glyph in table cells, which is standard notation for "no
+value" in a stats table and is not a sentence. Also left the four in the admin
+screens, which only staff see, and the ones in code comments.
+**Worth remembering:** this is a house style rule now, not a one-off. New
+reader-facing copy should not use em dashes.

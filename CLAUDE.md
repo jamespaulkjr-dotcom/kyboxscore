@@ -121,6 +121,15 @@ Every stat record carries its source and entry timestamp. When a coach disputes 
 
 Sport agnostic from day one. Phase one is football and basketball, boys and girls. Baseball and softball follow. There will eventually be twelve or more.
 
+## Writing for readers
+
+No em dashes in any sentence a reader sees. They read as machine-written, and
+this site is asking coaches and parents to trust it with their kids' names and
+numbers; prose that reads as generated undermines that before anybody reaches
+the data. Write two sentences instead, or use a colon. The `—` glyph is still
+correct in a table cell meaning "no value", because that is notation rather
+than prose.
+
 ## Design direction
 
 High information density, minimal chrome, generous tap targets, real typographic hierarchy. School colors as accents only, never as backgrounds. Dark mode from the start. No hero images, no carousels, no stock photos. The data is the design.

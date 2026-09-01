@@ -72,8 +72,8 @@ export default async function Home() {
           Every Kentucky high school game. Every box score.
         </h1>
         <p className="mt-1 max-w-prose text-sm text-fg-muted">
-          Scores, statistics, district standings and KHSAA RPI — for every
-          sport, free for everyone, no account required.{" "}
+          Scores, statistics, district standings and KHSAA RPI for every
+          sport. Free for everyone, no account required.{" "}
           <Link href="/about" className="text-link underline">
             Why this exists
           </Link>
@@ -210,7 +210,7 @@ export default async function Home() {
                 <HomeLink
                   href={`/${active.sportSlug}/standings`}
                   title="District standings"
-                  detail="Ordered by district record — what decides the postseason"
+                  detail="Ordered by district record, which decides the postseason"
                 />
                 <HomeLink
                   href={`/${active.sportSlug}/teams`}
@@ -242,7 +242,7 @@ export default async function Home() {
             {active.players.toLocaleString()} players and{" "}
             {(active.gamesPlayed + active.gamesScheduled).toLocaleString()} games
             across {active.teams} {active.sportName.toLowerCase()} teams.
-            An independent record of Kentucky high school sports — not
+            An independent record of Kentucky high school sports. Not
             affiliated with the KHSAA.
           </p>
         )}
@@ -260,7 +260,7 @@ export default async function Home() {
 function SportCard({ summary }: { summary: HomeSummary }) {
   const has = summary.teams > 0;
   const detail = !has
-    ? `${summary.seasonLabel} — nothing yet`
+    ? `${summary.seasonLabel}: nothing yet`
     : summary.gamesPlayed > 0
       ? `${summary.gamesPlayed.toLocaleString()} games played · ${summary.teams} teams · ${summary.players.toLocaleString()} players`
       : summary.gamesScheduled > 0
