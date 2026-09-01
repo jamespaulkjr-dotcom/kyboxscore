@@ -383,6 +383,11 @@ export async function listTeams(sportSeasonId: number) {
     LEFT JOIN alignment r ON r.id = d.parent_id
     LEFT JOIN team_season_record rec ON rec.team_season_id = ts.id
     WHERE ts.sport_season_id = ${sportSeasonId}
+      -- Kentucky teams only. Out-of-state schools exist because Kentucky teams
+      -- play them and their games belong in the record, but listing them in
+      -- the Kentucky teams index is the same category error as ranking them in
+      -- the standings. Their team pages still resolve from a game.
+      AND sc.state = 'KY'
     ORDER BY sc.name`;
 }
 

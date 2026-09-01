@@ -689,3 +689,20 @@ oversight.
 **Learned:** a query returning both a display name and a legal name invites
 exactly this. Anywhere a reader is just reading takes `short_name`; only
 match-confirmation surfaces take `name`.
+
+## 2026-09-01 — Sweeping for "High School" turned up two more
+**Did:** Out-of-state schools now get a trimmed `short_name` like Kentucky ones,
+and the teams index lists Kentucky schools only.
+**Why:** checking James's reported path found the game page fixed but a sweep of
+every public page found five out-of-state schools still reading "Northwest High
+School", because they were created with `short_name = name` and never had the
+trimming rule applied. And 51 out-of-state teams were listed in the Kentucky
+teams index — the same category error as ranking them in the standings. Their
+team pages still resolve from a game; they are simply not listed as Kentucky
+teams.
+**False alarm worth recording:** every page shows four occurrences of "High
+School" and always will. It is the site title, "Kentucky High School Sports".
+A grep for the phrase will never return zero.
+**Learned:** the fix James reported was one instance of a class. Sweeping every
+public page rather than the one he mentioned found the rest — and would have
+found the game page too, had it been done when short names were introduced.
