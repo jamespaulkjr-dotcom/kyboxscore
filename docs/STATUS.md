@@ -303,6 +303,33 @@ That skips migrations, which the pipeline runs and this command does not.
 8. Confirm the provisional baseball season dates in `seed/001_reference.sql`
    against the published KHSAA calendar.
 
+## Scheduled jobs
+
+`docker/recompute-rpi.sh` is installed on the droplet at
+`/home/deploy/kyboxscore/recompute-rpi.sh` and runs hourly from deploy's
+crontab:
+
+```
+7 * * * * /home/deploy/kyboxscore/recompute-rpi.sh
+```
+
+It recomputes RPI for **every** sport with a season open — no `--sport`, so it
+stays correct as sports are added — and prunes per-game `rpi_input` rows from
+all but the most recent six runs per sport and variant. `rpi_result` is kept
+for every run; that is the audit trail. Logs to
+`/home/deploy/kyboxscore/logs/rpi.log`, trimmed to 2000 lines.
+
+It skips silently when the web container is down, which happens briefly during
+a deploy. The next hour picks it up.
+
+Reinstall after a droplet rebuild:
+
+```
+cp docker/recompute-rpi.sh /home/deploy/kyboxscore/
+crontab -l | grep -q recompute-rpi || \
+  (crontab -l 2>/dev/null; echo '7 * * * * /home/deploy/kyboxscore/recompute-rpi.sh') | crontab -
+```
+
 ## Running the tests
 
 `npm test` **skips the database tests unless `DATABASE_URL` is set**, and CI

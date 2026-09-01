@@ -607,3 +607,20 @@ into STATUS.md in stronger terms.
 per-school edits would be 291 chances to be inconsistent. But schools named for
 a town state no county, so Warren Central and Warren East do not move when
 Warren does. The form takes school names too.
+
+## 2026-09-01 — Hourly RPI recompute
+**Did:** `docker/recompute-rpi.sh`, installed on the droplet and run hourly from
+deploy's crontab. `rpi.ts` with no `--sport` now covers every sport with a
+season open, so it stays correct as sports are added.
+**Why:** the brief asks for hourly recalculation and nothing was running it —
+ratings went stale after Friday night until someone ran a command by hand.
+**Retention:** an hourly job writes a run every hour forever. `rpi_result` is
+small and kept for every run, because it is the audit trail. `rpi_input` is
+thousands of rows per run and is pruned to the most recent six runs per sport
+and variant, flipping `rpi_run.inputs_retained` — which is exactly what that
+column was put there for.
+**Learned:** the cron script was tested immediately and failed, because the
+deployed container still had the old `rpi.ts` that required `--sport`. Worth the
+thirty seconds: otherwise it would have failed silently every hour and the
+first sign would have been stale ratings. It also skips cleanly while a deploy
+has the web container down, rather than logging an hourly error.
