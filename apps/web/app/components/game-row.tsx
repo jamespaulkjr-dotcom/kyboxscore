@@ -18,8 +18,14 @@ function statusDetail(g: ScoreboardGame): string {
     case "forfeit":
       return "Forfeit";
     default:
+      // local_time is what schedules actually carry. starts_at is an exact
+      // instant we rarely know, and every game imported so far has none - so
+      // preferring it printed "TBA" for a thousand games whose kick-off we
+      // knew perfectly well.
       return (
-        formatTipTime(g.startsAt, g.timeZone) ?? `TBA ${zoneAbbrev(g.timeZone)}`
+        g.localTime ??
+        formatTipTime(g.startsAt, g.timeZone) ??
+        `TBA ${zoneAbbrev(g.timeZone)}`
       );
   }
 }

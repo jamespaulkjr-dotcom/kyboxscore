@@ -26,6 +26,8 @@ export type ScoreboardGame = {
   periodsPlayed: number | null;
   timeZone: string;
   startsAt: string | null;
+  /** Kick-off in the venue's local time, already formatted. */
+  localTime: string | null;
   groupName: string | null;
   home: Side;
   away: Side;

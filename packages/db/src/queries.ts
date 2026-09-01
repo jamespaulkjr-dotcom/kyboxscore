@@ -105,6 +105,7 @@ export async function getScoreboard(
            g.status, g.stage, g.neutral_site AS "neutralSite",
            g.event_name AS "eventName", g.periods_played::int AS "periodsPlayed",
            g.starts_at::text AS "startsAt",
+           to_char(g.local_time, 'HH12:MI AM') AS "localTime",
            h.time_zone AS "timeZone",
            coalesce(h.group_name, a.group_name) AS "groupName",
            jsonb_build_object(
@@ -629,4 +630,50 @@ export async function getTeamRankings(sportSeasonId: number, schoolSlug: string)
     WHERE sc.slug = ${schoolSlug}
     LIMIT 1`;
   return rows[0] ?? null;
+}
+
+export type HomeSummary = {
+  sportSlug: string;
+  sportName: string;
+  urlYear: number;
+  seasonLabel: string;
+  slate: string | null;
+  teams: number;
+  players: number;
+  gamesPlayed: number;
+  gamesScheduled: number;
+};
+
+/**
+ * What the front page needs to know about each sport that is under way.
+ *
+ * One query rather than a fan-out, because the front page is the page most
+ * likely to be hit from a phone on bad reception in a gym lobby.
+ */
+export async function getHomeSummaries() {
+  return sql<HomeSummary[]>`
+    SELECT sp.slug::text AS "sportSlug", sp.name AS "sportName",
+           ss.url_year::int AS "urlYear", se.label AS "seasonLabel",
+           (SELECT max(g.local_date)::text
+              FROM game g
+             WHERE g.sport_season_id = ss.id
+               AND g.local_date <= CURRENT_DATE
+               AND g.stage <> 'scrimmage') AS slate,
+           (SELECT count(*)::int FROM team_season ts
+              JOIN team t ON t.id = ts.team_id
+              JOIN school sc ON sc.id = t.school_id AND sc.state = 'KY'
+             WHERE ts.sport_season_id = ss.id) AS teams,
+           (SELECT count(*)::int FROM player_season ps
+              JOIN team_season ts2 ON ts2.id = ps.team_season_id
+             WHERE ts2.sport_season_id = ss.id) AS players,
+           (SELECT count(*)::int FROM game g2
+             WHERE g2.sport_season_id = ss.id AND g2.status = 'final'
+               AND g2.stage = 'regular_season') AS "gamesPlayed",
+           (SELECT count(*)::int FROM game g3
+             WHERE g3.sport_season_id = ss.id AND g3.status = 'scheduled') AS "gamesScheduled"
+    FROM sport_season ss
+    JOIN sport sp ON sp.id = ss.sport_id
+    JOIN season se ON se.id = ss.season_id
+    WHERE ss.is_current AND sp.is_active
+    ORDER BY sp.display_order`;
 }

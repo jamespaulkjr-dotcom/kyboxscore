@@ -706,3 +706,19 @@ A grep for the phrase will never return zero.
 **Learned:** the fix James reported was one instance of a class. Sweeping every
 public page rather than the one he mentioned found the rest — and would have
 found the game page too, had it been done when short names were introduced.
+
+## 2026-09-01 — The front page
+**Did:** `/` is now a real page rather than a redirect to the scoreboard. Most
+recent slate first, then statewide RPI, then the way into standings, teams,
+leaders, sports and search. Ends with a plain sentence of scale and the "not
+affiliated with the KHSAA" line.
+**Why the shape:** the brief's target is a parent on bad LTE in a gym lobby
+finding a score in under three seconds, so scores lead. Everything after it
+answers the other question — why this rather than any other scoreboard — with
+the two things nobody else publishes: a KHSAA RPI and district standings
+ordered by district record. No hero, no carousel, no stock photography; the
+data is the design.
+**Also fixed on the way:** the scoreboard printed "TBA" for every scheduled
+game. `GameRow` read `starts_at`, an exact instant we almost never know and
+which no imported game has, while the kick-off time lives in `local_time`. A
+thousand games said TBA when the time was sitting in the database.
