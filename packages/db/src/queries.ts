@@ -556,11 +556,15 @@ export async function getDistrictStandings(sportSeasonId: number) {
            row_number() OVER (
              PARTITION BY alignment_id
              -- A team with no games is neutral, not last: 0-0 must outrank
-             -- 0-1 and be outranked by 1-0.
+             -- 0-1 and be outranked by 1-0. Percentage first, then who has
+             -- actually won more - 2-0 belongs above 1-0, and without the
+             -- second key they tie at 1.000 and fall to alphabetical.
              ORDER BY CASE WHEN dw + dl = 0 THEN 0.5
                            ELSE dw::float8 / (dw + dl) END DESC,
+                      dw DESC,
                       CASE WHEN wins + losses + ties = 0 THEN 0.5
                            ELSE (wins + 0.5 * ties) / (wins + losses + ties) END DESC,
+                      wins DESC,
                       school_name
            )::int AS "districtRank",
            state_rank::int AS "stateRank",
@@ -587,11 +591,13 @@ export async function getTeamRankings(sportSeasonId: number, schoolSlug: string)
                              ELSE coalesce(rec.district_wins,0)::float8
                                   / (coalesce(rec.district_wins,0) + coalesce(rec.district_losses,0))
                         END DESC,
+                        coalesce(rec.district_wins,0) DESC,
                         CASE WHEN coalesce(rec.wins,0) + coalesce(rec.losses,0) + coalesce(rec.ties,0) = 0
                              THEN 0.5
                              ELSE (coalesce(rec.wins,0) + 0.5 * coalesce(rec.ties,0))
                                   / (coalesce(rec.wins,0) + coalesce(rec.losses,0) + coalesce(rec.ties,0))
                         END DESC,
+                        coalesce(rec.wins,0) DESC,
                         coalesce(sc.short_name, sc.name)
              ) AS rn
       FROM team_season ts

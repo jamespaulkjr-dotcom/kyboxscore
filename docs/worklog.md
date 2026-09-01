@@ -552,3 +552,16 @@ the previous version serving.
 **Repair:** the checksum was re-pointed at the deployed file (the change was
 comment-only, verified by diff), migrations and seed ran, and all 1,316
 kick-off times were backfilled.
+
+## 2026-09-01 — Two ordering bugs the real standings exposed
+**Did:** The RPI table is listed by rank rather than raw RPI, and district
+standings break a tie on wins before falling to alphabetical.
+**Why:** With 221 teams and two weeks played, exact RPI ties are common. The
+page sorted by rpi while ranks were assigned on a different key, so the top
+twenty read "1, 3, 2, 4" with rank 20 apparently missing — Mayfield and Hazard
+both sit on 0.9341. And in 1A District 7, Middlesboro at 1-0 outranked
+Williamsburg at 2-0: both are 1.000, and without a second key the tie fell to
+alphabetical order.
+**Learned:** neither bug is visible on small data. Three teams and two games
+never tie. They appeared the moment a real season went in, which is the argument
+for importing the whole thing rather than a sample.

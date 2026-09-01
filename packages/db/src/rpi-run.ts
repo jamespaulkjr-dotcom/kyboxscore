@@ -407,7 +407,10 @@ export async function getRpiStandings(sportSlug: string, urlYear?: number) {
       -- Out-of-state opponents are computed but never ranked; see persistRun.
       AND sc.state = 'KY'
       AND NOT sc.is_home_school
-    ORDER BY r.rpi DESC`;
+    -- By rank, not by raw RPI. Exact ties are common early in a season, and
+    -- ranking breaks them on a key the RPI sort does not know about - so
+    -- sorting by rpi produced "1, 3, 2, 4" with a rank apparently missing.
+    ORDER BY r.state_rank NULLS LAST, r.rpi DESC`;
 }
 
 export async function getLatestRpiRun(sportSlug: string) {
