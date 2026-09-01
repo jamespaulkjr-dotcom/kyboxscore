@@ -203,6 +203,12 @@ That skips migrations, which the pipeline runs and this command does not.
   Public pages show a red LIVE pill and poll `/api/live` every 30s.
   **LIVE is a human claim, never inferred from the clock**, and it expires
   after five hours of no change so nothing blinks overnight.
+  An **admin** sees a "Reset this game" control at the bottom of the console:
+  it clears every play, quarter score and score, puts the game back to
+  scheduled, revokes any keeper links and rebuilds both teams' records. It
+  refuses a game that already has an imported box score, and asks you to type
+  the game's short code, because it is the only control there that destroys
+  something.
 - **Front page** — a plain statement of what the site is, followed teams, the
   most recent slate, top 5 RPI, an "Every sport" section that lists sports with
   nothing in them rather than hiding them, and links onward. The sport it leads

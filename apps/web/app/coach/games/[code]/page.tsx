@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { getScoringGame, listScorekeepers, listSports } from "@kyboxscore/db";
 import { SiteHeader } from "../../../components/site-header";
 import { ScoringConsole } from "../../../components/scoring-console";
-import { requireUser } from "../../../../lib/auth";
+import { isAdmin, requireUser } from "../../../../lib/auth";
 import { resolveScorer } from "../../../../lib/scoring-auth";
 import { formatSlateDate } from "../../../../lib/format";
+import { ResetGame } from "./reset";
 import { ShareScoring } from "./share";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 
 export default async function Page(props: PageProps<"/coach/games/[code]">) {
   const { code } = await props.params;
-  await requireUser(`/coach/games/${code}`);
+  const user = await requireUser(`/coach/games/${code}`);
 
   const game = await getScoringGame(code);
   if (!game) notFound();
@@ -77,6 +78,10 @@ export default async function Page(props: PageProps<"/coach/games/[code]">) {
             ]}
           />
         )}
+
+        {/* Last on the page, under everything, because it is the only control
+            here that destroys something. */}
+        {isAdmin(user) && <ResetGame code={game.shortCode} />}
       </main>
     </>
   );

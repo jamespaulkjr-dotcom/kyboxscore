@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   createScorekeeperLink,
+  resetGameScoring,
   getScoringGame,
   playByKey,
   recordScoringPlay,
@@ -11,9 +12,15 @@ import {
   startScoring,
   voidLastPlay,
 } from "@kyboxscore/db";
+import { getCurrentUser, isAdmin } from "../../../lib/auth";
 import { resolveScorer } from "../../../lib/scoring-auth";
 
-export type ScoreState = { error?: string; ok?: boolean; link?: string };
+export type ScoreState = {
+  error?: string;
+  ok?: boolean;
+  link?: string;
+  note?: string;
+};
 
 /**
  * Every action re-resolves the game from its short code and re-checks who is
@@ -193,4 +200,50 @@ export async function revokeLinkAction(formData: FormData) {
 
   await revokeScorekeeper(id, teamId);
   revalidatePath(`/coach/games/${game.shortCode}`);
+}
+
+/**
+ * Put a game back to unplayed.
+ *
+ * Admins only, and not because a coach cannot be trusted - because this
+ * destroys a game's scoring history, and the person who needs it is whoever is
+ * testing the system on a real fixture rather than whoever is keeping it.
+ *
+ * Confirmation is typing the game's own short code. A checkbox is too easy to
+ * hit by accident on the phone this page is designed for, and this is the one
+ * button here that cannot be undone.
+ */
+export async function resetGameAction(
+  _prev: ScoreState,
+  formData: FormData
+): Promise<ScoreState> {
+  const user = await getCurrentUser();
+  if (!user || !isAdmin(user)) {
+    return { error: "Only an administrator can reset a game." };
+  }
+
+  const code = String(formData.get("code") ?? "");
+  const game = await getScoringGame(code);
+  if (!game) return { error: "That game no longer exists." };
+
+  const typed = String(formData.get("confirm") ?? "").trim();
+  if (typed.toLowerCase() !== game.shortCode.toLowerCase()) {
+    return { error: `Type ${game.shortCode} to confirm.` };
+  }
+
+  const result = await resetGameScoring(game.id);
+  if (!result.ok) return { error: result.reason };
+
+  revalidate(game.shortCode, game.sportSlug, game.urlYear);
+  const bits = [
+    `${result.plays} ${result.plays === 1 ? "play" : "plays"}`,
+    `${result.periods} quarter ${result.periods === 1 ? "row" : "rows"}`,
+  ];
+  if (result.links > 0) {
+    bits.push(`${result.links} scoring ${result.links === 1 ? "link" : "links"} revoked`);
+  }
+  return {
+    ok: true,
+    note: `Back to scheduled, from ${result.wasStatus.replace("_", " ")}. Cleared ${bits.join(", ")}.`,
+  };
 }

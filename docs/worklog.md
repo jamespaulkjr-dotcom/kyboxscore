@@ -887,3 +887,29 @@ have: `startsWith("kbs_who=")` also matches `not_kbs_who=`.
 
 **Note for James:** existing sessions predate the cookie, so sign out and back
 in once to see it.
+
+## 2026-09-01 — Reset a game
+**Did:** An admin-only "Reset this game" at the bottom of the scoring console.
+It deletes the scoring plays and quarter scores, clears both scores, puts the
+game back to scheduled, revokes any keeper links, and rebuilds both teams'
+records.
+**Why:** James tested live scoring on a real fixture — Breckinridge County vs
+Bullitt Central — which is the only way to find out whether it works, and then
+had to ask for the database to be cleaned up by hand. That is a fine thing to
+do once and a bad thing to do every time.
+**What it refuses:** a game with an imported box score, because the scoreboard
+and the box score would then disagree and the importer is the right place to
+undo an import. A past RPI run is deliberately *not* a blocker: `rpi_input`
+stores the numbers each run was computed from, so an old rating stays
+reproducible even after the game underneath it changes. That is what those rows
+are for.
+**Records:** rebuilt after the reset, outside the transaction. A rollup failure
+must not roll back a reset that already succeeded, and re-running rollups is
+always safe. Verified a team going 1-1 → 2-1 on a final and back to 1-1 on
+reset.
+**Confirmation is typing the short code**, not a checkbox. Everything else on
+that page is built to be tapped fast in the dark; this one thing should cost a
+moment's thought.
+**Also:** the live scoring path now has real database tests — scoring, undo as
+a void that keeps the row, reset, the box-score guard, and that play points
+come from the server's table rather than from the caller.

@@ -1,6 +1,7 @@
 import type { TransactionSql } from "postgres";
 import { sql } from "./client.ts";
 import { hashToken, newSessionToken } from "./password.ts";
+import { refreshTeamSeasonRollups } from "./rollups.ts";
 
 /**
  * Live scoring.
@@ -464,4 +465,84 @@ export async function revokeScorekeeper(id: number, teamId: number) {
   await sql`
     UPDATE game_scorekeeper SET revoked_at = now()
     WHERE id = ${id} AND team_id = ${teamId} AND revoked_at IS NULL`;
+}
+
+/* ------------------------------------------------------------------ reset */
+
+export type ResetResult =
+  | { ok: false; reason: string }
+  | { ok: true; plays: number; periods: number; links: number; wasStatus: string };
+
+/**
+ * Put a game back the way it was before anybody scored it.
+ *
+ * This exists because testing live scoring on a real fixture is the only way
+ * to find out whether it works, and the first person to do that had to ask for
+ * the database to be cleaned up by hand.
+ *
+ * It refuses if a box score has been imported: statistics and the scoreboard
+ * would then disagree, and the importer is the right place to undo an import.
+ *
+ * Past RPI runs are deliberately *not* a blocker. `rpi_input` stores the
+ * numbers each run was computed from, so an old rating stays reproducible even
+ * after the game underneath it changes - which is the entire reason those rows
+ * are kept.
+ */
+export async function resetGameScoring(gameId: number): Promise<ResetResult> {
+  const [guard] = await sql<{ hasStats: boolean; status: string }[]>`
+    SELECT EXISTS (SELECT 1 FROM stat_line WHERE game_id = ${gameId}) AS "hasStats",
+           (SELECT status::text FROM game WHERE id = ${gameId}) AS status`;
+  if (!guard?.status) return { ok: false, reason: "That game no longer exists." };
+  if (guard.hasStats) {
+    return {
+      ok: false,
+      reason:
+        "This game has a box score recorded. Remove the statistics first, or " +
+        "the scoreboard and the box score will disagree.",
+    };
+  }
+
+  const result = await sql.begin(async (tx) => {
+    const plays = await tx`
+      DELETE FROM scoring_play
+       WHERE game_participant_id IN
+             (SELECT id FROM game_participant WHERE game_id = ${gameId})`;
+    const periods = await tx`
+      DELETE FROM game_period_score
+       WHERE game_participant_id IN
+             (SELECT id FROM game_participant WHERE game_id = ${gameId})`;
+    await tx`UPDATE game_participant SET score = NULL WHERE game_id = ${gameId}`;
+    await tx`
+      UPDATE game
+         SET status = 'scheduled', periods_played = NULL,
+             score_updated_at = NULL, updated_at = now()
+       WHERE id = ${gameId}`;
+    // Any link handed out was for a game that has just been un-played. Cheap
+    // to mint another; not cheap to have a stale one still able to write.
+    const links = await tx`
+      UPDATE game_scorekeeper SET revoked_at = now()
+       WHERE game_id = ${gameId} AND revoked_at IS NULL`;
+
+    return {
+      plays: plays.count,
+      periods: periods.count,
+      links: links.count,
+    };
+  });
+
+  // Records are derived from finished games, so a game that was final has to
+  // stop counting. Outside the transaction: a rollup failure must not undo a
+  // reset that already succeeded, and re-running rollups is always safe.
+  const seasons = await sql<{ teamSeasonId: number }[]>`
+    SELECT ts.id::int AS "teamSeasonId"
+    FROM game_participant gp
+    JOIN game g ON g.id = gp.game_id
+    JOIN team_season ts
+      ON ts.team_id = gp.team_id AND ts.sport_season_id = g.sport_season_id
+    WHERE gp.game_id = ${gameId}`;
+  for (const s of seasons) {
+    await refreshTeamSeasonRollups(s.teamSeasonId);
+  }
+
+  return { ok: true, ...result, wasStatus: guard.status };
 }
