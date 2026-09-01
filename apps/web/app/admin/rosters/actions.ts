@@ -4,6 +4,7 @@ import {
   ensureTeamSeasonForSchool,
   importRoster,
   matchSchoolNames,
+  refreshSearchIndex,
 } from "@kyboxscore/db";
 import { parseRosterWorkbook, readXlsx } from "@kyboxscore/parsers";
 import { requireAdmin } from "../../../lib/auth";
@@ -89,6 +90,11 @@ export async function importRostersAction(
     added += result.added;
     refreshed += result.alreadyPresent;
   }
+
+  // Players are searchable, and search_document is a materialized view that
+  // does not update itself. Without this the roster imports fine and nobody
+  // can find a single player.
+  if (added > 0) await refreshSearchIndex();
 
   return { fileName: file.name, summary, committed: { teams, added, refreshed } };
 }

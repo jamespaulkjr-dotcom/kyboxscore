@@ -137,3 +137,16 @@ export async function refreshSportSeasonRollups(sportSeasonId: number) {
   for (const s of seasons) await refreshTeamSeasonRollups(s.id);
   return seasons.length;
 }
+
+/**
+ * Rebuilds the search index.
+ *
+ * `search_document` is a materialized view over school, player and coach. It
+ * does not update itself, so anything that creates people has to say so - a
+ * roster import that skips this leaves 10,743 players in the database and
+ * findable by nobody. This has now bitten twice: once for seeded schools, once
+ * for imported players.
+ */
+export async function refreshSearchIndex() {
+  await sql`REFRESH MATERIALIZED VIEW search_document`;
+}

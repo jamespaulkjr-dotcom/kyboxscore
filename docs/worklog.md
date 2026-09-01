@@ -648,3 +648,15 @@ statistics, because a MaxPreps box score identifies players by number and never
 by name.
 **And:** the hourly RPI job no longer writes empty runs for sports whose season
 is open but which have played no games — that was 48 rows a day of nothing.
+
+## 2026-09-01 — 10,743 players imported, and invisible for two minutes
+**Did:** Imported the rosters into production: 220 teams, 10,743 players, 28
+seconds, every school matched. Then found none of them were searchable.
+**Why:** `search_document` is a materialized view and does not update itself.
+The seed refreshes it; an import run outside the seed does not. **Exactly the
+same bug as the 291 seeded schools**, which is twice now.
+**Fixed properly:** `refreshSearchIndex()` lives in the db package and the
+roster import calls it when it adds anyone. Written into STATUS.md as a rule
+rather than a note, since the gentler version did not stop it recurring.
+**Caught by** searching the live site for a player name rather than trusting
+"10,743 added, 0 failed" — the same habit that caught the canceled games.

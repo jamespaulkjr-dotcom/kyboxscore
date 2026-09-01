@@ -250,6 +250,11 @@ That skips migrations, which the pipeline runs and this command does not.
   import carries results, so it must rebuild `team_season_record` — otherwise a
   team is 2-0 in the games table and 0-0 everywhere a human looks. Anything
   that writes a result must call `refreshTeamSeasonRollups`.
+- **`search_document` is a materialized view and never updates itself.** It has
+  now caught us twice — seeded schools, then 10,743 imported players, both
+  present in the database and findable by nobody. Anything that creates a
+  school, player or coach must call `refreshSearchIndex()`. The seed does it
+  unconditionally; imports must do it explicitly.
 - **Migrations are immutable once applied.** `migrate.mjs` checksums each file
   and refuses to run if one changed — even a comment. Editing an applied
   migration broke a deploy on 2026-09-01. Add a new migration instead; the
