@@ -602,3 +602,92 @@ export async function setGameStage(
       : undefined,
   };
 }
+
+/* ------------------------------------------------ out-of-state records */
+
+export type OutOfStateTeamRow = {
+  teamId: number;
+  schoolId: number;
+  schoolName: string;
+  /** How many Kentucky teams have played them: the reason to bother. */
+  gamesVsKentucky: number;
+  kentuckyOpponents: string;
+  wins: number | null;
+  losses: number | null;
+  ties: number | null;
+  sourceName: string | null;
+  asOf: string | null;
+};
+
+/**
+ * Out-of-state opponents and their known record.
+ *
+ * Shadow RPI is the whole reason this exists: the official formula pins every
+ * out-of-state opponent to a flat .500, and Shadow shows what the rating would
+ * be with their real record instead. Without a record here the two numbers are
+ * identical and the delta is honestly zero.
+ */
+export async function listOutOfStateTeams(sportSeasonId: number) {
+  return sql<OutOfStateTeamRow[]>`
+    SELECT t.id::int AS "teamId", sc.id::int AS "schoolId",
+           coalesce(sc.short_name, sc.name) AS "schoolName",
+           count(DISTINCT g.id)::int AS "gamesVsKentucky",
+           string_agg(DISTINCT coalesce(ky_sc.short_name, ky_sc.name), ', ') AS "kentuckyOpponents",
+           oos.wins::int, oos.losses::int, oos.ties::int,
+           oos.source_name AS "sourceName", oos.as_of::text AS "asOf"
+    FROM team t
+    JOIN school sc ON sc.id = t.school_id AND sc.state <> 'KY'
+    JOIN game_participant gp ON gp.team_id = t.id
+    JOIN game g ON g.id = gp.game_id AND g.sport_season_id = ${sportSeasonId}
+    JOIN game_participant ky ON ky.game_id = g.id AND ky.id <> gp.id
+    JOIN team ky_t ON ky_t.id = ky.team_id
+    JOIN school ky_sc ON ky_sc.id = ky_t.school_id AND ky_sc.state = 'KY'
+    LEFT JOIN out_of_state_record oos
+           ON oos.team_id = t.id AND oos.sport_season_id = ${sportSeasonId}
+    GROUP BY t.id, sc.id, sc.short_name, sc.name,
+             oos.wins, oos.losses, oos.ties, oos.source_name, oos.as_of
+    ORDER BY count(DISTINCT g.id) DESC, "schoolName"`;
+}
+
+export type OutOfStateEntry = {
+  teamId: number;
+  wins: number;
+  losses: number;
+  ties: number;
+};
+
+/**
+ * Records a real out-of-state record.
+ *
+ * `sourceName` is required, not decorative. A rating that moves because of this
+ * number has to be traceable to where the number came from — that is the
+ * difference between a published rating and an assertion.
+ */
+export async function setOutOfStateRecords(
+  sportSeasonId: number,
+  entries: OutOfStateEntry[],
+  sourceName: string,
+  sourceUrl: string | null,
+  asOf: string
+): Promise<number> {
+  if (entries.length === 0) return 0;
+  let written = 0;
+  for (const e of entries) {
+    await sql`
+      INSERT INTO out_of_state_record
+        (team_id, sport_season_id, wins, losses, ties, source_name, source_url,
+         as_of, data_source_id)
+      SELECT ${e.teamId}, ${sportSeasonId}, ${e.wins}, ${e.losses}, ${e.ties},
+             ${sourceName}, ${sourceUrl}, ${asOf}::date, ds.id
+      FROM data_source ds WHERE ds.slug = 'staff-entry'
+      ON CONFLICT (team_id, sport_season_id) DO UPDATE
+        SET wins = EXCLUDED.wins,
+            losses = EXCLUDED.losses,
+            ties = EXCLUDED.ties,
+            source_name = EXCLUDED.source_name,
+            source_url = EXCLUDED.source_url,
+            as_of = EXCLUDED.as_of`;
+    written++;
+  }
+  return written;
+}

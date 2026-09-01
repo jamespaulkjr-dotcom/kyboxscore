@@ -565,3 +565,24 @@ alphabetical order.
 **Learned:** neither bug is visible on small data. Three teams and two games
 never tie. They appeared the moment a real season went in, which is the argument
 for importing the whole thing rather than a sample.
+
+## 2026-09-01 — Out-of-state records: entry, not extraction
+**Did:** `/admin/out-of-state` — every out-of-state opponent this season,
+ordered by how many Kentucky teams they played, with a paste box for their real
+records. Saving recomputes rollups and RPI immediately, because Shadow RPI reads
+these and stale ratings would keep showing a zero delta against records we now
+have.
+**Why:** James asked whether the records could be pulled from the respective
+state associations. Not by scraping: that is automated extraction from sites we
+have no agreement with, the same reason KHSAA is off limits. The rule in
+CLAUDE.md names three sites, but the principle behind it is the permitted
+channel list, and another association's website is not on it. Pasted from a
+source he is entitled to read, with the source recorded, it is staff entry —
+which is permitted.
+**Design note:** `source_name` and `as_of` are required, not decorative. A
+rating that moves because of one of these numbers has to be traceable to where
+the number came from; that is the difference between a published rating and an
+assertion. The schema had the fields all along and nothing was filling them.
+**Also practical:** it is 1 September and the season is live, so these records
+change weekly. A one-off scrape would have been stale within days; an entry path
+that recomputes on save can be repeated.

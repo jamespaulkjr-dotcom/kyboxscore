@@ -117,6 +117,9 @@ export default async function Page() {
             <Link href="/admin/alignments" className="mt-1 block text-link underline">
               Import an alignment
             </Link>
+            <Link href="/admin/out-of-state" className="mt-1 block text-link underline">
+              Out-of-state records (switches on Shadow RPI)
+            </Link>
           </>
         )}
       </main>
