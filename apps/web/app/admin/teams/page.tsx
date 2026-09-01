@@ -18,17 +18,32 @@ export const metadata: Metadata = {
 
 export default async function Page(props: PageProps<"/admin/teams">) {
   await requireAdmin("/admin/teams");
-  const { q, sport } = await props.searchParams;
+  const { q, sport, all } = await props.searchParams;
   const query = typeof q === "string" ? q : "";
   const sportFilter = Number(typeof sport === "string" ? sport : "") || undefined;
+  const includeOutOfState = all === "1";
 
   const [teams, schools, sportOptions, navSports, bySport] = await Promise.all([
-    listTeamsAdmin(query, sportFilter),
+    listTeamsAdmin(query, sportFilter, includeOutOfState),
     listSchoolsForSelect(),
     listSportsForSelect(),
     listSports(),
-    countTeamsBySport(),
+    countTeamsBySport(includeOutOfState),
   ]);
+
+  const outOfState = bySport.reduce((n, s) => n + s.outOfState, 0);
+  const withParams = (changes: Record<string, string | null>) => {
+    const p = new URLSearchParams();
+    if (query) p.set("q", query);
+    if (sportFilter) p.set("sport", String(sportFilter));
+    if (includeOutOfState) p.set("all", "1");
+    for (const [k, v] of Object.entries(changes)) {
+      if (v === null) p.delete(k);
+      else p.set(k, v);
+    }
+    const s = p.toString();
+    return s ? `/admin/teams?${s}` : "/admin/teams";
+  };
 
   return (
     <>
@@ -59,7 +74,7 @@ export default async function Page(props: PageProps<"/admin/teams">) {
             without it. */}
         <nav aria-label="Filter by sport" className="mt-3 flex flex-wrap gap-1.5">
           <Link
-            href={query ? `/admin/teams?q=${encodeURIComponent(query)}` : "/admin/teams"}
+            href={withParams({ sport: null })}
             aria-current={sportFilter ? undefined : "page"}
             className={`min-h-9 rounded-full border px-3 py-1.5 text-sm font-medium ${
               sportFilter
@@ -71,13 +86,10 @@ export default async function Page(props: PageProps<"/admin/teams">) {
           </Link>
           {bySport.map((s) => {
             const active = sportFilter === s.sportId;
-            const params = new URLSearchParams();
-            params.set("sport", String(s.sportId));
-            if (query) params.set("q", query);
             return (
               <Link
                 key={s.sportId}
-                href={`/admin/teams?${params}`}
+                href={withParams({ sport: String(s.sportId) })}
                 aria-current={active ? "page" : undefined}
                 className={`min-h-9 rounded-full border px-3 py-1.5 text-sm font-medium ${
                   active
@@ -106,12 +118,24 @@ export default async function Page(props: PageProps<"/admin/teams">) {
             Search
           </button>
         </form>
-        <p className="mt-2 text-sm text-fg-muted">
-          Showing {teams.length} team{teams.length === 1 ? "" : "s"}
-          {sportFilter
-            ? ` in ${bySport.find((s) => s.sportId === sportFilter)?.sportName ?? "this sport"}`
-            : " across every sport"}
-          .
+        <p className="mt-2 flex flex-wrap items-baseline gap-x-2 text-sm text-fg-muted">
+          <span>
+            Showing {teams.length} team{teams.length === 1 ? "" : "s"}
+            {sportFilter
+              ? ` in ${bySport.find((s) => s.sportId === sportFilter)?.sportName ?? "this sport"}`
+              : " across every sport"}
+            {includeOutOfState ? ", including out-of-state opponents" : " in Kentucky"}.
+          </span>
+          {outOfState > 0 && (
+            <Link
+              href={withParams({ all: includeOutOfState ? null : "1" })}
+              className="text-link underline"
+            >
+              {includeOutOfState
+                ? "Kentucky only"
+                : `Show ${outOfState} out-of-state opponent${outOfState === 1 ? "" : "s"}`}
+            </Link>
+          )}
         </p>
 
         {teams.length === 0 ? (

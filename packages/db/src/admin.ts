@@ -153,7 +153,11 @@ export type AdminTeamRow = {
   rosterCount: number;
 };
 
-export async function listTeamsAdmin(query?: string, sportId?: number) {
+export async function listTeamsAdmin(
+  query?: string,
+  sportId?: number,
+  includeOutOfState = false
+) {
   const q = (query ?? "").trim();
   return sql<AdminTeamRow[]>`
     SELECT t.id::int AS "teamId", sc.name AS "schoolName", sc.slug::text AS "schoolSlug",
@@ -171,6 +175,10 @@ export async function listTeamsAdmin(query?: string, sportId?: number) {
     WHERE TRUE
       ${q ? sql`AND (sc.name ILIKE ${"%" + q + "%"} OR sp.name ILIKE ${"%" + q + "%"})` : sql``}
       ${sportId ? sql`AND sp.id = ${sportId}` : sql``}
+      -- Kentucky by default. Out-of-state schools are opponents, not members;
+      -- they exist so their games are in the record and would otherwise pad
+      -- every count with teams nobody administers.
+      ${includeOutOfState ? sql`` : sql`AND sc.state = 'KY'`}
     GROUP BY t.id, sc.name, sc.slug, sp.name, sp.slug, sp.display_order,
              t.gender, t.level, ts.id, se.label
     ORDER BY sc.name, sp.display_order
@@ -887,14 +895,25 @@ export async function ensureTeamSeasonForSchool(
  * With two, it is a hazard: nothing distinguishes a basketball team from a
  * football one at a glance.
  */
-export async function countTeamsBySport() {
+export async function countTeamsBySport(includeOutOfState = false) {
   return sql<
-    { sportId: number; sportSlug: string; sportName: string; teams: number }[]
+    {
+      sportId: number;
+      sportSlug: string;
+      sportName: string;
+      teams: number;
+      outOfState: number;
+    }[]
   >`
     SELECT sp.id::int AS "sportId", sp.slug::text AS "sportSlug",
-           sp.name AS "sportName", count(t.id)::int AS teams
+           sp.name AS "sportName",
+           count(t.id) FILTER (
+             WHERE ${includeOutOfState ? sql`TRUE` : sql`sc.state = 'KY'`}
+           )::int AS teams,
+           count(t.id) FILTER (WHERE sc.state <> 'KY')::int AS "outOfState"
     FROM sport sp
     LEFT JOIN team t ON t.sport_id = sp.id
+    LEFT JOIN school sc ON sc.id = t.school_id
     WHERE sp.is_active
     GROUP BY sp.id, sp.slug, sp.name, sp.display_order
     HAVING count(t.id) > 0

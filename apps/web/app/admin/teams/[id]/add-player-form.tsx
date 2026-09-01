@@ -55,7 +55,7 @@ export function AddPlayerForm({ teamId }: { teamId: number }) {
       </div>
       <div className="sm:col-span-1">
         <label htmlFor="grade" className="block text-sm font-medium">Grade</label>
-        <input id="grade" name="grade" inputMode="numeric" placeholder="9–12"
+        <input id="grade" name="grade" placeholder="Sr"
                autoComplete="off" className={FIELD} />
       </div>
 

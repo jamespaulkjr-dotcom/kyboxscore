@@ -737,3 +737,16 @@ identical rows for the same school.
 schedule, district, record - belongs to exactly one sport, and the school name
 alone never says which. Putting the sport above the name rather than after it
 is the difference between a label and a footnote.
+
+## 2026-09-01 — Kentucky by default in admin, and grades in the language people use
+**Did:** `/admin/teams` lists Kentucky teams by default with a link to include
+the out-of-state opponents; the chip counts follow the same rule. Grades display
+as Fr/So/Jr/Sr everywhere, and the admin fields accept either form.
+**Why:** the admin count said 276 while the public teams page said 225, and the
+difference was 51 out-of-state opponents nobody administers. Two numbers for the
+same word is how a person stops trusting either. Kentucky is now the default in
+both places, and the toggle says exactly what it adds.
+**On grades:** nobody in a gym says "grade 12". Storing the number is right —
+it sorts and it does arithmetic — but it should never have been what a reader
+sees. Middle-school grades keep the ordinal, because there is no shorthand for
+eighth grade. The input round-trips: type "Sr" or "12", store 12, show "Sr".

@@ -21,6 +21,7 @@ import {
 } from "../actions";
 import { AddGameForm } from "./add-game-form";
 import { AddPlayerForm } from "./add-player-form";
+import { formatGrade } from "../../../../lib/format";
 
 export const metadata: Metadata = {
   title: "Team",
@@ -152,10 +153,12 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
                       <label className="sr-only" htmlFor={`g-${p.playerSeasonId}`}>
                         Grade for {p.firstName} {p.lastName}
                       </label>
+                      {/* Shows Sr, accepts Sr or 12 — nobody in a gym says
+                          "grade 12". */}
                       <input
                         id={`g-${p.playerSeasonId}`}
                         name="grade"
-                        defaultValue={p.grade ?? ""}
+                        defaultValue={formatGrade(p.grade) ?? ""}
                         placeholder="Gr"
                         className="min-h-9 w-14 rounded-md border border-border-strong bg-surface-raised px-2 text-center"
                       />

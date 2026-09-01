@@ -70,3 +70,15 @@ export function formatHeight(inches: number | null): string | null {
   if (inches === null || inches <= 0) return null;
   return `${Math.floor(inches / 12)}'${inches % 12}"`;
 }
+
+/**
+ * Grade as a roster prints it: 12 -> Sr.
+ *
+ * Nobody in a gym says "grade 12". Middle school grades have no such
+ * shorthand, so they keep the ordinal.
+ */
+export function formatGrade(grade: number | null): string | null {
+  if (grade === null) return null;
+  const named: Record<number, string> = { 9: "Fr", 10: "So", 11: "Jr", 12: "Sr" };
+  return named[grade] ?? `${grade}th`;
+}

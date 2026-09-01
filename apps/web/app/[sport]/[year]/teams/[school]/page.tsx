@@ -12,7 +12,13 @@ import {
 } from "@kyboxscore/db";
 import { SiteHeader } from "../../../../components/site-header";
 import { BottomNav } from "../../../../components/bottom-nav";
-import { formatHeight, formatShortDate, num, pct } from "../../../../../lib/format";
+import {
+  formatGrade,
+  formatHeight,
+  formatShortDate,
+  num,
+  pct,
+} from "../../../../../lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -259,7 +265,7 @@ export default async function Page(
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
                 <span className="shrink-0 text-right text-sm text-fg-muted">
                   {p.positions?.join("/")}
-                  {p.grade ? ` · ${p.grade}` : ""}
+                  {formatGrade(p.grade) ? ` · ${formatGrade(p.grade)}` : ""}
                   {/* Size is the first thing anyone looks for on a football
                       roster, so it sits on the line rather than behind a click. */}
                   {(formatHeight(p.heightInches) || p.weightLb) && (
