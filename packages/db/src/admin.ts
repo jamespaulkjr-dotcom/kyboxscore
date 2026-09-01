@@ -153,7 +153,7 @@ export type AdminTeamRow = {
   rosterCount: number;
 };
 
-export async function listTeamsAdmin(query?: string) {
+export async function listTeamsAdmin(query?: string, sportId?: number) {
   const q = (query ?? "").trim();
   return sql<AdminTeamRow[]>`
     SELECT t.id::int AS "teamId", sc.name AS "schoolName", sc.slug::text AS "schoolSlug",
@@ -168,7 +168,9 @@ export async function listTeamsAdmin(query?: string) {
     LEFT JOIN team_season ts  ON ts.team_id = t.id AND ts.sport_season_id = ss.id
     LEFT JOIN season se       ON se.id = ss.season_id
     LEFT JOIN player_season ps ON ps.team_season_id = ts.id
-    ${q ? sql`WHERE sc.name ILIKE ${"%" + q + "%"} OR sp.name ILIKE ${"%" + q + "%"}` : sql``}
+    WHERE TRUE
+      ${q ? sql`AND (sc.name ILIKE ${"%" + q + "%"} OR sp.name ILIKE ${"%" + q + "%"})` : sql``}
+      ${sportId ? sql`AND sp.id = ${sportId}` : sql``}
     GROUP BY t.id, sc.name, sc.slug, sp.name, sp.slug, sp.display_order,
              t.gender, t.level, ts.id, se.label
     ORDER BY sc.name, sp.display_order
@@ -876,4 +878,25 @@ export async function ensureTeamSeasonForSchool(
     ON CONFLICT (team_id, sport_season_id) DO UPDATE SET team_id = EXCLUDED.team_id
     RETURNING id::int`;
   return ts.id;
+}
+
+/**
+ * How many teams exist per sport, so the admin list can say what it is showing.
+ *
+ * With one sport loaded, a list of 225 rows each reading "Football" is noise.
+ * With two, it is a hazard: nothing distinguishes a basketball team from a
+ * football one at a glance.
+ */
+export async function countTeamsBySport() {
+  return sql<
+    { sportId: number; sportSlug: string; sportName: string; teams: number }[]
+  >`
+    SELECT sp.id::int AS "sportId", sp.slug::text AS "sportSlug",
+           sp.name AS "sportName", count(t.id)::int AS teams
+    FROM sport sp
+    LEFT JOIN team t ON t.sport_id = sp.id
+    WHERE sp.is_active
+    GROUP BY sp.id, sp.slug, sp.name, sp.display_order
+    HAVING count(t.id) > 0
+    ORDER BY sp.display_order`;
 }

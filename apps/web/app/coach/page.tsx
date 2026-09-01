@@ -71,9 +71,14 @@ export default async function Page() {
                 key={t.teamId}
                 className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-0"
               >
-                <span className="font-medium">{t.schoolName}</span>
+                <span className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="rounded bg-surface-raised px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                    {t.sportName}
+                  </span>
+                  <span className="font-medium">{t.schoolName}</span>
+                </span>
                 <span className="text-sm text-fg-muted">
-                  {t.sportName} · {t.gender} · {t.level}
+                  {t.gender} · {t.level}
                 </span>
               </li>
             ))}

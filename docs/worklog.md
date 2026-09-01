@@ -722,3 +722,18 @@ data is the design.
 game. `GameRow` read `starts_at`, an exact instant we almost never know and
 which no imported game has, while the kick-off time lives in `local_time`. A
 thousand games said TBA when the time was sitting in the database.
+
+## 2026-09-01 — Sport is now the primary distinction in admin
+**Did:** `/admin/teams` gained sport filter chips with counts, the sport reads
+as a label rather than trailing prose, and the page states what it is showing.
+The team page leads with the sport above the school name, and its roster and
+schedule headings name it. The coach dashboard does the same.
+**Why:** James pointed out that the admin pages read as "this school has
+players" when they mean "this school's football team has players". With one
+sport loaded, 225 rows each ending "Football · boys · varsity" is noise; with
+basketball added it becomes a hazard, because nothing separates two otherwise
+identical rows for the same school.
+**Design note:** a school is not a team. Everything on a team page - roster,
+schedule, district, record - belongs to exactly one sport, and the school name
+alone never says which. Putting the sport above the name rather than after it
+is the difference between a label and a footnote.

@@ -54,11 +54,16 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
           ← All teams
         </Link>
 
-        <h1 className="mt-3 text-xl font-bold tracking-tight sm:text-2xl">
+        {/* Sport above the school, not after it. Everything on this page -
+            roster, schedule, district - belongs to one sport, and the school
+            alone does not say which. */}
+        <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-accent">
+          {team.sportName} · {team.gender} · {team.level}
+        </p>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
           {team.schoolName}
         </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          {team.sportName} · {team.gender} · {team.level} ·{" "}
           {team.seasonLabel ?? "no season open"}
         </p>
 
@@ -101,12 +106,13 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
             </p>
 
             <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-fg-muted">
-              Add a player
+              Add a player to the {team.sportName.toLowerCase()} roster
             </h2>
             <AddPlayerForm teamId={teamId} />
 
             <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-fg-muted">
-              Roster · {roster.length} player{roster.length === 1 ? "" : "s"}
+              {team.sportName} roster · {roster.length} player
+              {roster.length === 1 ? "" : "s"}
             </h2>
 
             {roster.length === 0 ? (
@@ -188,7 +194,8 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
             <AddGameForm teamId={teamId} opponents={opponents} />
 
             <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-fg-muted">
-              Schedule · {games.length} game{games.length === 1 ? "" : "s"}
+              {team.sportName} schedule · {games.length} game
+              {games.length === 1 ? "" : "s"}
             </h2>
             {games.length === 0 ? (
               <p className="mt-2 rounded-lg border border-border bg-surface px-4 py-5 text-sm text-fg-muted">
