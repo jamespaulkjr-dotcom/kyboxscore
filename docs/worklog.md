@@ -660,3 +660,15 @@ roster import calls it when it adds anyone. Written into STATUS.md as a rule
 rather than a note, since the gentler version did not stop it recurring.
 **Caught by** searching the live site for a player name rather than trusting
 "10,743 added, 0 failed" — the same habit that caught the canceled games.
+
+## 2026-09-01 — Heights and weights on the roster
+**Did:** Roster rows now show height and weight, formatted the way a roster
+prints them (72 becomes 6'0", not 72). Public, per James: it is football and
+schools publish this.
+**Why the earlier caution:** these are minors and CLAUDE.md's rule is names,
+schools, jersey numbers and game statistics. Storing them was already a
+deliberate widening; publishing them is a second decision, and it is his to
+make. Recorded here so nobody later reads it as drift.
+**Open, needing the coaches:** 448 players have no jersey number. They are on
+the roster and searchable but cannot receive statistics, because a MaxPreps
+box score carries jerseys and never names. Not fixable from our side.

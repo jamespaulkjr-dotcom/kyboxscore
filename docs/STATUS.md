@@ -144,6 +144,12 @@ That skips migrations, which the pipeline runs and this command does not.
   date, so it holds for every sport and every future season — **correct the
   season dates and the classification follows**. Football 2026 opens
   2026-08-19.
+- **Rosters** — 10,743 players across 220 football teams, with jersey, grade,
+  positions, height and weight. Height and weight are **public**: it is
+  football, and schools publish them. They live on `player_season` because a
+  sophomore is not the same size as a senior. 448 players have no jersey and so
+  cannot receive statistics — a box score identifies players by number, never
+  by name — pending confirmation from coaches.
 - **Records** — overall and district, shown as `2-0 (District 0-0)` on team
   pages and in the teams index. **District games are determined by the
   alignment, not by whatever a schedule document claims** — two teams are in

@@ -220,7 +220,8 @@ export async function getRoster(teamSeasonId: number): Promise<RosterRow[]> {
   return sql<RosterRow[]>`
     SELECT p.id::int AS "playerId", p.slug,
            p.first_name || ' ' || p.last_name AS name,
-           ps.jersey, ps.grade::int, ps.positions
+           ps.jersey, ps.grade::int, ps.positions,
+           ps.height_inches::int AS "heightInches", ps.weight_lb::int AS "weightLb"
     FROM player_season ps
     JOIN player p ON p.id = ps.player_id
     WHERE ps.team_season_id = ${teamSeasonId}

@@ -59,3 +59,14 @@ export function num(value: number | undefined, digits = 0): string {
   if (value === undefined || Number.isNaN(value)) return "—";
   return value.toFixed(digits);
 }
+
+/**
+ * Inches to the way a roster prints a height: 72 -> 6'0".
+ *
+ * Football rosters are read by people who think in feet and inches; 72 means
+ * nothing at a glance.
+ */
+export function formatHeight(inches: number | null): string | null {
+  if (inches === null || inches <= 0) return null;
+  return `${Math.floor(inches / 12)}'${inches % 12}"`;
+}

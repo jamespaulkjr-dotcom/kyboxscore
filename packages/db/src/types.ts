@@ -69,6 +69,8 @@ export type RosterRow = {
   jersey: string | null;
   grade: number | null;
   positions: string[] | null;
+  heightInches: number | null;
+  weightLb: number | null;
 };
 
 export type StatCell = { key: string; abbrev: string; value: number };

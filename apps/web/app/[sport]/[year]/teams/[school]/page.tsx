@@ -12,7 +12,7 @@ import {
 } from "@kyboxscore/db";
 import { SiteHeader } from "../../../../components/site-header";
 import { BottomNav } from "../../../../components/bottom-nav";
-import { formatShortDate, num, pct } from "../../../../../lib/format";
+import { formatHeight, formatShortDate, num, pct } from "../../../../../lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -257,9 +257,18 @@ export default async function Page(
               <li key={p.playerId} className="flex items-baseline gap-3 border-b border-border py-2 last:border-0 sm:last:border-b">
                 <span className="tabular w-8 shrink-0 text-right text-fg-muted">{p.jersey}</span>
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                <span className="shrink-0 text-sm text-fg-muted">
+                <span className="shrink-0 text-right text-sm text-fg-muted">
                   {p.positions?.join("/")}
                   {p.grade ? ` · ${p.grade}` : ""}
+                  {/* Size is the first thing anyone looks for on a football
+                      roster, so it sits on the line rather than behind a click. */}
+                  {(formatHeight(p.heightInches) || p.weightLb) && (
+                    <span className="tabular ml-2">
+                      {formatHeight(p.heightInches) ?? ""}
+                      {formatHeight(p.heightInches) && p.weightLb ? " " : ""}
+                      {p.weightLb ? `${p.weightLb}` : ""}
+                    </span>
+                  )}
                 </span>
               </li>
             ))}
