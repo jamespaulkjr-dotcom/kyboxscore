@@ -672,3 +672,20 @@ make. Recorded here so nobody later reads it as drift.
 **Open, needing the coaches:** 448 players have no jersey number. They are on
 the roster and searchable but cannot receive statistics, because a MaxPreps
 box score carries jerseys and never names. Not fixable from our side.
+
+## 2026-09-01 — "High School" was still on the game page
+**Did:** The game page, the coach dashboard and the coach-facing import screens
+now show `short_name` like everywhere else.
+**Why:** James followed Prestonsburg from the scoreboard to a game and found
+"Prestonsburg High School" and "Lawrence County High School" repeated across
+the page. `getGameSides` returned both `schoolName` (legal) and `shortName`,
+and the scoreboard row used the short one while the game page used the long
+one — so the bug was invisible from the page that had been checked.
+**Deliberately unchanged:** admin listings still show the full legal name. Those
+are the screens where somebody confirms an import matched the right school, and
+"Newport" versus "Newport Central Catholic" is precisely the distinction being
+checked. That reasoning is now a comment in `admin.ts` so it does not read as an
+oversight.
+**Learned:** a query returning both a display name and a legal name invites
+exactly this. Anywhere a reader is just reading takes `short_name`; only
+match-confirmation surfaces take `name`.

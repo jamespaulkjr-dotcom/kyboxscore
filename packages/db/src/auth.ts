@@ -131,7 +131,8 @@ export async function listGrantedTeams(userId: number) {
       level: string;
     }[]
   >`
-    SELECT t.id::int AS "teamId", sc.name AS "schoolName",
+    SELECT t.id::int AS "teamId",
+           coalesce(sc.short_name, sc.name) AS "schoolName",
            sp.slug AS "sportSlug", sp.name AS "sportName",
            t.gender::text AS gender, t.level::text AS level
     FROM user_team_grant g

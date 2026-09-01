@@ -303,7 +303,12 @@ export async function getGameSides(gameId: number) {
     }[]
   >`
     SELECT gp.id::int AS "participantId", gp.role, gp.team_id::int AS "teamId",
-           sc.slug AS "schoolSlug", sc.name AS "schoolName", sc.short_name AS "shortName",
+           sc.slug AS "schoolSlug",
+           -- Display name, like every other public surface. The game page was
+           -- rendering the legal name and printing "High School" on a page
+           -- that mentions each school several times.
+           coalesce(sc.short_name, sc.name) AS "schoolName",
+           sc.short_name AS "shortName",
            gp.score::int,
            coalesce(
              (SELECT array_agg(ps.score::int ORDER BY ps.period_number)

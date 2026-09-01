@@ -131,6 +131,15 @@ export async function countTeams(): Promise<number> {
 
 /* ------------------------------------------------------------ teams */
 
+/**
+ * Admin listings deliberately show the school's full legal name.
+ *
+ * These are the screens where a person confirms that an import matched the
+ * right school, and "Newport" versus "Newport Central Catholic" is exactly the
+ * distinction they are checking. Everywhere a reader is simply reading -
+ * scoreboards, team pages, game pages, search, the coach's own dashboard -
+ * shows short_name.
+ */
 export type AdminTeamRow = {
   teamId: number;
   schoolName: string;

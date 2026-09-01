@@ -28,7 +28,8 @@ export type ImportableTeam = {
 export async function listImportableTeams(userId: number) {
   return sql<ImportableTeam[]>`
     SELECT ts.id::int AS "teamSeasonId", t.id::int AS "teamId",
-           sc.name AS "schoolName", sp.slug AS "sportSlug", sp.name AS "sportName",
+           coalesce(sc.short_name, sc.name) AS "schoolName",
+           sp.slug AS "sportSlug", sp.name AS "sportName",
            t.gender::text AS gender, t.level::text AS level,
            se.label AS "seasonLabel"
     FROM user_team_grant g
@@ -56,7 +57,7 @@ export async function listGamesForTeamSeason(teamSeasonId: number) {
   return sql<ImportableGame[]>`
     SELECT g.id::int AS "gameId", g.short_code AS "shortCode",
            g.local_date::text AS "localDate", g.status::text AS status,
-           opp_school.name AS "opponentName",
+           coalesce(opp_school.short_name, opp_school.name) AS "opponentName",
            (mine.role = 'home') AS "isHome"
     FROM team_season ts
     JOIN game_participant mine ON mine.team_id = ts.team_id
@@ -217,8 +218,9 @@ export async function getImportBatchForUser(batchId: number, userId: number) {
            b.created_at::text AS "createdAt", b.committed_at::text AS "committedAt",
            b.team_season_id::int AS "teamSeasonId", b.game_id::int AS "gameId",
            g.short_code AS "gameShortCode", g.local_date::text AS "gameDate",
-           opp_school.name AS "opponentName",
-           sc.name AS "schoolName", sp.slug AS "sportSlug",
+           coalesce(opp_school.short_name, opp_school.name) AS "opponentName",
+           coalesce(sc.short_name, sc.name) AS "schoolName",
+           sp.slug AS "sportSlug",
            b.parsed_summary AS "parsedSummary"
     FROM import_batch b
     JOIN team_season ts ON ts.id = b.team_season_id
