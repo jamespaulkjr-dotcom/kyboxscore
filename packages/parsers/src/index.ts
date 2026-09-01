@@ -7,3 +7,4 @@ export * from "./team-schedule.ts";
 export * from "./schedule-sheet.ts";
 export * from "./xlsx.ts";
 export * from "./roster-sheet.ts";
+export * from "./person-name.ts";

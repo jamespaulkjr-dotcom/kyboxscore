@@ -12,6 +12,7 @@ import {
 } from "@kyboxscore/db";
 import { SiteHeader } from "../../../../components/site-header";
 import { BottomNav } from "../../../../components/bottom-nav";
+import { FollowButton } from "../../../../components/follow-button";
 import {
   formatGrade,
   formatHeight,
@@ -79,7 +80,10 @@ export default async function Page(
             <span className="ml-2 font-normal text-fg-muted">{team.mascot}</span>
           )}
         </h1>
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-muted">
+        <div className="mt-2">
+          <FollowButton slug={team.schoolSlug} name={team.schoolName} sport={sport} />
+        </div>
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-muted">
           <span className="tabular font-semibold text-fg">
             {team.wins}-{team.losses}
             {team.ties > 0 ? `-${team.ties}` : ""}

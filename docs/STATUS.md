@@ -144,6 +144,12 @@ That skips migrations, which the pipeline runs and this command does not.
   date, so it holds for every sport and every future season — **correct the
   season dates and the classification follows**. Football 2026 opens
   2026-08-19.
+- **Following** — a reader can follow a team from its page. Stored in the
+  **browser**, not an account: a parent wanting their kid's schedule should not
+  have to make one, and holding a list of minors' teams against an email
+  address is a responsibility worth avoiding until there is a reason to take it
+  on. The front page shows followed teams with next and last game, and renders
+  nothing at all when the list is empty.
 - **Rosters** — 10,743 players across 220 football teams, with jersey, grade,
   positions, height and weight. Height and weight are **public**: it is
   football, and schools publish them. They live on `player_season` because a

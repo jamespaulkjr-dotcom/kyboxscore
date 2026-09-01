@@ -677,3 +677,85 @@ export async function getHomeSummaries() {
     WHERE ss.is_current AND sp.is_active
     ORDER BY sp.display_order`;
 }
+
+export type FollowedTeam = {
+  schoolSlug: string;
+  schoolName: string;
+  wins: number;
+  losses: number;
+  nextDate: string | null;
+  nextTime: string | null;
+  nextOpponent: string | null;
+  nextIsHome: boolean | null;
+  nextShortCode: string | null;
+  lastDate: string | null;
+  lastOpponent: string | null;
+  lastResult: string | null;
+  lastScore: string | null;
+};
+
+/**
+ * The teams somebody follows, with the one thing they actually want: when is
+ * the next game, and what happened in the last one.
+ *
+ * Takes slugs because following is stored in the browser, not in an account -
+ * there is nothing to join to. One query for the whole list rather than one
+ * per team, since this renders on the front page.
+ */
+export async function getFollowedTeams(
+  sportSeasonId: number,
+  slugs: string[]
+): Promise<FollowedTeam[]> {
+  if (slugs.length === 0) return [];
+  return sql<FollowedTeam[]>`
+    WITH followed AS (
+      SELECT ts.id AS team_season_id, t.id AS team_id, sc.slug AS slug,
+             coalesce(sc.short_name, sc.name) AS school_name
+      FROM team_season ts
+      JOIN team t    ON t.id = ts.team_id
+      JOIN school sc ON sc.id = t.school_id
+      WHERE ts.sport_season_id = ${sportSeasonId}
+        AND sc.slug = ANY(${slugs}::citext[])
+    ),
+    games AS (
+      SELECT f.slug, g.local_date, g.local_time, g.short_code, g.status,
+             mine.score AS my_score, opp.score AS their_score,
+             mine.role = 'home' AS is_home,
+             coalesce(osc.short_name, osc.name) AS opponent
+      FROM followed f
+      JOIN game_participant mine ON mine.team_id = f.team_id
+      JOIN game g ON g.id = mine.game_id AND g.sport_season_id = ${sportSeasonId}
+      JOIN game_participant opp ON opp.game_id = g.id AND opp.id <> mine.id
+      JOIN team ot   ON ot.id = opp.team_id
+      JOIN school osc ON osc.id = ot.school_id
+    )
+    SELECT f.slug::text AS "schoolSlug", f.school_name AS "schoolName",
+           coalesce(rec.wins, 0)::int AS wins,
+           coalesce(rec.losses, 0)::int AS losses,
+           nx.local_date::text  AS "nextDate",
+           to_char(nx.local_time, 'HH12:MI AM') AS "nextTime",
+           nx.opponent          AS "nextOpponent",
+           nx.is_home           AS "nextIsHome",
+           nx.short_code::text  AS "nextShortCode",
+           lg.local_date::text  AS "lastDate",
+           lg.opponent          AS "lastOpponent",
+           CASE WHEN lg.my_score > lg.their_score THEN 'W'
+                WHEN lg.my_score < lg.their_score THEN 'L'
+                WHEN lg.my_score IS NOT NULL THEN 'T' END AS "lastResult",
+           CASE WHEN lg.my_score IS NOT NULL
+                THEN lg.my_score || '-' || lg.their_score END AS "lastScore"
+    FROM followed f
+    LEFT JOIN team_season_record rec ON rec.team_season_id = f.team_season_id
+    LEFT JOIN LATERAL (
+      SELECT * FROM games g2
+      WHERE g2.slug = f.slug AND g2.status = 'scheduled'
+        AND g2.local_date >= CURRENT_DATE
+      ORDER BY g2.local_date LIMIT 1
+    ) nx ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT * FROM games g3
+      WHERE g3.slug = f.slug AND g3.status = 'final'
+      ORDER BY g3.local_date DESC LIMIT 1
+    ) lg ON TRUE
+    ORDER BY f.school_name`;
+}

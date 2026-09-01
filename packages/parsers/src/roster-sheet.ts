@@ -1,3 +1,4 @@
+import { normalizePersonName } from "./person-name.ts";
 import type { Sheet } from "./xlsx.ts";
 
 /**
@@ -135,8 +136,10 @@ export function parseRosterWorkbook(sheets: Sheet[]): RosterParseResult {
 
       const jersey = at("jersey");
       players.push({
-        firstName,
-        lastName,
+        // Rosters arrive with some rows shouted. Calmed here so the database
+        // never holds two spellings of the same convention.
+        firstName: normalizePersonName(firstName),
+        lastName: normalizePersonName(lastName),
         // Jersey stays a string: "00" and "0" are different players.
         jersey: jersey === "" ? null : jersey,
         grade: parseGrade(at("grade")),

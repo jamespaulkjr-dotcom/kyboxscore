@@ -10,6 +10,7 @@ import {
 import { SiteHeader } from "./components/site-header";
 import { BottomNav } from "./components/bottom-nav";
 import { GameRow } from "./components/game-row";
+import { Following } from "./components/following";
 import { formatSlateDate } from "../lib/format";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,10 @@ export default async function Home() {
       <SiteHeader sports={sports} />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-5 pb-24">
         <h1 className="sr-only">Kentucky high school sports</h1>
+
+        {/* Renders nothing until somebody follows a team, so a first-time
+            visitor is not shown an empty promise. */}
+        {active && <Following sport={active.sportSlug} />}
 
         {active && active.slate ? (
           <section aria-labelledby="latest">

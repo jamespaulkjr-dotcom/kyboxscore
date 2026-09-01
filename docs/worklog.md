@@ -750,3 +750,24 @@ both places, and the toggle says exactly what it adds.
 it sorts and it does arithmetic — but it should never have been what a reader
 sees. Middle-school grades keep the ordinal, because there is no shorthand for
 eighth grade. The input round-trips: type "Sr" or "12", store 12, show "Sr".
+
+## 2026-09-01 — Shouted names, and following a team
+**Did:** Names arriving in ALL CAPS are calmed at import and in the existing
+data. Added following: a star on a team page, and a "Your teams" block on the
+front page with next and last game.
+**On the names:** 82 players had an all-caps part, but only 22 were the actual
+problem. The rest were initials — AJ, TJ, D.K — and "Aj" is worse than "AJ".
+The rule only touches a part that is entirely uppercase and long enough not to
+be initials, and never touches a name that already carries lower case, because
+MeJean, DeShields and DuLany-Waugh were typed deliberately. MCLEROY becomes
+McLeroy, not Mcleroy. "JR" is left alone: it is a suffix, and it is also a boy
+called J.R., and leaving it is the only answer that cannot be wrong about
+somebody's name.
+**On following:** kept in localStorage rather than behind an account. The brief
+is careful about minors, and a database associating an email address with the
+teams whose rosters a person watches is a different kind of record from a
+scoreboard. Nothing leaves the device. It degrades to nothing without
+JavaScript rather than breaking the page.
+**Next step if wanted:** browser notifications need a service worker, a push
+subscription per device, VAPID keys and a job that sends on a schedule — and
+push subscriptions are per-device, so they work without accounts too.
