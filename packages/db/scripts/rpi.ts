@@ -49,6 +49,10 @@ async function main() {
 
   for (const season of seasons) {
     const summary = await runRpi(season.id, { throughDate: through });
+    if (summary.officialRunId === null) {
+      console.log(`${season.name} ${season.urlYear}: no completed games yet, skipped`);
+      continue;
+    }
     console.log(
       `${season.name} ${season.urlYear}: ${summary.teams} teams, ` +
         `${summary.published} published, ${summary.suppressed} suppressed, ` +

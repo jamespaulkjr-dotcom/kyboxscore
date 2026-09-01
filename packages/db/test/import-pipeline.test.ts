@@ -337,7 +337,7 @@ test("RPI runs against real games, reproduces its own arithmetic, and ranks only
     FROM rpi_result r
     JOIN team t    ON t.id = r.team_id
     JOIN school sc ON sc.id = t.school_id
-    WHERE r.rpi_run_id = ${summary.officialRunId} AND sc.slug = 'rpi-test-tn'`;
+    WHERE r.rpi_run_id = ${summary.officialRunId!} AND sc.slug = 'rpi-test-tn'`;
   assert.equal(
     computed[0].n,
     0,
@@ -365,7 +365,7 @@ test("RPI runs against real games, reproduces its own arithmetic, and ranks only
 
   // The arithmetic is persisted, not just the answer.
   const [{ count: inputs }] = await sql<{ count: number }[]>`
-    SELECT count(*)::int FROM rpi_input WHERE rpi_run_id = ${summary.officialRunId}`;
+    SELECT count(*)::int FROM rpi_input WHERE rpi_run_id = ${summary.officialRunId!}`;
   assert.ok(inputs > 0, "per-game inputs must be stored for a disputing coach");
 
   // Shadow must differ for anyone who played the out-of-state team, because
@@ -394,7 +394,7 @@ test("RPI runs against real games, reproduces its own arithmetic, and ranks only
     FROM rpi_result r
     JOIN team t    ON t.id = r.team_id
     JOIN school sc ON sc.id = t.school_id
-    WHERE r.rpi_run_id = ${withRecord.officialRunId} AND sc.slug = 'rpi-test-tn'`;
+    WHERE r.rpi_run_id = ${withRecord.officialRunId!} AND sc.slug = 'rpi-test-tn'`;
   assert.equal(nowComputed[0].n, 1, "a known out-of-state record is carried into the run");
 });
 

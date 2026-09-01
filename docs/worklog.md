@@ -624,3 +624,27 @@ deployed container still had the old `rpi.ts` that required `--sport`. Worth the
 thirty seconds: otherwise it would have failed silently every hour and the
 first sign would have been stale ratings. It also skips cleanly while a deploy
 has the web container down, rather than logging an hourly error.
+
+## 2026-09-01 — Rosters, and an xlsx reader
+**Did:** `/admin/rosters` imports a workbook with one tab per school — 220
+tabs, 10,743 players, every school matched, 34 seconds. Also
+`packages/parsers/src/xlsx.ts`, a dependency-free reader, because three
+spreadsheets had now arrived and every one was hand-converted to CSV first.
+**Learned:** the workbook writes namespace-prefixed tags — `<x:sheet>`, not
+`<sheet>`. Regexes anchored on the bare tag name matched nothing and the file
+read as zero sheets with no error. Same failure shape as `\s` in a Postgres
+regex: a pattern that silently matches nothing.
+**Idempotency:** a player already on the roster under the same name and jersey
+is refreshed rather than duplicated, matching the single-player guard. Verified
+by importing one team twice: 0 added, 36 refreshed.
+**Measurements:** height and weight are stored on `player_season`, not
+`player` — a sophomore is not the same size as a senior, and a measurement
+without its season is useless. James asked for them for scouting; that widens
+CLAUDE.md's "names, schools, jersey numbers and game statistics", so it is a
+deliberate decision recorded here rather than a drift. Nothing displays them
+yet: storing and publishing are separate choices.
+**Also:** 448 players have no jersey. They import fine but cannot receive
+statistics, because a MaxPreps box score identifies players by number and never
+by name.
+**And:** the hourly RPI job no longer writes empty runs for sports whose season
+is open but which have played no games — that was 48 rows a day of nothing.

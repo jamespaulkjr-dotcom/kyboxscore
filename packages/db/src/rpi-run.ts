@@ -289,8 +289,9 @@ async function persistRun(
 }
 
 export type RpiRunSummary = {
-  officialRunId: number;
-  shadowRunId: number;
+  /** Null when nothing was computed and no run was written. */
+  officialRunId: number | null;
+  shadowRunId: number | null;
   teams: number;
   published: number;
   suppressed: number;
@@ -324,6 +325,21 @@ export async function runRpi(
   };
 
   const teams = await loadTeamInputs(sportSeasonId, throughDate);
+
+  // A sport whose season is open but has no completed games yet produces
+  // nothing worth storing. The hourly job would otherwise write two empty runs
+  // an hour, every hour, from the day a season opens until its first game.
+  if (teams.length === 0) {
+    return {
+      officialRunId: null,
+      shadowRunId: null,
+      teams: 0,
+      published: 0,
+      suppressed: 0,
+      throughDate,
+    };
+  }
+
   const { official, shadow } = computeBoth(teams, config);
 
   const officialRunId = await persistRun(

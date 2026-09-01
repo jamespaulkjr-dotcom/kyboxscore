@@ -745,3 +745,126 @@ export async function setTimeZoneForSchools(
     WHERE slug = ANY(${slugs}::citext[]) AND time_zone <> ${timeZone}`;
   return res.count;
 }
+
+/* ---------------------------------------------------------- rosters */
+
+export type RosterImportPlayer = {
+  firstName: string;
+  lastName: string;
+  jersey: string | null;
+  grade: number | null;
+  positions: string[];
+  heightInches: number | null;
+  weightLb: number | null;
+};
+
+export type RosterImportResult = {
+  added: number;
+  alreadyPresent: number;
+  updated: number;
+};
+
+/**
+ * Loads a whole roster for one team season.
+ *
+ * Idempotent by name and jersey, matching the single-player guard: re-running
+ * a roster import must not double it. An existing player has their details
+ * refreshed instead, so a corrected height or a grade rolling over lands
+ * without creating a second person.
+ */
+export async function importRoster(
+  teamSeasonId: number,
+  players: RosterImportPlayer[]
+): Promise<RosterImportResult> {
+  const existing = await sql<
+    { playerSeasonId: number; first: string; last: string; jersey: string | null }[]
+  >`
+    SELECT ps.id::int AS "playerSeasonId", p.first_name AS first,
+           p.last_name AS last, ps.jersey
+    FROM player_season ps
+    JOIN player p ON p.id = ps.player_id
+    WHERE ps.team_season_id = ${teamSeasonId}`;
+
+  const key = (f: string, l: string, j: string | null) =>
+    `${f.trim().toLowerCase()}|${l.trim().toLowerCase()}|${(j ?? "").trim()}`;
+  const byKey = new Map(
+    existing.map((e) => [key(e.first, e.last, e.jersey), e.playerSeasonId])
+  );
+
+  let added = 0;
+  let updated = 0;
+  let alreadyPresent = 0;
+
+  for (const p of players) {
+    const found = byKey.get(key(p.firstName, p.lastName, p.jersey));
+    if (found !== undefined) {
+      await sql`
+        UPDATE player_season
+        SET grade = ${p.grade},
+            positions = ${p.positions.length ? p.positions : null},
+            height_inches = ${p.heightInches},
+            weight_lb = ${p.weightLb}
+        WHERE id = ${found}`;
+      alreadyPresent++;
+      continue;
+    }
+
+    await sql.begin(async (tx) => {
+      const base =
+        `${p.firstName} ${p.lastName}`
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "") || "player";
+      let slug = base;
+      for (let n = 2; n < 200; n++) {
+        const [taken] = await tx<{ one: number }[]>`
+          SELECT 1 AS one FROM player WHERE slug = ${slug}`;
+        if (!taken) break;
+        slug = `${base}-${n}`;
+      }
+
+      const [player] = await tx<{ id: number }[]>`
+        INSERT INTO player (slug, first_name, last_name, data_source_id)
+        SELECT ${slug}, ${p.firstName}, ${p.lastName}, ds.id
+        FROM data_source ds WHERE ds.slug = 'staff-entry'
+        RETURNING id::int`;
+
+      await tx`
+        INSERT INTO player_season
+          (player_id, team_season_id, jersey, grade, positions, height_inches,
+           weight_lb, data_source_id)
+        SELECT ${player.id}, ${teamSeasonId}, ${p.jersey}, ${p.grade},
+               ${p.positions.length ? p.positions : null},
+               ${p.heightInches}, ${p.weightLb}, ds.id
+        FROM data_source ds WHERE ds.slug = 'staff-entry'
+        ON CONFLICT (team_season_id, player_id) DO NOTHING`;
+      added++;
+    });
+  }
+
+  return { added, alreadyPresent, updated };
+}
+
+/** The team season for a school in a sport, creating it if needed. */
+export async function ensureTeamSeasonForSchool(
+  schoolId: number,
+  sportId: number,
+  gender: string,
+  level: string
+): Promise<number | null> {
+  const [ss] = await sql<{ id: number }[]>`
+    SELECT id::int FROM sport_season WHERE sport_id = ${sportId} AND is_current`;
+  if (!ss) return null;
+
+  const [t] = await sql<{ id: number }[]>`
+    INSERT INTO team (school_id, sport_id, gender, level)
+    VALUES (${schoolId}, ${sportId}, ${gender}::gender, ${level}::team_level)
+    ON CONFLICT (school_id, sport_id, gender, level) DO UPDATE SET level = EXCLUDED.level
+    RETURNING id::int`;
+  const [ts] = await sql<{ id: number }[]>`
+    INSERT INTO team_season (team_id, sport_season_id)
+    VALUES (${t.id}, ${ss.id})
+    ON CONFLICT (team_id, sport_season_id) DO UPDATE SET team_id = EXCLUDED.team_id
+    RETURNING id::int`;
+  return ts.id;
+}

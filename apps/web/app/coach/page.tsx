@@ -114,6 +114,9 @@ export default async function Page() {
             <Link href="/admin/schedule/team" className="mt-1 block text-link underline">
               Import a team schedule (pasted from a schedule page)
             </Link>
+            <Link href="/admin/rosters" className="mt-1 block text-link underline">
+              Import rosters
+            </Link>
             <Link href="/admin/alignments" className="mt-1 block text-link underline">
               Import an alignment
             </Link>
