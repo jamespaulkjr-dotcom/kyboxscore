@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseScheduleSheet, parseCsv, splitCsvLine } from "../src/schedule-sheet.ts";
+import {
+  parseScheduleSheet,
+  parseCsv,
+  splitCsvLine,
+  parseClockTime,
+} from "../src/schedule-sheet.ts";
 
 const HEADER =
   "School,Date,Time,Home/Away,Opponent,Result,School Score,Opponent Score,Game Status,Game Title";
@@ -103,4 +108,21 @@ test("a canceled game is not left looking like an upcoming fixture", () => {
   const r = sheet("Adair County,10/9/2026,7:00 PM,at,Taylor County,,,,Canceled,");
   assert.equal(r.games[0].status, "canceled");
   assert.equal(r.games[0].teamScore, null);
+});
+
+test("kick-off times normalise to 24 hour", () => {
+  for (const [input, expected] of [
+    ["7:00 PM", "19:00"], ["7:30 pm", "19:30"], ["6:00 AM", "06:00"],
+    ["12:00 PM", "12:00"], ["12:30 AM", "00:30"], ["19:00", "19:00"],
+  ] as const) {
+    assert.equal(parseClockTime(input), expected, input);
+  }
+  for (const bad of ["", "kickoff", "25:00", "7:99 PM"]) {
+    assert.equal(parseClockTime(bad), null, bad);
+  }
+});
+
+test("a game carries its kick-off time through the parse", () => {
+  const r = sheet("Adair County,8/21/2026,7:00 PM,vs,Russell County,,,,,");
+  assert.equal(r.games[0].time, "19:00");
 });

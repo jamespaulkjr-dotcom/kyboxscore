@@ -218,6 +218,8 @@ export type ScheduleCommitRow = {
    * on the schedule forever as a game that never happens.
    */
   status?: "scheduled" | "final" | "canceled" | "forfeit" | "postponed";
+  /** Kick-off in local time, "HH:MM". */
+  time?: string | null;
 };
 
 export type ScheduleCommitResult = {
@@ -272,8 +274,10 @@ export async function commitSchedule(
             ? "preseason"
             : requested;
         const [g] = await tx<{ id: number }[]>`
-          INSERT INTO game (sport_season_id, short_code, local_date, status, stage)
-          VALUES (${ss.id}, ${shortCode()}, ${row.date}::date, ${status}::game_status,
+          INSERT INTO game (sport_season_id, short_code, local_date, local_time,
+                            status, stage)
+          VALUES (${ss.id}, ${shortCode()}, ${row.date}::date,
+                  ${row.time ?? null}::time, ${status}::game_status,
                   ${stage}::game_stage)
           RETURNING id::int`;
         await tx`

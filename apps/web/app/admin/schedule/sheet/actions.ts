@@ -65,6 +65,7 @@ async function analyse(csv: string) {
       awayScore: g.teamScore === null ? null : g.isHome ? g.opponentScore : g.teamScore,
       stage: g.stage,
       status: g.status,
+      time: g.time,
     });
   }
 

@@ -189,6 +189,7 @@ export async function getTeamSchedule(
 ): Promise<TeamScheduleRow[]> {
   return sql<TeamScheduleRow[]>`
     SELECT g.short_code AS "shortCode", g.local_date::text AS "localDate",
+           to_char(g.local_time, 'HH12:MI AM') AS "localTime",
            g.status, me.role = 'home' AS "isHome", g.neutral_site AS "neutralSite",
            coalesce(osc.short_name, osc.name) AS "opponentName", osc.slug AS "opponentSlug",
            me.score::int AS "teamScore", opp.score::int AS "opponentScore",

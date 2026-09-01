@@ -56,6 +56,8 @@ export type TeamScheduleRow = {
   opponentScore: number | null;
   result: "W" | "L" | "T" | null;
   stage: string;
+  /** Kick-off in the venue's own local time, already formatted. */
+  localTime: string | null;
   /** Both teams in the same district this season. Derived, never asserted. */
   isDistrict: boolean;
 };

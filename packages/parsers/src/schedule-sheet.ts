@@ -113,6 +113,20 @@ function fromExcelSerial(value: string): string | null {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
+/** "7:00 PM" -> "19:00". Returns null for anything unrecognised. */
+export function parseClockTime(raw: string): string | null {
+  const m = /^(\d{1,2}):(\d{2})\s*(am|pm)?$/i.exec(raw.trim());
+  if (!m) return null;
+  let hour = Number(m[1]);
+  const minute = m[2];
+  if (m[3]) {
+    hour = hour % 12;
+    if (m[3].toLowerCase() === "pm") hour += 12;
+  }
+  if (hour > 23 || Number(minute) > 59) return null;
+  return `${String(hour).padStart(2, "0")}:${minute}`;
+}
+
 const num = (raw: string): number | null => {
   const t = raw.trim();
   return /^\d{1,3}$/.test(t) ? Number(t) : null;
@@ -218,7 +232,7 @@ export function parseScheduleSheet(text: string): SheetParseResult {
 
     games.push({
       rowNumber, school, opponent, date,
-      time: at(row, "time") || null,
+      time: parseClockTime(at(row, "time")),
       isHome, won,
       teamScore: status === "canceled" ? null : teamScore,
       opponentScore: status === "canceled" ? null : opponentScore,

@@ -146,29 +146,45 @@ export default async function Page(
                         *
                       </span>
                     )}
-                    {row.stage === "scrimmage" && (
+                    {/* Nothing before the season opens can be a countable
+                        game, so both stages read as what they actually are. */}
+                    {(row.stage === "scrimmage" || row.stage === "preseason") && (
                       <span className="ml-2 text-xs text-fg-muted">scrimmage</span>
-                    )}
-                    {row.stage === "preseason" && (
-                      <span className="ml-2 text-xs text-fg-muted">preseason</span>
                     )}
                   </span>
                   {row.result ? (
                     <span className="shrink-0 text-sm">
+                      {/* A scrimmage or preseason game has a score but is not a
+                          win or a loss. Printing W or L beside it says it went
+                          on the record, and it did not. */}
+                      {row.stage === "regular_season" && (
+                        <span
+                          className={`font-bold ${
+                            row.result === "W" ? "text-win" : row.result === "L" ? "text-loss" : "text-fg-muted"
+                          }`}
+                        >
+                          {row.result}
+                        </span>
+                      )}
                       <span
-                        className={`font-bold ${
-                          row.result === "W" ? "text-win" : row.result === "L" ? "text-loss" : "text-fg-muted"
-                        }`}
+                        className={`tabular text-fg-muted ${row.stage === "regular_season" ? "ml-1.5" : ""}`}
                       >
-                        {row.result}
-                      </span>
-                      <span className="tabular ml-1.5 text-fg-muted">
                         {row.teamScore}-{row.opponentScore}
                       </span>
                     </span>
+                  ) : row.status === "canceled" ? (
+                    <span className="shrink-0 text-sm text-loss">Canceled</span>
+                  ) : row.status === "forfeit" ? (
+                    <span className="shrink-0 text-sm text-loss">Forfeit</span>
+                  ) : row.status === "postponed" ? (
+                    <span className="shrink-0 text-sm text-fg-muted">Postponed</span>
+                  ) : row.status === "in_progress" ? (
+                    <span className="shrink-0 text-sm font-semibold text-live">Live</span>
                   ) : (
-                    <span className="shrink-0 text-sm text-scheduled">
-                      {row.status === "in_progress" ? "In progress" : "Scheduled"}
+                    // The kick-off time, not the word "Scheduled" - the date is
+                    // already in the row, so the status told a reader nothing.
+                    <span className="tabular shrink-0 text-sm text-fg-muted">
+                      {row.localTime ?? "—"}
                     </span>
                   )}
                 </Link>

@@ -509,3 +509,26 @@ it, so `ALTER TYPE ... ADD VALUE` and the reclassifying UPDATE are two
 migrations.
 **Also corrected:** the football season start was seeded as 21 August, which was
 invented in an early session. It is 19 August.
+
+## 2026-09-01 — Scrimmage labelling, kick-off times, and "Scheduled"
+**Did:** Every game before the season opener now reads as a **scrimmage** on a
+schedule, whichever stage it holds. Replaced the word "Scheduled" with the
+actual kick-off time, and gave canceled, forfeit, postponed and live games their
+own labels. A scrimmage no longer prints W or L beside its score.
+**Why:** James asked whether the scrimmages and preseason games line up. They do
+exactly: all 27 scrimmages and all 158 preseason games fall before 19 August and
+nothing after it is either. The two big dates — 73 games on 7 August and 89 on
+the 14th — are jamborees, and the source only labelled about a sixth of them.
+Under KHSAA nothing before the opener is a countable game, so calling them all
+scrimmages is simply accurate.
+**On "Scheduled":** it told a reader nothing the date beside it had not already
+said. The kick-off time is the thing they actually want, and the spreadsheet had
+it all along — we were discarding the column.
+**Design note:** `game.local_time` is a plain `time`, not folded into a
+timestamptz. Kentucky spans Eastern and Central and every school's `time_zone`
+currently claims Eastern, which is wrong for Paducah, Owensboro, Bowling Green
+and Hopkinsville. Converting through a zone known to be wrong would produce a
+confidently incorrect instant; "7:00 PM local" is what the schedule says and
+what a reader needs.
+**Also:** a scrimmage with a score was rendering as "L 7-12". It is not a loss.
+The letter now appears only for games that count.
