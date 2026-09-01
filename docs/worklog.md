@@ -532,3 +532,23 @@ confidently incorrect instant; "7:00 PM local" is what the schedule says and
 what a reader needs.
 **Also:** a scrimmage with a score was rendering as "L 7-12". It is not a loss.
 The letter now appears only for games that count.
+
+## 2026-09-01 — An outage, and the ordering flaw that made it one
+**What happened:** the kick-off time deploy failed at the SSH step and left
+production serving errors on team pages: new code querying `game.local_time`
+against a database that did not have it yet.
+**Two causes.**
+1. *Mine.* I added an explanatory comment to `0008_classify_preseason.sql`
+   after it had already been applied. `migrate.mjs` checksums migrations and
+   refused to run — correctly. Migrations are immutable once shipped, comments
+   included.
+2. *Structural.* The deploy ran `docker compose up -d web` **before** the
+   migration, so the new image went live against the old schema and stayed
+   there when the migration aborted. My mistake should have been a failed
+   deploy, not an outage.
+**Fixed:** migrations and seed now run with the new image in a throwaway
+container **before** the running app is swapped. A failed migration now leaves
+the previous version serving.
+**Repair:** the checksum was re-pointed at the deployed file (the change was
+comment-only, verified by diff), migrations and seed ran, and all 1,316
+kick-off times were backfilled.

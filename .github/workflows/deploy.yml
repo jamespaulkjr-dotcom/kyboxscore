@@ -138,7 +138,22 @@ jobs:
             set -e
             cd /home/deploy/kyboxscore
             docker compose pull web
-            docker compose up -d web
+
+            # Migrate and seed with the NEW image, in a throwaway container,
+            # BEFORE the running app is replaced.
+            #
+            # The old order restarted web first, so new code served requests
+            # against the old schema for as long as the migration took - and if
+            # the migration failed, it stayed that way. That is exactly how a
+            # migration error became an outage on 2026-09-01: the app went live
+            # querying a column that did not exist yet.
+            #
+            # This way a failed migration leaves the previous version serving,
+            # and `set -e` stops before anything is swapped.
+            docker compose run --rm --no-deps -T web \
+              node packages/db/scripts/migrate.mjs
             # Reference data is idempotent; fixtures are refused in production.
-            docker compose exec -T web node packages/db/scripts/migrate.mjs
-            docker compose exec -T web node packages/db/scripts/seed.mjs
+            docker compose run --rm --no-deps -T web \
+              node packages/db/scripts/seed.mjs
+
+            docker compose up -d web

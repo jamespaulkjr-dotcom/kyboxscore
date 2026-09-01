@@ -246,6 +246,14 @@ That skips migrations, which the pipeline runs and this command does not.
   import carries results, so it must rebuild `team_season_record` — otherwise a
   team is 2-0 in the games table and 0-0 everywhere a human looks. Anything
   that writes a result must call `refreshTeamSeasonRollups`.
+- **Migrations are immutable once applied.** `migrate.mjs` checksums each file
+  and refuses to run if one changed — even a comment. Editing an applied
+  migration broke a deploy on 2026-09-01. Add a new migration instead; the
+  explanation belongs in the new file or in this document.
+- **The deploy migrates before swapping the app.** It used to restart `web`
+  first, so new code briefly served against the old schema, and a failed
+  migration left it that way. A failed migration now leaves the previous
+  version running.
 - **A game cannot be deleted once an RPI run references it.** `rpi_input`
   pins its games so a past rating stays reproducible; `deleteGame` reports
   that rather than surfacing a foreign key error.
