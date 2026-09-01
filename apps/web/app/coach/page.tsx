@@ -120,6 +120,9 @@ export default async function Page() {
             <Link href="/admin/out-of-state" className="mt-1 block text-link underline">
               Out-of-state records (switches on Shadow RPI)
             </Link>
+            <Link href="/admin/time-zones" className="mt-1 block text-link underline">
+              School time zones
+            </Link>
           </>
         )}
       </main>

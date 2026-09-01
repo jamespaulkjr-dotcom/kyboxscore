@@ -586,3 +586,24 @@ assertion. The schema had the fields all along and nothing was filling them.
 **Also practical:** it is 1 September and the season is live, so these records
 change weekly. A one-off scrape would have been stale within days; an entry path
 that recomputes on save can be repeated.
+
+## 2026-09-01 — School time zones: the mechanical half
+**Did:** `county` is now filled from the school's own name where it states one —
+102 of 291. Added `/admin/time-zones`, which moves whole counties (or named
+schools) between Eastern and Central, and shows which schools still have no
+county to work from.
+**Why:** every school was seeded Eastern, which is wrong for the western third
+of Kentucky. Nothing reads the field yet — kick-off times are deliberately
+stored as plain clock times so a wrong zone could not produce a wrong instant —
+so this is preparation, and the moment to get it right.
+**What is deliberately NOT done:** which counties are Central. That is a factual
+claim about the world; the boundary through south-central Kentucky is not
+something to reconstruct from memory when a mistake silently shifts every game
+time by an hour. The mechanism is built and the list has to come from James.
+**Learned, again:** `\s` in a Postgres regex matches nothing and reports no
+error. Third time. The county extraction silently returned zero rows. Written
+into STATUS.md in stronger terms.
+**Also:** counties are the right unit — the boundary follows county lines, so
+per-school edits would be 291 chances to be inconsistent. But schools named for
+a town state no county, so Warren Central and Warren East do not move when
+Warren does. The form takes school names too.

@@ -691,3 +691,57 @@ export async function setOutOfStateRecords(
   }
   return written;
 }
+
+/* ------------------------------------------------------- time zones */
+
+export type TimeZoneRow = {
+  slug: string;
+  schoolName: string;
+  county: string | null;
+  timeZone: string;
+};
+
+export async function listSchoolTimeZones() {
+  return sql<TimeZoneRow[]>`
+    SELECT slug::text AS slug, coalesce(short_name, name) AS "schoolName",
+           county, time_zone AS "timeZone"
+    FROM school
+    WHERE state = 'KY' AND is_active
+    ORDER BY time_zone, coalesce(short_name, name)`;
+}
+
+/**
+ * Moves whole counties to a time zone.
+ *
+ * Counties rather than schools: the boundary follows county lines, so setting
+ * it per school would be 291 chances to be inconsistent. Schools whose name
+ * does not state a county are matched by name instead, which is how the towns
+ * get handled.
+ */
+export async function setTimeZoneForCounties(
+  counties: string[],
+  timeZone: "America/New_York" | "America/Chicago"
+): Promise<number> {
+  if (counties.length === 0) return 0;
+  const res = await sql`
+    UPDATE school
+    SET time_zone = ${timeZone}, updated_at = now()
+    WHERE state = 'KY'
+      AND county IS NOT NULL
+      AND lower(county) = ANY(${counties.map((c) => c.toLowerCase())}::text[])
+      AND time_zone <> ${timeZone}`;
+  return res.count;
+}
+
+/** For town-named schools, which state no county of their own. */
+export async function setTimeZoneForSchools(
+  slugs: string[],
+  timeZone: "America/New_York" | "America/Chicago"
+): Promise<number> {
+  if (slugs.length === 0) return 0;
+  const res = await sql`
+    UPDATE school
+    SET time_zone = ${timeZone}, updated_at = now()
+    WHERE slug = ANY(${slugs}::citext[]) AND time_zone <> ${timeZone}`;
+  return res.count;
+}

@@ -227,7 +227,11 @@ That skips migrations, which the pipeline runs and this command does not.
   (`packages/db/test/import-pipeline.test.ts`). It skips without
   `DATABASE_URL` and runs in CI, asserting every batting line against the PDF
   box score of the same game. 49 tests total.
-- **`\s` does not survive into a Postgres regex** the way you expect from a
+- **`\s` does not survive into a Postgres regex.** THIS HAS NOW COST TIME
+  THREE TIMES. Use a literal space or `[[:space:]]`, never `\s`, and never
+  `\b` (Postgres spells word boundary `\y`). A pattern using them matches
+  nothing and reports no error.
+- **(original note) `\s` does not survive into a Postgres regex** the way you expect from a
   JS template literal — a `regexp_replace` using it silently matched nothing
   and the similarity search quietly under-performed. Use POSIX classes
   (`[[:space:]]`) in SQL.
