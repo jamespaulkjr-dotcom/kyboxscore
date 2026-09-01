@@ -86,6 +86,20 @@ export default async function Page() {
         )}
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+          Scores
+        </h2>
+        <Link
+          href="/coach/games"
+          className="mt-2 flex min-h-11 items-center justify-center rounded-md bg-brand-fill px-4 font-medium text-on-brand"
+        >
+          Keep score / post a final
+        </Link>
+        <p className="mt-2 text-sm text-fg-muted">
+          Tap in scores as the game goes, or just type the final when it is
+          over. You can hand a one-night link to whoever is in the press box.
+        </p>
+
+        <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-fg-muted">
           Statistics
         </h2>
         <Link

@@ -40,7 +40,13 @@
   --brand-fill: #00152E;
   --on-brand: #FEFEFE;
 
-  --live: #9C6902;
+  /* LIVE is a filled red pill, the convention every sports app uses, and it
+     stays the same red in both themes so it reads the same on either ground.
+     Deliberately not --loss: a canceled game is red text, a live game is a red
+     badge, and they must never be mistaken for each other. */
+  --live: #C21D1D;
+  --live-fill: #C21D1D;
+  --on-live: #FFFFFF;      /*  5.9:1 on the fill */
   --win: #0E6B3E;
   --loss: #A31D1D;
   --scheduled: #55677D;
@@ -64,7 +70,9 @@
     --brand-fill: #FCB526;
     --on-brand: #00152E;
 
-    --live: #FCB526;
+    --live: #FF6B6B;
+    --live-fill: #C21D1D;
+    --on-live: #FFFFFF;
     --win: #46D07E;
     --loss: #FF7B7B;
     --scheduled: #A9BACE;
@@ -88,6 +96,8 @@
   --color-brand-fill: var(--brand-fill);
   --color-on-brand: var(--on-brand);
   --color-live: var(--live);
+  --color-live-fill: var(--live-fill);
+  --color-on-live: var(--on-live);
   --color-win: var(--win);
   --color-loss: var(--loss);
   --color-scheduled: var(--scheduled);

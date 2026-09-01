@@ -797,3 +797,50 @@ keeps its slate forever once the season starts, so in December the front page
 would have shown a September football slate instead of last night's
 basketball. Now it takes the sport whose most recent slate is actually the most
 recent.
+
+## 2026-09-01 — Live scoring, and who is allowed to do it
+**Did:** Coaches can now keep a score live or just post a final, and hand the
+job to whoever is actually in the press box. Public pages show a red LIVE pill
+and poll for score changes.
+
+**The design question James asked was who enters it.** The honest answer is
+that the person keeping a high school football score is usually not the coach —
+it is a team mom, a student manager, or somebody's uncle, and none of them are
+going to create an account twenty minutes before kick-off. So there are two
+doors: an account holder with a team grant scores any of their team's games,
+and a coach can mint a **per-game link** and text it to whoever is in the box.
+
+The link is a bearer token and is treated like one: one game, expires the same
+night, revocable from the coach's screen, cannot mint further links, and can
+only move a score — no rosters, no other games. It is exchanged for an httpOnly
+cookie on first use so the token does not sit in the address bar, because a
+scoring console gets held up and photographed. Nothing about a minor is exposed
+by it; the worst case is a wrong score, which is visible, attributed and
+undoable.
+
+**Live is a human claim, not a clock reading.** A game is LIVE only once
+somebody starts keeping it. Kentucky football gets weather delays, and a
+blinking LIVE dot on a 0-0 game that has not kicked off is worse than showing
+nothing. The clock's only job is deciding whether the page bothers polling.
+
+**And LIVE expires.** `score_updated_at` older than five hours stops the
+indicator, on the server render as well as in the poll. The keeper going home
+at the end of the third quarter must not leave the scoreboard blinking at 3am;
+the row falls back to the score plus "Awaiting final", which is exactly what is
+true.
+
+**On stats, deliberately not built:** per-player rushing yards entered live. No
+volunteer is doing that for football while also watching the game. Stats stay
+on the file import after the game, which is the flow coaches already have.
+
+**Two things testing caught.** A page render cannot set a cookie — Next is
+right about that and the first version of the link exchange was wrong; it is a
+route handler now. And `(status = 'in_progress' AND score_updated_at > ...)` is
+NULL, not false, when the column is NULL, so a field typed `boolean` was
+arriving as null; it is wrapped in coalesce now.
+
+**Found, not caused:** the scores page ships 172 KB of gzipped JavaScript
+*before* any of this work, against a 150 KB budget in CLAUDE.md. Live scoring
+added about 2 KB. The overage is the React 19 / Next 16 client runtime, so it
+needs its own look rather than being blamed on the next feature that touches
+the page.

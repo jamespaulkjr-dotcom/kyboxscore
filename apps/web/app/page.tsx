@@ -12,6 +12,7 @@ import { SiteHeader } from "./components/site-header";
 import { BottomNav } from "./components/bottom-nav";
 import { GameRow } from "./components/game-row";
 import { Following } from "./components/following";
+import { LiveScores } from "./components/live-scores";
 import { formatSlateDate } from "../lib/format";
 
 export const dynamic = "force-dynamic";
@@ -99,16 +100,24 @@ export default async function Home() {
               {formatSlateDate(active.slate)} · {active.seasonLabel}
             </p>
 
-            <ul className="mt-3 overflow-hidden rounded-lg border border-border bg-surface">
-              {shown.map((game) => (
-                <GameRow
-                  key={game.id}
-                  game={game}
-                  sportSlug={active.sportSlug}
-                  urlYear={active.urlYear}
-                />
-              ))}
-            </ul>
+            <LiveScores
+              sportSlug={active.sportSlug}
+              enabled={
+                games.some((g) => g.status === "in_progress") ||
+                active.slate === new Date().toISOString().slice(0, 10)
+              }
+            >
+              <ul className="mt-3 overflow-hidden rounded-lg border border-border bg-surface">
+                {shown.map((game) => (
+                  <GameRow
+                    key={game.id}
+                    game={game}
+                    sportSlug={active.sportSlug}
+                    urlYear={active.urlYear}
+                  />
+                ))}
+              </ul>
+            </LiveScores>
             {more > 0 && (
               <p className="mt-2 text-sm">
                 <Link href={`/${active.sportSlug}/scores`} className="text-link underline">

@@ -1,4 +1,5 @@
 import { sql } from "./client.ts";
+import { LIVE_STALE_AFTER } from "./scoring.ts";
 import type {
   BoxScoreRow,
   GameStatus,
@@ -104,6 +105,9 @@ export async function getScoreboard(
     SELECT g.id::int, g.short_code AS "shortCode", g.local_date::text AS "localDate",
            g.status, g.stage, g.neutral_site AS "neutralSite",
            g.event_name AS "eventName", g.periods_played::int AS "periodsPlayed",
+           coalesce(g.status = 'in_progress'
+                    AND g.score_updated_at > now() - ${LIVE_STALE_AFTER}::interval,
+                    false) AS "isLive",
            g.starts_at::text AS "startsAt",
            to_char(g.local_time, 'HH12:MI AM') AS "localTime",
            h.time_zone AS "timeZone",
@@ -267,6 +271,8 @@ export async function getGameByCode(shortCode: string) {
       neutralSite: boolean;
       eventName: string | null;
       periodsPlayed: number | null;
+      isLive: boolean;
+      localTime: string | null;
       sportSlug: string;
       sportName: string;
       periodNoun: string;
@@ -278,6 +284,10 @@ export async function getGameByCode(shortCode: string) {
     SELECT g.id::int, g.short_code AS "shortCode", g.local_date::text AS "localDate",
            g.status, g.stage, g.neutral_site AS "neutralSite",
            g.event_name AS "eventName", g.periods_played::int AS "periodsPlayed",
+           coalesce(g.status = 'in_progress'
+                    AND g.score_updated_at > now() - ${LIVE_STALE_AFTER}::interval,
+                    false) AS "isLive",
+           to_char(g.local_time, 'HH12:MI AM') AS "localTime",
            sp.slug AS "sportSlug", sp.name AS "sportName",
            sp.period_noun AS "periodNoun", sp.regulation_periods::int AS "regulationPeriods",
            ss.url_year::int AS "urlYear", v.name AS "venueName"

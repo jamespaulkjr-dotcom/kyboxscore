@@ -1,0 +1,196 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import {
+  createScorekeeperLink,
+  getScoringGame,
+  playByKey,
+  recordScoringPlay,
+  revokeScorekeeper,
+  setFinalScore,
+  startScoring,
+  voidLastPlay,
+} from "@kyboxscore/db";
+import { resolveScorer } from "../../../lib/scoring-auth";
+
+export type ScoreState = { error?: string; ok?: boolean; link?: string };
+
+/**
+ * Every action re-resolves the game from its short code and re-checks who is
+ * asking. The client is a phone in a press box on bad signal: it is a display,
+ * never the authority on what is allowed.
+ */
+async function authorize(formData: FormData) {
+  const code = String(formData.get("code") ?? "");
+  const game = await getScoringGame(code);
+  if (!game) return { error: "That game no longer exists." as const };
+
+  const scorer = await resolveScorer(game.id);
+  if (!scorer) return { error: "You are not signed in to score this game." as const };
+
+  return { game, scorer };
+}
+
+function revalidate(code: string, sportSlug: string, urlYear: number) {
+  revalidatePath(`/coach/games/${code}`);
+  revalidatePath(`/score/${code}`);
+  revalidatePath(`/${sportSlug}/${urlYear}/games/${code}`);
+  revalidatePath(`/${sportSlug}/scores`);
+  revalidatePath("/");
+}
+
+export async function startGameAction(
+  _prev: ScoreState,
+  formData: FormData
+): Promise<ScoreState> {
+  const auth = await authorize(formData);
+  if ("error" in auth) return auth;
+
+  await startScoring(auth.game.id);
+  revalidate(auth.game.shortCode, auth.game.sportSlug, auth.game.urlYear);
+  return { ok: true };
+}
+
+export async function addPlayAction(
+  _prev: ScoreState,
+  formData: FormData
+): Promise<ScoreState> {
+  const auth = await authorize(formData);
+  if ("error" in auth) return auth;
+  const { game, scorer } = auth;
+
+  // The button posts a key. Points come from the table on the server, so a
+  // crafted request cannot invent a 40-point touchdown.
+  const play = playByKey(String(formData.get("play") ?? ""));
+  if (!play) return { error: "Unknown play." };
+
+  const side = String(formData.get("side") ?? "");
+  const participantId =
+    side === "home" ? game.home.participantId : side === "away" ? game.away.participantId : 0;
+  if (!participantId) return { error: "Choose which team scored." };
+
+  const period = Number(formData.get("period") ?? 0);
+  if (!Number.isInteger(period) || period < 1 || period > 10) {
+    return { error: "Choose a quarter." };
+  }
+
+  // Scoring a game that has not been started should just start it, rather than
+  // making somebody find the right button while a kick is in the air.
+  if (game.status === "scheduled" || game.status === "postponed") {
+    await startScoring(game.id);
+  }
+
+  const result = await recordScoringPlay({
+    gameId: game.id,
+    participantId,
+    periodNumber: period,
+    points: play.points,
+    description: play.description,
+    actor: scorer.actor,
+  });
+  if (!result.ok) return { error: result.reason ?? "That did not save." };
+
+  revalidate(game.shortCode, game.sportSlug, game.urlYear);
+  return { ok: true };
+}
+
+export async function undoPlayAction(
+  _prev: ScoreState,
+  formData: FormData
+): Promise<ScoreState> {
+  const auth = await authorize(formData);
+  if ("error" in auth) return auth;
+
+  const result = await voidLastPlay(auth.game.id);
+  if (!result.ok) return { error: result.reason ?? "Nothing to undo." };
+
+  revalidate(auth.game.shortCode, auth.game.sportSlug, auth.game.urlYear);
+  return { ok: true };
+}
+
+export async function finalScoreAction(
+  _prev: ScoreState,
+  formData: FormData
+): Promise<ScoreState> {
+  const auth = await authorize(formData);
+  if ("error" in auth) return auth;
+  const { game } = auth;
+
+  const num = (name: string) => {
+    const raw = String(formData.get(name) ?? "").trim();
+    if (!/^\d{1,3}$/.test(raw)) return null;
+    return Number(raw);
+  };
+  const home = num("homeScore");
+  const away = num("awayScore");
+  if (home === null || away === null) {
+    return { error: "Enter both scores as whole numbers." };
+  }
+
+  const periodsRaw = String(formData.get("periodsPlayed") ?? "").trim();
+  const periods = periodsRaw === "" ? null : Number(periodsRaw);
+  if (periods !== null && (!Number.isInteger(periods) || periods < 1 || periods > 10)) {
+    return { error: "Quarters played must be a whole number." };
+  }
+
+  const result = await setFinalScore({
+    gameId: game.id,
+    homeScore: home,
+    awayScore: away,
+    periodsPlayed: periods,
+    final: String(formData.get("final") ?? "") === "yes",
+  });
+  if (!result.ok) return { error: result.reason ?? "That did not save." };
+
+  revalidate(game.shortCode, game.sportSlug, game.urlYear);
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------ delegation */
+
+export async function createLinkAction(
+  _prev: ScoreState,
+  formData: FormData
+): Promise<ScoreState> {
+  const auth = await authorize(formData);
+  if ("error" in auth) return auth;
+  const { game, scorer } = auth;
+
+  // A keeper cannot mint another keeper. Delegation stops at the account.
+  if (!scorer.canDelegate || scorer.userId === null) {
+    return { error: "Only a signed-in coach can create a scoring link." };
+  }
+
+  const label = String(formData.get("label") ?? "").trim().slice(0, 60);
+  if (label.length < 2) return { error: "Give the link a name, so you know whose it is." };
+
+  const teamId = Number(formData.get("teamId"));
+  if (teamId !== game.home.teamId && teamId !== game.away.teamId) {
+    return { error: "That team is not in this game." };
+  }
+
+  const { token } = await createScorekeeperLink({
+    gameId: game.id,
+    teamId,
+    label,
+    createdByUserId: scorer.userId,
+  });
+
+  revalidatePath(`/coach/games/${game.shortCode}`);
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://kyboxscore.com";
+  return { ok: true, link: `${base}/score/link/${token}` };
+}
+
+export async function revokeLinkAction(formData: FormData) {
+  const auth = await authorize(formData);
+  if ("error" in auth) return;
+  const { game, scorer } = auth;
+  if (!scorer.canDelegate) return;
+
+  const id = Number(formData.get("keeperId"));
+  const teamId = Number(formData.get("teamId"));
+  if (!Number.isInteger(id) || !Number.isInteger(teamId)) return;
+
+  await revokeScorekeeper(id, teamId);
+  revalidatePath(`/coach/games/${game.shortCode}`);
+}

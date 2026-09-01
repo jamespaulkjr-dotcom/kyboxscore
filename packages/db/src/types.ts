@@ -24,6 +24,11 @@ export type ScoreboardGame = {
   neutralSite: boolean;
   eventName: string | null;
   periodsPlayed: number | null;
+  /**
+   * In progress AND somebody has touched the score recently. A game left
+   * in_progress overnight is not live any more, whatever the column says.
+   */
+  isLive: boolean;
   timeZone: string;
   startsAt: string | null;
   /** Kick-off in the venue's local time, already formatted. */

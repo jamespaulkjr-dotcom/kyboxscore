@@ -9,3 +9,4 @@ export * from "./rollups.ts";
 export * from "./schedule-import.ts";
 export * from "./rpi-run.ts";
 export * from "./alignment-import.ts";
+export * from "./scoring.ts";

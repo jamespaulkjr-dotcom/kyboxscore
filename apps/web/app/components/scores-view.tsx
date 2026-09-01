@@ -10,6 +10,7 @@ import {
 import { SiteHeader } from "./site-header";
 import { BottomNav } from "./bottom-nav";
 import { GameRow } from "./game-row";
+import { LiveScores } from "./live-scores";
 import { formatSlateDate, formatShortDate } from "../../lib/format";
 
 export async function ScoresView({
@@ -34,6 +35,13 @@ export async function ScoresView({
   const idx = allDates.findIndex((d) => d.localDate === slate);
   const prev = idx > 0 ? allDates[idx - 1] : null;
   const next = idx >= 0 && idx < allDates.length - 1 ? allDates[idx + 1] : null;
+
+  // Poll only when it could matter: something is already live, or this is
+  // today's slate and a game could start at any moment. Yesterday's scores
+  // never change, so yesterday's readers never poll.
+  const today = new Date().toISOString().slice(0, 10);
+  const watchLive =
+    games.some((g) => g.status === "in_progress") || slate === today;
 
   // Group by region/class. Ungrouped games (out of state, independents) last.
   const groups = new Map<string, typeof games>();
@@ -78,6 +86,7 @@ export async function ScoresView({
             No {season.sportName.toLowerCase()} games on this date.
           </p>
         ) : (
+          <LiveScores sportSlug={sportSlug} enabled={watchLive}>
           <div className="mt-5 space-y-6">
             {[...groups.entries()].map(([group, list]) => (
               <section key={group} aria-labelledby={`grp-${group}`}>
@@ -100,6 +109,7 @@ export async function ScoresView({
               </section>
             ))}
           </div>
+          </LiveScores>
         )}
       </main>
 

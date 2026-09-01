@@ -58,14 +58,24 @@ export default async function Page(
     game.regulationPeriods,
     ...sides.map((s) => s.periods.length)
   );
+  // "Scheduled" tells a reader nothing they did not already know. The kick-off
+  // time does, and so does the period a live game has reached.
+  const periodName = (n: number) =>
+    n > game.regulationPeriods
+      ? `OT${n - game.regulationPeriods}`
+      : `${game.periodNoun.charAt(0).toUpperCase()}${n}`;
   const detail =
     game.status === "final"
       ? game.periodsPlayed && game.periodsPlayed > game.regulationPeriods
         ? `Final/${game.periodsPlayed - game.regulationPeriods}OT`
         : "Final"
       : game.status === "in_progress"
-        ? "In progress"
-        : "Scheduled";
+        ? game.isLive
+          ? game.periodsPlayed
+            ? periodName(game.periodsPlayed)
+            : "In progress"
+          : "Awaiting final"
+        : (game.localTime ?? "Time to be confirmed");
 
   return (
     <>
@@ -122,7 +132,7 @@ export default async function Page(
           </table>
         </div>
         <p className="mt-2 text-sm">
-          <StatusLabel status={game.status} detail={detail} />
+          <StatusLabel status={game.status} detail={detail} isLive={game.isLive} />
         </p>
 
         {/* Box scores */}

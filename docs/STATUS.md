@@ -189,6 +189,14 @@ That skips migrations, which the pipeline runs and this command does not.
   date, so it holds for every sport and every future season — **correct the
   season dates and the classification follows**. Football 2026 opens
   2026-08-19.
+- **Live scoring** — a coach or AD with a team grant can keep a score play by
+  play (TD/PAT/2PT/FG/Safety, per quarter, with undo) or just post a final.
+  They can also mint a **per-game keeper link** for whoever is in the press box:
+  one game, expires that night, revocable, cannot delegate further, can only
+  move a score. Exchanged for an httpOnly cookie so the token leaves the URL.
+  Public pages show a red LIVE pill and poll `/api/live` every 30s.
+  **LIVE is a human claim, never inferred from the clock**, and it expires
+  after five hours of no change so nothing blinks overnight.
 - **Front page** — a plain statement of what the site is, followed teams, the
   most recent slate, top 5 RPI, an "Every sport" section that lists sports with
   nothing in them rather than hiding them, and links onward. The sport it leads
@@ -366,6 +374,25 @@ and being surprised again.
 
 Also: it does not update itself. Anything that changes a school, team or player
 **name** has to refresh it. This has been forgotten three times now.
+
+### A page render cannot set a cookie
+
+`cookies().set()` throws outside a Server Action or Route Handler. Anything
+that trades a token for a cookie has to be a `route.ts`, not a `page.tsx`.
+
+### `x AND y` is NULL, not false, when y is NULL
+
+`(status = 'in_progress' AND score_updated_at > now() - interval '5 hours')`
+returns NULL for every row where the column is NULL, so a TypeScript field
+typed `boolean` quietly arrives as `null`. Wrap boolean projections in
+`coalesce(..., false)`.
+
+### The scores page is over the JavaScript budget
+
+172 KB gzipped against the 150 KB in `CLAUDE.md`, and it was already over
+before live scoring was added (that cost about 2 KB). It is the React 19 /
+Next 16 client runtime, not any one feature. Measure before blaming a change:
+build, then sum the gzipped `/_next/static` scripts referenced by the page.
 
 ## Open items
 
