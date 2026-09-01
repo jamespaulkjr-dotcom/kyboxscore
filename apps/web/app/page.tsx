@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  type HomeSummary,
   getHomeSummaries,
   getRpiStandings,
   getScoreboard,
@@ -35,8 +36,17 @@ export const metadata: Metadata = {
 export default async function Home() {
   const [sports, summaries] = await Promise.all([listSports(), getHomeSummaries()]);
 
-  // The sport actually being played: the one with a recent slate.
-  const active = summaries.find((s) => s.slate) ?? summaries[0] ?? null;
+  // The sport actually being played: the one whose most recent slate is the
+  // most recent, not the first in display order. Taking the first would pin
+  // the front page to football's last September game all through basketball
+  // season, because football's slate never stops existing once it has one.
+  const active =
+    summaries
+      .filter((s) => s.slate)
+      .sort((a, b) => (a.slate! < b.slate! ? 1 : a.slate! > b.slate! ? -1 : 0))[0] ??
+    summaries.find((s) => s.teams > 0) ??
+    summaries[0] ??
+    null;
 
   const season = active ? await getSportSeason(active.sportSlug) : null;
   const [games, rpi] = await Promise.all([
@@ -53,7 +63,20 @@ export default async function Home() {
     <>
       <SiteHeader sports={sports} />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-5 pb-24">
-        <h1 className="sr-only">Kentucky high school sports</h1>
+        {/* The h1 used to be screen-reader-only, which left a first-time
+            visitor to work out what the site was from a football scoreboard.
+            It is two lines of text: no hero, no image, and it does not push
+            the scores off a phone screen. */}
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+          Every Kentucky high school game. Every box score.
+        </h1>
+        <p className="mt-1 max-w-prose text-sm text-fg-muted">
+          Scores, statistics, district standings and KHSAA RPI — for every
+          sport, free for everyone, no account required.{" "}
+          <Link href="/about" className="text-link underline">
+            Why this exists
+          </Link>
+        </p>
 
         {/* Renders nothing until somebody follows a team, so a first-time
             visitor is not shown an empty promise. */}
@@ -144,6 +167,30 @@ export default async function Home() {
           </section>
         )}
 
+        {/* James asked why the site looks like football. It is because
+            football is the only sport with data in it - the page picks
+            whichever sport has a recent slate. This section says so plainly
+            rather than letting a volleyball parent draw their own conclusion. */}
+        <section className="mt-10" aria-labelledby="sports">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+            <h2 id="sports" className="text-lg font-bold tracking-tight">
+              Every sport
+            </h2>
+            <Link href="/sports" className="text-sm text-link underline">
+              All KHSAA sports →
+            </Link>
+          </div>
+          <p className="mt-1 max-w-prose text-sm text-fg-muted">
+            Sports arrive one season at a time, and we would rather show you an
+            empty season than a wrong one.
+          </p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {summaries.map((s) => (
+              <SportCard key={s.sportSlug} summary={s} />
+            ))}
+          </ul>
+        </section>
+
         <section className="mt-10" aria-labelledby="more">
           <h2 id="more" className="text-lg font-bold tracking-tight">
             The rest of it
@@ -193,6 +240,41 @@ export default async function Home() {
       </main>
       <BottomNav sportSlug={active?.sportSlug ?? "football"} />
     </>
+  );
+}
+
+/**
+ * One sport, and an honest sentence about how much of it we actually have.
+ * A sport with nothing in it still gets a row: hiding it would imply the site
+ * is only ever going to be football.
+ */
+function SportCard({ summary }: { summary: HomeSummary }) {
+  const has = summary.teams > 0;
+  const detail = !has
+    ? `${summary.seasonLabel} — nothing yet`
+    : summary.gamesPlayed > 0
+      ? `${summary.gamesPlayed.toLocaleString()} games played · ${summary.teams} teams · ${summary.players.toLocaleString()} players`
+      : summary.gamesScheduled > 0
+        ? `Schedule up · ${summary.teams} teams`
+        : `${summary.teams} teams · season not started`;
+
+  return (
+    <li>
+      <Link
+        href={`/${summary.sportSlug}/scores`}
+        className="flex min-h-14 flex-col justify-center rounded-lg border border-border bg-surface px-4 py-2 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-link"
+      >
+        <span className="font-medium">
+          {summary.sportName}
+          {!has && (
+            <span className="ml-2 rounded-full border border-border px-2 py-0.5 align-middle text-xs font-normal text-fg-muted">
+              Coming
+            </span>
+          )}
+        </span>
+        <span className="text-sm text-fg-muted">{detail}</span>
+      </Link>
+    </li>
   );
 }
 

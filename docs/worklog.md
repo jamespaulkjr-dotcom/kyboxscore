@@ -775,3 +775,25 @@ JavaScript rather than breaking the page.
 **Next step if wanted:** browser notifications need a service worker, a push
 subscription per device, VAPID keys and a job that sends on a schedule — and
 push subscriptions are per-device, so they work without accounts too.
+
+## 2026-09-01 — Saying what the site is
+**Did:** Gave the front page a visible statement instead of a
+screen-reader-only `<h1>`, added an "Every sport" section that lists every
+sport including the ones with nothing in them yet, wrote `/about`, and put
+About / Sports / Report a correction in the site footer.
+**Why:** James asked why football is basically the home screen. It is not
+hardcoded — the page picks whichever sport has a recent slate, and football is
+the only sport with data. But nothing on the page said that, so a volleyball
+parent had no way to tell this was not a football site, and a first-time
+visitor had no way to learn it is free.
+**What I did not do:** a marketing hero above the scores. The brief's target is
+a parent on bad LTE finding a score in under three seconds, and most traffic is
+returning visitors who want the scoreboard, not the pitch. The claims that
+needed room went on `/about`; the front page got two lines of text and no
+images.
+**Found while testing:** `active` was `summaries.find(s => s.slate)`, which
+returns the first sport in display order that has ever played a game. Football
+keeps its slate forever once the season starts, so in December the front page
+would have shown a September football slate instead of last night's
+basketball. Now it takes the sport whose most recent slate is actually the most
+recent.

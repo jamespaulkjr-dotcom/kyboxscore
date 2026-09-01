@@ -189,6 +189,14 @@ That skips migrations, which the pipeline runs and this command does not.
   date, so it holds for every sport and every future season — **correct the
   season dates and the classification follows**. Football 2026 opens
   2026-08-19.
+- **Front page** — a plain statement of what the site is, followed teams, the
+  most recent slate, top 5 RPI, an "Every sport" section that lists sports with
+  nothing in them rather than hiding them, and links onward. The sport it leads
+  with is whichever has the **most recent** slate, not football specifically:
+  football is simply the only sport with data so far.
+- **`/about`** — why the site exists, that it is free, coverage by sport,
+  where the numbers come from, how the RPI works, what is stored about players,
+  and how to report a correction. Linked from the front page and the footer.
 - **Following** — a reader can follow a team from its page. Stored in the
   **browser**, not an account: a parent wanting their kid's schedule should not
   have to make one, and holding a list of minors' teams against an email
