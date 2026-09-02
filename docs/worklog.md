@@ -964,3 +964,25 @@ annotations ("season not open", "no match", "counts for nothing") became
 parentheses. Every admin page now renders with zero em dashes in a sentence.
 **Worth remembering:** this is a house style rule now, not a one-off. New
 reader-facing copy should not use em dashes.
+
+## 2026-09-02 — Whose game is this?
+**Did:** The coach Scores list now names both teams, shows one row per game,
+and groups by date.
+**What James reported:** a row said "at Breckinridge County" with no way to
+tell who was visiting. True, and worse than it looked: the row was written from
+the perspective of "your team", which only works if you hold one team.
+**What I found underneath.** `listScorableGames` joined `user_team_grant` to
+`game_participant`, so anybody granted *both* teams in a fixture got the game
+back twice, once from each sideline. James holds 276 teams, so all 1,308 of his
+games were duplicated: 2,616 rows, each labelled from a different side. The
+join is now an `EXISTS`, which cannot multiply.
+**Reads as a fixture now:** "Bullitt Central at Breckinridge County", away at
+home, the way the rest of the site reads. The side you hold a grant on is the
+bold one, so a coach still finds their own team instantly and an
+administrator holding everything sees two plain names. The score column follows
+the same order, away first.
+**Also grouped by date.** One team gives you a short list either way; every
+school in Kentucky gives you a hundred rows, and a date heading is the
+difference between scanning that and giving up.
+**Tested:** a game with both sides granted returns exactly one row, and a coach
+holding one side sees which side is theirs.

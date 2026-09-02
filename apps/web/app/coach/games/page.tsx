@@ -21,6 +21,16 @@ export default async function Page() {
 
   const today = new Date().toISOString().slice(0, 10);
 
+  // Grouped by date, and each group kept in kick-off order. Somebody holding
+  // one team sees a short list either way; somebody holding every school in
+  // Kentucky sees a hundred rows, and a date heading is the difference between
+  // scanning them and giving up.
+  const byDate = new Map<string, (typeof games)[number][]>();
+  for (const g of games) {
+    if (!byDate.has(g.localDate)) byDate.set(g.localDate, []);
+    byDate.get(g.localDate)!.push(g);
+  }
+
   return (
     <>
       <SiteHeader sports={sports} />
@@ -45,22 +55,34 @@ export default async function Page() {
             if your schedule is missing.
           </p>
         ) : (
-          <ul className="mt-5 overflow-hidden rounded-lg border border-border bg-surface">
-            {games.map((g) => (
+          [...byDate.entries()].map(([date, list]) => (
+          <section key={date} className="mt-5">
+            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-fg-muted">
+              {date === today ? "Today" : formatSlateDate(date)}
+            </h2>
+          <ul className="overflow-hidden rounded-lg border border-border bg-surface">
+            {list.map((g) => (
               <li key={g.gameId} className="border-b border-border last:border-0">
                 <Link
                   href={`/coach/games/${g.shortCode}`}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
                 >
                   <span className="min-w-0 flex-1">
+                    {/* Away at home, the way the rest of the site reads a
+                        fixture. "at Breckinridge County" on its own left an
+                        administrator holding every school with no idea who was
+                        visiting. Your own team is the bold one. */}
                     <span className="block truncate font-medium">
-                      {g.isHome ? "vs" : "at"} {g.opponentName}
+                      <span className={g.awayIsMine ? "font-semibold" : "font-normal text-fg-muted"}>
+                        {g.awayName}
+                      </span>
+                      <span className="font-normal text-fg-muted"> at </span>
+                      <span className={g.homeIsMine ? "font-semibold" : "font-normal text-fg-muted"}>
+                        {g.homeName}
+                      </span>
                     </span>
                     <span className="block text-sm text-fg-muted">
-                      {g.localDate === today
-                        ? "Today"
-                        : formatSlateDate(g.localDate)}
-                      {g.localTime ? ` · ${g.localTime}` : ""}
+                      {g.localTime ?? "Time to be confirmed"}
                     </span>
                   </span>
                   {g.isLive && (
@@ -68,9 +90,9 @@ export default async function Page() {
                       Live
                     </span>
                   )}
-                  {g.ourScore !== null && g.theirScore !== null && (
+                  {g.awayScore !== null && g.homeScore !== null && (
                     <span className="tabular shrink-0 font-semibold">
-                      {g.ourScore}–{g.theirScore}
+                      {g.awayScore}–{g.homeScore}
                     </span>
                   )}
                   {g.status === "scheduled" && !g.isLive && (
@@ -82,6 +104,8 @@ export default async function Page() {
               </li>
             ))}
           </ul>
+          </section>
+          ))
         )}
       </main>
     </>

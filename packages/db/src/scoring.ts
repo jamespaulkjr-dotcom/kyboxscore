@@ -146,7 +146,17 @@ export async function getScoringGame(
 }
 
 /**
- * Games a signed-in user may keep: anything their granted teams are playing.
+ * Games a signed-in user may keep, one row per game.
+ *
+ * `EXISTS` rather than a join to `user_team_grant`, because somebody granted
+ * both teams in a fixture - an administrator holds every school - got the same
+ * game back twice, once from each sideline. That turned an admin's list into
+ * 2,616 rows for 1,308 games.
+ *
+ * Both sides are named, and the caller is told which of them are the user's,
+ * so a row reads "Bullitt Central at Breckinridge County" instead of "at
+ * Breckinridge County" and leaves you guessing who is visiting.
+ *
  * Ordered so tonight's game is the first thing on the screen, because that is
  * the only one anybody opens this page for.
  */
@@ -162,11 +172,13 @@ export async function listScorableGames(userId: number) {
       isLive: boolean;
       sportSlug: string;
       urlYear: number;
-      ourName: string;
-      opponentName: string;
-      isHome: boolean;
-      ourScore: number | null;
-      theirScore: number | null;
+      homeName: string;
+      awayName: string;
+      homeScore: number | null;
+      awayScore: number | null;
+      /** Whether this side is one the user holds, for emphasis in the list. */
+      homeIsMine: boolean;
+      awayIsMine: boolean;
     }[]
   >`
     SELECT g.id::int AS "gameId", g.short_code AS "shortCode",
@@ -177,24 +189,31 @@ export async function listScorableGames(userId: number) {
                     AND g.score_updated_at > now() - ${LIVE_STALE_AFTER}::interval,
                     false) AS "isLive",
            sp.slug::text AS "sportSlug", ss.url_year::int AS "urlYear",
-           coalesce(ours.short_name, ours.name) AS "ourName",
-           coalesce(theirs.short_name, theirs.name) AS "opponentName",
-           (mine.role = 'home') AS "isHome",
-           mine.score::int AS "ourScore", opp.score::int AS "theirScore"
-    FROM user_team_grant ut
-    JOIN game_participant mine ON mine.team_id = ut.team_id
-    JOIN game g ON g.id = mine.game_id
-    JOIN game_participant opp ON opp.game_id = g.id AND opp.id <> mine.id
+           coalesce(hs.short_name, hs.name) AS "homeName",
+           coalesce(aws.short_name, aws.name) AS "awayName",
+           home.score::int AS "homeScore", away.score::int AS "awayScore",
+           EXISTS (SELECT 1 FROM user_team_grant ut
+                    WHERE ut.user_id = ${userId} AND ut.team_id = home.team_id)
+             AS "homeIsMine",
+           EXISTS (SELECT 1 FROM user_team_grant ut
+                    WHERE ut.user_id = ${userId} AND ut.team_id = away.team_id)
+             AS "awayIsMine"
+    FROM game g
+    JOIN game_participant home ON home.game_id = g.id AND home.role = 'home'
+    JOIN game_participant away ON away.game_id = g.id AND away.role = 'away'
+    JOIN team ht ON ht.id = home.team_id
+    JOIN school hs ON hs.id = ht.school_id
+    JOIN team at2 ON at2.id = away.team_id
+    JOIN school aws ON aws.id = at2.school_id
     JOIN sport_season ss ON ss.id = g.sport_season_id
     JOIN sport sp ON sp.id = ss.sport_id
-    JOIN team ourteam ON ourteam.id = mine.team_id
-    JOIN school ours ON ours.id = ourteam.school_id
-    JOIN team theirteam ON theirteam.id = opp.team_id
-    JOIN school theirs ON theirs.id = theirteam.school_id
-    WHERE ut.user_id = ${userId}
-      AND g.status <> 'canceled'
-    ORDER BY abs(g.local_date - CURRENT_DATE), g.local_date DESC
-    LIMIT 60`;
+    WHERE g.status <> 'canceled'
+      AND EXISTS (
+        SELECT 1 FROM user_team_grant ut
+        WHERE ut.user_id = ${userId}
+          AND ut.team_id IN (home.team_id, away.team_id))
+    ORDER BY abs(g.local_date - CURRENT_DATE), g.local_date DESC, g.local_time
+    LIMIT 100`;
 }
 
 /** Whether this user holds a grant on either side of the game. */

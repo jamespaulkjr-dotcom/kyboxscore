@@ -302,3 +302,66 @@ test("the scoring summary carries the running score", opts, async () => {
 
   await db.resetGameScoring(gameId);
 });
+
+test("a game appears once even when both its teams are yours", opts, async () => {
+  const { db, sql } = await fixture();
+  const [user] = await sql<{ id: number }[]>`
+    INSERT INTO app_user (email, name, role)
+    VALUES ('both-sides-test@example.invalid', 'Both', 'admin')
+    ON CONFLICT (email) DO UPDATE SET role = 'admin'
+    RETURNING id::int`;
+
+  // A game, and a grant on each sideline. This is an administrator's normal
+  // state: they hold every school.
+  const [g] = await sql<{ id: number; home: number; away: number }[]>`
+    SELECT g.id::int,
+           (SELECT team_id::int FROM game_participant
+             WHERE game_id = g.id AND role = 'home') AS home,
+           (SELECT team_id::int FROM game_participant
+             WHERE game_id = g.id AND role = 'away') AS away
+    FROM game g WHERE g.status <> 'canceled' ORDER BY g.id LIMIT 1`;
+  for (const teamId of [g.home, g.away]) {
+    await sql`
+      INSERT INTO user_team_grant (user_id, team_id)
+      VALUES (${user.id}, ${teamId}) ON CONFLICT DO NOTHING`;
+  }
+
+  const games = await db.listScorableGames(user.id);
+  const forThisGame = games.filter((row) => row.gameId === g.id);
+  assert.equal(forThisGame.length, 1, "one row per game, not one per sideline");
+
+  // And it names both teams, so a row is readable without knowing which of
+  // your teams it belongs to.
+  const [row] = forThisGame;
+  assert.ok(row.homeName.length > 0);
+  assert.ok(row.awayName.length > 0);
+  assert.notEqual(row.homeName, row.awayName);
+  assert.equal(row.homeIsMine, true);
+  assert.equal(row.awayIsMine, true);
+
+  await sql`DELETE FROM user_team_grant WHERE user_id = ${user.id}`;
+});
+
+test("a coach holding one team sees which side is theirs", opts, async () => {
+  const { db, sql } = await fixture();
+  const [user] = await sql<{ id: number }[]>`
+    INSERT INTO app_user (email, name, role)
+    VALUES ('one-side-test@example.invalid', 'One', 'coach')
+    ON CONFLICT (email) DO UPDATE SET role = 'coach'
+    RETURNING id::int`;
+  const [g] = await sql<{ id: number; home: number }[]>`
+    SELECT g.id::int,
+           (SELECT team_id::int FROM game_participant
+             WHERE game_id = g.id AND role = 'home') AS home
+    FROM game g WHERE g.status <> 'canceled' ORDER BY g.id LIMIT 1`;
+  await sql`
+    INSERT INTO user_team_grant (user_id, team_id)
+    VALUES (${user.id}, ${g.home}) ON CONFLICT DO NOTHING`;
+
+  const [row] = (await db.listScorableGames(user.id)).filter((r) => r.gameId === g.id);
+  assert.ok(row, "the coach can see their own game");
+  assert.equal(row.homeIsMine, true);
+  assert.equal(row.awayIsMine, false);
+
+  await sql`DELETE FROM user_team_grant WHERE user_id = ${user.id}`;
+});
