@@ -160,7 +160,18 @@ export async function getScoringGame(
  * Ordered so tonight's game is the first thing on the screen, because that is
  * the only one anybody opens this page for.
  */
-export async function listScorableGames(userId: number) {
+export async function listScorableGames(
+  userId: number,
+  filter: { date?: string | null; query?: string | null } = {}
+) {
+  // Narrowing is optional and additive. Both come off the query string, so a
+  // filtered list has its own URL and the back button behaves.
+  const date = filter.date && /^\d{4}-\d{2}-\d{2}$/.test(filter.date)
+    ? filter.date
+    : null;
+  const query = (filter.query ?? "").trim().slice(0, 60);
+  const like = query ? `%${query.replace(/[%_\\]/g, "\\$&")}%` : null;
+
   return sql<
     {
       gameId: number;
@@ -212,8 +223,36 @@ export async function listScorableGames(userId: number) {
         SELECT 1 FROM user_team_grant ut
         WHERE ut.user_id = ${userId}
           AND ut.team_id IN (home.team_id, away.team_id))
+      AND (${date}::date IS NULL OR g.local_date = ${date}::date)
+      AND (${like}::text IS NULL
+           OR hs.name ILIKE ${like} OR hs.short_name ILIKE ${like}
+           OR aws.name ILIKE ${like} OR aws.short_name ILIKE ${like})
     ORDER BY abs(g.local_date - CURRENT_DATE), g.local_date DESC, g.local_time
     LIMIT 100`;
+}
+
+/**
+ * Every date this user has a game on, with how many.
+ *
+ * The point of this page for somebody holding one team is a short list. The
+ * point for an administrator holding every school in Kentucky is being able to
+ * say "Friday" without knowing a single school name, so the dates are the
+ * navigation and the counts tell you which ones are worth opening.
+ */
+export async function listScorableDates(userId: number) {
+  return sql<{ localDate: string; games: number; isPast: boolean }[]>`
+    SELECT g.local_date::text AS "localDate", count(*)::int AS games,
+           (g.local_date < CURRENT_DATE) AS "isPast"
+    FROM game g
+    JOIN game_participant home ON home.game_id = g.id AND home.role = 'home'
+    JOIN game_participant away ON away.game_id = g.id AND away.role = 'away'
+    WHERE g.status <> 'canceled'
+      AND EXISTS (
+        SELECT 1 FROM user_team_grant ut
+        WHERE ut.user_id = ${userId}
+          AND ut.team_id IN (home.team_id, away.team_id))
+    GROUP BY g.local_date
+    ORDER BY g.local_date`;
 }
 
 /** Whether this user holds a grant on either side of the game. */

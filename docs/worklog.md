@@ -986,3 +986,20 @@ school in Kentucky gives you a hundred rows, and a date heading is the
 difference between scanning that and giving up.
 **Tested:** a game with both sides granted returns exactly one row, and a coach
 holding one side sees which side is theirs.
+
+## 2026-09-02 — Finding a game without knowing the school
+**Did:** The coach Scores page now has a strip of date chips with game counts,
+and a plain box that narrows by school name. Both are query parameters, so a
+filtered list has its own URL and the back button behaves.
+**Why:** James holds 276 teams. Naming both sides fixed *reading* a row, but
+finding a particular game still meant scrolling, and he said plainly that he
+did not want a picker of 200-plus school names to remember.
+**Dates are the navigation.** Football is played on a handful of dates, so the
+strip answers "what is on tonight" without knowing a single school. The counts
+tell you which dates are worth opening: Dec 5 (10), Nov 2 (1).
+**The box is a second way in, not the first.** Typing "corb" narrows to
+Corbin's three games. Partial matches, either side of the fixture, and it
+combines with a date. It is a GET form, so it works with JavaScript off like
+every other read view.
+**Kept for a one-team coach:** the strip only appears when there is more than
+one date, so somebody holding a single team still sees a short plain list.
