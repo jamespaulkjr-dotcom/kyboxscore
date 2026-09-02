@@ -137,7 +137,7 @@ export default async function Page(props: PageProps<"/admin/users/[id]">) {
                   </span>
                   {!t.hasSeason && (
                     <span className="block text-xs text-fg-muted">
-                      no current season — can be granted, but not imported for yet
+                      no current season, so it can be granted but not imported for yet
                     </span>
                   )}
                 </span>

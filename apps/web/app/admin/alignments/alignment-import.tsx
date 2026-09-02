@@ -52,7 +52,7 @@ export function AlignmentImport({
               <option value="">Choose…</option>
               {sports.map((s) => (
                 <option key={s.id} value={s.id} disabled={!s.hasSeason}>
-                  {s.name}{s.hasSeason ? "" : " — season not open"}
+                  {s.name}{s.hasSeason ? "" : " (season not open)"}
                 </option>
               ))}
             </select>
@@ -88,7 +88,7 @@ export function AlignmentImport({
             className="mt-1 w-full rounded-md border border-border bg-surface p-3 font-mono text-sm text-fg"
           />
           <p className="mt-1 text-xs text-fg-muted">
-            Paste the published block as it comes — class headings, district
+            Paste the published block as it comes. Class headings, district
             lines, and the prose in between. Cross-bracketing notes and
             withdrawal lists are recognised and skipped, not misread.
           </p>
@@ -128,7 +128,7 @@ export function AlignmentImport({
                   <li key={n} className="rounded-md border border-loss/40 bg-loss/10 px-3 py-2 text-sm">
                     <span className="font-medium text-loss">“{r.match.input}”</span>
                     <span className="text-fg-muted">
-                      {" "}— Class {r.classOrdinal}A District {r.districtNumber}
+                      {" "}· Class {r.classOrdinal}A District {r.districtNumber}
                       {r.match.candidates.length > 0 &&
                         ` · did you mean ${r.match.candidates.slice(0, 2).map((c) => c.name).join(", ")}?`}
                     </span>
@@ -202,7 +202,7 @@ export function AlignmentImport({
               </button>
               <p className="mt-2 text-xs text-fg-muted">
                 Assignment lands on this season only. When KHSAA realigns, paste
-                the new block against the new season — last season keeps its own
+                the new block against the new season, and last season keeps its own
                 districts, so past records and ratings stay correct.
               </p>
             </form>

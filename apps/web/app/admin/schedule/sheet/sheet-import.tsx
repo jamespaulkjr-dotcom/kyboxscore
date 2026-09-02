@@ -38,7 +38,7 @@ export function SheetImport({
               <option value="">Choose…</option>
               {sports.map((sp) => (
                 <option key={sp.id} value={sp.id} disabled={!sp.hasSeason}>
-                  {sp.name}{sp.hasSeason ? "" : " — season not open"}
+                  {sp.name}{sp.hasSeason ? "" : " (season not open)"}
                 </option>
               ))}
             </select>
@@ -69,10 +69,10 @@ export function SheetImport({
             className="mt-1 block w-full text-sm file:mr-3 file:min-h-11 file:rounded-md file:border-0 file:bg-brand-fill file:px-4 file:font-medium file:text-on-brand"
           />
           <p className="mt-1 text-xs text-fg-muted">
-            One row per team per game. Columns are found by name — School, Date,
-            Home/Away, Opponent, Result, School Score, Opponent Score, Game
-            Status, Game Title — so a spreadsheet that gains or loses a column
-            still imports. Save the games tab as CSV from Excel.
+            One row per team per game. Columns are found by name (School,
+            Date, Home/Away, Opponent, Result, School Score, Opponent Score,
+            Game Status, Game Title), so a spreadsheet that gains or loses a
+            column still imports. Save the games tab as CSV from Excel.
           </p>
         </div>
 

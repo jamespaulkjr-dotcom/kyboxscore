@@ -34,7 +34,7 @@ export default async function Page() {
         </h1>
         <p className="mt-2 max-w-prose text-sm text-fg-muted">
           Kentucky spans Eastern and Central. Every school was seeded as Eastern,
-          which is wrong for the western third of the state — Paducah, Owensboro,
+          which is wrong for the western third of the state: Paducah, Owensboro,
           Bowling Green, Hopkinsville and their neighbours are Central.
         </p>
         <p className="mt-2 max-w-prose text-sm text-fg-muted">

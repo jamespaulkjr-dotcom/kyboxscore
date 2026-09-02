@@ -27,7 +27,7 @@ export function AddGameForm({
     return (
       <p className="mt-3 rounded-lg border border-border bg-surface px-4 py-5 text-sm text-fg-muted">
         There is nobody to play. Another team in this sport and season has to
-        exist before a game can be scheduled — create the opponent first.
+        exist before a game can be scheduled, so create the opponent first.
       </p>
     );
   }

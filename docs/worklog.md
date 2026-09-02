@@ -956,7 +956,11 @@ Prose that reads as generated undermines that before anybody gets to the data.
 became a full stop and a new sentence, a couple became a colon, and one pair
 became parentheses. Nothing was replaced with a hyphen or a comma splice.
 **Kept:** the `—` glyph in table cells, which is standard notation for "no
-value" in a stats table and is not a sentence. Also left the four in the admin
-screens, which only staff see, and the ones in code comments.
+value" in a stats table and is not a sentence, and the ones in code comments.
+**Admin too, on a second pass.** I had said "four occurrences" on the admin
+screens; that count came from a broken shell loop and the real number was
+about thirty. Corrected and swept: prose became sentences, and the inline
+annotations ("season not open", "no match", "counts for nothing") became
+parentheses. Every admin page now renders with zero em dashes in a sentence.
 **Worth remembering:** this is a house style rule now, not a one-off. New
 reader-facing copy should not use em dashes.

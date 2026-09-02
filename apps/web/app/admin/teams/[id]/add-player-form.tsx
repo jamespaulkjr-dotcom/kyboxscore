@@ -69,7 +69,7 @@ export function AddPlayerForm({ teamId }: { teamId: number }) {
         </button>
         <p className="mt-2 text-xs text-fg-muted">
           Name and jersey only. Do not enter addresses, birthdates or contact
-          details — these are minors, and the schema deliberately has nowhere to
+          details. These are minors, and the schema deliberately has nowhere to
           put them.
         </p>
       </div>

@@ -85,7 +85,7 @@ export default async function Page(props: PageProps<"/admin/users">) {
         </ul>
 
         <p className="mt-6 text-sm text-fg-muted">
-          Accounts are created from the command line — there is no public sign
+          Accounts are created from the command line. There is no public sign
           up. Run <code>npm run db:create-user</code> on the server.
         </p>
       </main>

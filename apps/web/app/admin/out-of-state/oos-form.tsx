@@ -77,7 +77,7 @@ export function OutOfStateForm({
         />
         <p className="mt-1 text-xs text-fg-muted">
           Ties optional as a fourth column. Only schools Kentucky teams actually
-          played are accepted — everyone else is reported rather than created.
+          played are accepted. Everyone else is reported rather than created.
         </p>
       </div>
 

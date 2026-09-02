@@ -49,7 +49,7 @@ export function ScheduleImport({
               <option value="">Choose…</option>
               {sports.map((s) => (
                 <option key={s.id} value={s.id} disabled={!s.hasSeason}>
-                  {s.name}{s.hasSeason ? "" : " — season not open"}
+                  {s.name}{s.hasSeason ? "" : " (season not open)"}
                 </option>
               ))}
             </select>
@@ -75,7 +75,7 @@ export function ScheduleImport({
 
         <div>
           <label htmlFor="text" className="block text-sm font-medium">
-            Paste the schedule — one game per line, home team first
+            Paste the schedule, one game per line, home team first
           </label>
           <textarea
             id="text"
@@ -159,7 +159,7 @@ export function ScheduleImport({
                           </>
                         ) : (
                           <>
-                            <span className="text-loss">“{m.input}” — no match</span>
+                            <span className="text-loss">“{m.input}” (no match)</span>
                             {m.candidates.length > 0 && (
                               <span className="block text-xs text-fg-muted">
                                 did you mean {m.candidates.slice(0, 2).map((c) => c.name).join(", ")}?
@@ -181,7 +181,7 @@ export function ScheduleImport({
           {unresolved.length > 0 && (
             <p className="mt-3 rounded-md border border-border bg-surface px-3 py-2 text-sm text-fg-muted">
               Games with an unmatched school are skipped, never guessed. Fix the
-              spelling in the text above and preview again — or the school may
+              spelling in the text above and preview again, or the school may
               genuinely not be in the database.
             </p>
           )}

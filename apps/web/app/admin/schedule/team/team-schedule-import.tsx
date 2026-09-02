@@ -57,7 +57,7 @@ export function TeamScheduleImport({
               <option value="">Choose…</option>
               {sports.map((s) => (
                 <option key={s.id} value={s.id} disabled={!s.hasSeason}>
-                  {s.name}{s.hasSeason ? "" : " — season not open"}
+                  {s.name}{s.hasSeason ? "" : " (season not open)"}
                 </option>
               ))}
             </select>
@@ -100,7 +100,7 @@ export function TeamScheduleImport({
             className="mt-1 w-full rounded-md border border-border bg-surface p-3 font-mono text-sm text-fg"
           />
           <p className="mt-1 text-xs text-fg-muted">
-            Paste it exactly as it comes — logos, location lines, blank lines and
+            Paste it exactly as it comes. Logos, location lines, blank lines and
             all. Start each team with <code>This is for &lt;school&gt;</code> and
             you can paste many teams at once. The year is worked out from the
             weekdays; type one in only if that comes out ambiguous.
@@ -177,12 +177,12 @@ export function TeamScheduleImport({
                             )}
                           </>
                         ) : (
-                          <span className="text-loss">“{g.opponent.input}” — no match</span>
+                          <span className="text-loss">“{g.opponent.input}” (no match)</span>
                         )}
                       </td>
                       <td className="px-2 py-2 text-xs text-fg-muted">
                         {g.gameType === "scrimmage" ? (
-                          <span className="text-accent">scrimmage — excluded from RPI</span>
+                          <span className="text-accent">scrimmage (excluded from RPI)</span>
                         ) : (
                           g.gameType?.replace("_", "-") ?? "—"
                         )}
@@ -237,7 +237,7 @@ export function TeamScheduleImport({
               {committing ? "Creating…" : `Create ${readyGames} game${readyGames === 1 ? "" : "s"}`}
             </button>
             <p className="mt-2 text-xs text-fg-muted">
-              A game already on the schedule is recognised, not duplicated — so
+              A game already on the schedule is recognised, not duplicated, so
               importing both teams&rsquo; schedules is safe and expected.
             </p>
           </form>

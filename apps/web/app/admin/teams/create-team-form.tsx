@@ -46,7 +46,7 @@ export function CreateTeamForm({
           {sports.map((s) => (
             <option key={s.id} value={s.id} disabled={!s.hasSeason}>
               {s.name}
-              {s.hasSeason ? "" : " — season not open"}
+              {s.hasSeason ? "" : " (season not open)"}
             </option>
           ))}
         </select>

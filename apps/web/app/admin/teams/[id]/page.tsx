@@ -172,7 +172,7 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
 
                     {p.hasStats ? (
                       <span className="text-xs text-fg-muted">
-                        has statistics — cannot be removed
+                        has statistics, cannot be removed
                       </span>
                     ) : (
                       <form action={removeRosterAction}>
@@ -242,8 +242,8 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
                           className="min-h-8 rounded-md border border-border bg-surface-raised px-2 text-xs"
                         >
                           <option value="regular_season">Regular season</option>
-                          <option value="preseason">Preseason — counts for nothing</option>
-                          <option value="scrimmage">Scrimmage — counts for nothing</option>
+                          <option value="preseason">Preseason (counts for nothing)</option>
+                          <option value="scrimmage">Scrimmage (counts for nothing)</option>
                           <option value="district_tournament">District tournament</option>
                         </select>
                         <button type="submit" className="min-h-8 rounded-md border border-border px-2 text-xs font-medium">
@@ -264,7 +264,7 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
                       </form>
                     ) : (
                       <span className="text-xs text-fg-muted">
-                        has statistics — cannot be deleted
+                        has statistics, cannot be deleted
                       </span>
                     )}
                   </li>

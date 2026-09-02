@@ -31,7 +31,7 @@ export function RosterImport({
             <option value="">Choose…</option>
             {sports.map((sp) => (
               <option key={sp.id} value={sp.id} disabled={!sp.hasSeason}>
-                {sp.name}{sp.hasSeason ? "" : " — season not open"}
+                {sp.name}{sp.hasSeason ? "" : " (season not open)"}
               </option>
             ))}
           </select>
@@ -81,7 +81,7 @@ export function RosterImport({
           {s.withoutJersey > 0 && (
             <p className="mt-1 text-fg-muted">
               {s.withoutJersey} players have no jersey number. They import fine,
-              but a box score cannot be matched to them — MaxPreps exports carry
+              but a box score cannot be matched to them, because MaxPreps exports carry
               jerseys only, never names.
             </p>
           )}

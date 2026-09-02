@@ -57,7 +57,7 @@ export default async function Page(props: PageProps<"/admin/teams">) {
         <h1 className="mt-3 text-xl font-bold tracking-tight sm:text-2xl">Teams</h1>
         <p className="mt-1 text-sm text-fg-muted">
           A school is not a team. A team is a school, a sport, boys or girls,
-          and a level — and it needs a roster before statistics can be imported.
+          and a level, and it needs a roster before statistics can be imported.
         </p>
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-fg-muted">

@@ -45,7 +45,7 @@ export default async function Page() {
           The official KHSAA formula treats every out-of-state opponent as a
           .500 team, however good or bad they really are.{" "}
           <strong>Shadow RPI is the same arithmetic with their real record
-          instead</strong> — and until a record is entered here, the two are
+          instead</strong>, and until a record is entered here, the two are
           identical and every delta reads zero.
         </p>
         <p className="mt-2 max-w-prose text-sm text-fg-muted">
@@ -73,7 +73,7 @@ export default async function Page() {
           Every out-of-state opponent this season
         </h2>
         <p className="mt-1 text-sm text-fg-muted">
-          Ordered by how many Kentucky teams they played — the ones at the top
+          Ordered by how many Kentucky teams they played, so the ones at the top
           move the most ratings.
         </p>
         <div className="mt-2 overflow-x-auto rounded-lg border border-border">
@@ -98,7 +98,7 @@ export default async function Page() {
                   <td className="px-2 py-2 text-right tabular-nums">{t.gamesVsKentucky}</td>
                   <td className="px-2 py-2 text-right tabular-nums">
                     {t.wins === null ? (
-                      <span className="text-fg-muted">— assumed .500</span>
+                      <span className="text-fg-muted">assumed .500</span>
                     ) : (
                       <span className="font-semibold">
                         {t.wins}-{t.losses}{t.ties ? `-${t.ties}` : ""}

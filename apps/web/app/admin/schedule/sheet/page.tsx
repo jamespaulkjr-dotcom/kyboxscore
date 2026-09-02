@@ -34,7 +34,7 @@ export default async function Page() {
         </h1>
         <p className="mt-2 max-w-prose text-sm text-fg-muted">
           A whole season in one file: one row per team per game. This is the
-          fastest path — a state-wide export loads every school at once instead
+          fastest path, because a state-wide export loads every school at once instead
           of pasting them one at a time.
         </p>
 
