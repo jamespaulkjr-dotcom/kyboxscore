@@ -1003,3 +1003,17 @@ combines with a date. It is a GET form, so it works with JavaScript off like
 every other read view.
 **Kept for a one-team coach:** the strip only appears when there is more than
 one date, so somebody holding a single team still sees a short plain list.
+
+## 2026-09-02 — A whole Friday fits
+**Did:** Raised the cap on the coach Scores list. A date or a school search now
+returns up to 500 games; the unnarrowed "All" view stops at 200 and says when
+it has cut a list short.
+**Why 500:** the busiest Kentucky football date this season is 107 games
+(Sep 11), and every school playing on one night is at most 145. Basketball runs
+boys and girls, so a winter night is a multiple of that. 500 holds all of it.
+**Why the All view stays smaller:** it is a browse of everything near today,
+not a slate, and the date chips are the way in. Truncating it is fine;
+truncating it silently is not, so the query fetches one row past the cap purely
+to find out whether anything was left off, and the page says so.
+**Verified against production**, not just fixtures: Sep 4 returns all 106 of
+its games with nothing dropped.

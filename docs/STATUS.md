@@ -216,6 +216,11 @@ That skips migrations, which the pipeline runs and this command does not.
   stored separately from the prose.
   The public game page shows a **Scoring** summary above the box scores, with
   the running score after each play.
+  The Scores list is navigated by **date chips with game counts**, plus a box
+  that narrows by part of a school name. A date or a search returns up to 500
+  games, which holds a whole Kentucky football Friday (busiest is 107) with
+  room for boys and girls basketball on one winter night. The unnarrowed "All"
+  view stops at 200 and says so rather than hiding a game.
   An **admin** sees a "Reset this game" control at the bottom of the console:
   it clears every play, quarter score and score, puts the game back to
   scheduled, revokes any keeper links and rebuilds both teams' records. It

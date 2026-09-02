@@ -326,7 +326,7 @@ test("a game appears once even when both its teams are yours", opts, async () =>
       VALUES (${user.id}, ${teamId}) ON CONFLICT DO NOTHING`;
   }
 
-  const games = await db.listScorableGames(user.id);
+  const { games } = await db.listScorableGames(user.id);
   const forThisGame = games.filter((row) => row.gameId === g.id);
   assert.equal(forThisGame.length, 1, "one row per game, not one per sideline");
 
@@ -358,10 +358,48 @@ test("a coach holding one team sees which side is theirs", opts, async () => {
     INSERT INTO user_team_grant (user_id, team_id)
     VALUES (${user.id}, ${g.home}) ON CONFLICT DO NOTHING`;
 
-  const [row] = (await db.listScorableGames(user.id)).filter((r) => r.gameId === g.id);
+  const { games } = await db.listScorableGames(user.id);
+  const [row] = games.filter((r) => r.gameId === g.id);
   assert.ok(row, "the coach can see their own game");
   assert.equal(row.homeIsMine, true);
   assert.equal(row.awayIsMine, false);
+
+  await sql`DELETE FROM user_team_grant WHERE user_id = ${user.id}`;
+});
+
+test("a narrowed list holds a whole slate, and says when it does not", opts, async () => {
+  const { db, sql } = await fixture();
+  const [user] = await sql<{ id: number }[]>`
+    INSERT INTO app_user (email, name, role)
+    VALUES ('cap-test@example.invalid', 'Cap', 'admin')
+    ON CONFLICT (email) DO UPDATE SET role = 'admin'
+    RETURNING id::int`;
+  await sql`
+    INSERT INTO user_team_grant (user_id, team_id)
+    SELECT ${user.id}, id FROM team ON CONFLICT DO NOTHING`;
+
+  // The busiest date this database knows about has to come back whole. In
+  // production that is a 107-game Kentucky football Friday.
+  const [busiest] = await sql<{ localDate: string; games: number }[]>`
+    SELECT local_date::text AS "localDate", count(*)::int AS games
+    FROM game WHERE status <> 'canceled'
+    GROUP BY local_date ORDER BY count(*) DESC LIMIT 1`;
+
+  const onThatDate = await db.listScorableGames(user.id, { date: busiest.localDate });
+  assert.equal(onThatDate.games.length, busiest.games,
+    "every game on the busiest date is listed");
+  assert.equal(onThatDate.truncated, false);
+
+  // The unnarrowed view is a browse rather than a slate, so it may be cut
+  // short - but never silently.
+  const all = await db.listScorableGames(user.id);
+  const [{ total }] = await sql<{ total: number }[]>`
+    SELECT count(*)::int AS total FROM game WHERE status <> 'canceled'`;
+  if (total > all.games.length) {
+    assert.equal(all.truncated, true, "a cut-short list must admit it");
+  } else {
+    assert.equal(all.truncated, false);
+  }
 
   await sql`DELETE FROM user_team_grant WHERE user_id = ${user.id}`;
 });

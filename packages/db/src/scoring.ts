@@ -145,6 +145,25 @@ export async function getScoringGame(
   return { ...game, home, away, plays };
 }
 
+export type ScorableGame = {
+  gameId: number;
+  shortCode: string;
+  localDate: string;
+  localTime: string | null;
+  status: string;
+  stage: string;
+  isLive: boolean;
+  sportSlug: string;
+  urlYear: number;
+  homeName: string;
+  awayName: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  /** Whether this side is one the user holds, for emphasis in the list. */
+  homeIsMine: boolean;
+  awayIsMine: boolean;
+};
+
 /**
  * Games a signed-in user may keep, one row per game.
  *
@@ -163,7 +182,7 @@ export async function getScoringGame(
 export async function listScorableGames(
   userId: number,
   filter: { date?: string | null; query?: string | null } = {}
-) {
+): Promise<{ games: ScorableGame[]; truncated: boolean }> {
   // Narrowing is optional and additive. Both come off the query string, so a
   // filtered list has its own URL and the back button behaves.
   const date = filter.date && /^\d{4}-\d{2}-\d{2}$/.test(filter.date)
@@ -172,26 +191,13 @@ export async function listScorableGames(
   const query = (filter.query ?? "").trim().slice(0, 60);
   const like = query ? `%${query.replace(/[%_\\]/g, "\\$&")}%` : null;
 
-  return sql<
-    {
-      gameId: number;
-      shortCode: string;
-      localDate: string;
-      localTime: string | null;
-      status: string;
-      stage: string;
-      isLive: boolean;
-      sportSlug: string;
-      urlYear: number;
-      homeName: string;
-      awayName: string;
-      homeScore: number | null;
-      awayScore: number | null;
-      /** Whether this side is one the user holds, for emphasis in the list. */
-      homeIsMine: boolean;
-      awayIsMine: boolean;
-    }[]
-  >`
+  // A narrowed view has to hold a whole slate: the busiest Friday in Kentucky
+  // football is 107 games, and boys and girls basketball on one winter night
+  // will be a multiple of that. The unnarrowed view stays smaller on purpose,
+  // because it is a browse of everything and the date chips are the way in.
+  const cap = date || like ? 500 : 200;
+
+  const rows = await sql<ScorableGame[]>`
     SELECT g.id::int AS "gameId", g.short_code AS "shortCode",
            g.local_date::text AS "localDate",
            to_char(g.local_time, 'HH12:MI AM') AS "localTime",
@@ -228,7 +234,11 @@ export async function listScorableGames(
            OR hs.name ILIKE ${like} OR hs.short_name ILIKE ${like}
            OR aws.name ILIKE ${like} OR aws.short_name ILIKE ${like})
     ORDER BY abs(g.local_date - CURRENT_DATE), g.local_date DESC, g.local_time
-    LIMIT 100`;
+    -- One extra, purely to find out whether anything was left off. The caller
+    -- drops it and says so rather than quietly hiding a game.
+    LIMIT ${cap + 1}`;
+
+  return { games: rows.slice(0, cap), truncated: rows.length > cap };
 }
 
 /**

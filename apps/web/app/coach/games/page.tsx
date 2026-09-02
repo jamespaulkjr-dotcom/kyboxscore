@@ -20,7 +20,7 @@ export default async function Page(props: PageProps<"/coach/games">) {
   const date = one(params.date);
   const query = one(params.q);
 
-  const [games, dates, sports] = await Promise.all([
+  const [{ games, truncated }, dates, sports] = await Promise.all([
     listScorableGames(user.id, { date, query }),
     listScorableDates(user.id),
     listSports(),
@@ -203,6 +203,13 @@ export default async function Page(props: PageProps<"/coach/games">) {
               </ul>
             </section>
           ))
+        )}
+
+        {truncated && (
+          <p className="mt-5 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-fg-muted">
+            That is as many as this page shows at once. Pick a date above, or
+            narrow by school, to see the rest.
+          </p>
         )}
       </main>
     </>
