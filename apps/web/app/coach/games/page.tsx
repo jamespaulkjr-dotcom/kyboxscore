@@ -7,6 +7,7 @@ import {
   type ScorableGame,
 } from "@kyboxscore/db";
 import { SiteHeader } from "../../components/site-header";
+import { restoreGameAction } from "./actions";
 import { requireUser } from "../../../lib/auth";
 import { formatShortDate, formatSlateDate } from "../../../lib/format";
 
@@ -24,6 +25,9 @@ export default async function Page(props: PageProps<"/coach/games">) {
     typeof v === "string" ? v : null;
   const date = one(params.date);
   const query = one(params.q);
+  // Set by a delete, so the undo is in front of whoever just did it.
+  const undoId = Number(one(params.undo));
+  const undoneCode = one(params.undone);
 
   const [{ games, truncated }, dates, sports] = await Promise.all([
     listScorableGames(user.id, { date, query }),
@@ -137,6 +141,24 @@ export default async function Page(props: PageProps<"/coach/games">) {
             </Link>
           )}
         </form>
+
+        {Number.isInteger(undoId) && undoneCode && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-accent bg-surface px-4 py-3">
+            <p className="min-w-0 flex-1 text-sm">
+              Deleted <code className="font-mono">{undoneCode}</code>. Nothing
+              was thrown away.
+            </p>
+            <form action={restoreGameAction}>
+              <input type="hidden" name="gameId" value={undoId} />
+              <button
+                type="submit"
+                className="min-h-11 rounded-md bg-brand-fill px-4 text-sm font-semibold text-on-brand"
+              >
+                Undo
+              </button>
+            </form>
+          </div>
+        )}
 
         {live.length > 0 && (
           <section className="mt-5">

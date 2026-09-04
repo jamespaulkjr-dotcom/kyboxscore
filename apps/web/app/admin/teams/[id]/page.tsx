@@ -251,22 +251,19 @@ export default async function Page(props: PageProps<"/admin/teams/[id]">) {
                         </button>
                       </form>
                     </span>
-                    {g.boxScoreStatus === "none" ? (
-                      <form action={deleteGameAction}>
-                        <input type="hidden" name="teamId" value={teamId} />
-                        <input type="hidden" name="gameId" value={g.gameId} />
-                        <button
-                          type="submit"
-                          className="min-h-9 rounded-md border border-border px-3 text-sm font-medium text-loss"
-                        >
-                          Delete
-                        </button>
-                      </form>
-                    ) : (
-                      <span className="text-xs text-fg-muted">
-                        has statistics, cannot be deleted
-                      </span>
-                    )}
+                    {/* Deleting is reversible now, so a box score is no longer
+                        a reason to withhold the button. Everything comes back
+                        from /admin/deleted-games. */}
+                    <form action={deleteGameAction}>
+                      <input type="hidden" name="teamId" value={teamId} />
+                      <input type="hidden" name="gameId" value={g.gameId} />
+                      <button
+                        type="submit"
+                        className="min-h-9 rounded-md border border-border px-3 text-sm font-medium text-loss"
+                      >
+                        Delete
+                      </button>
+                    </form>
                   </li>
                 ))}
               </ul>

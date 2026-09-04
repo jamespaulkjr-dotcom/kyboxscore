@@ -1059,3 +1059,30 @@ because `rpi_input` is what makes an old rating reproducible. The console says
 which; the admin page still silently does nothing. Worth fixing there too.
 **Confirmed by typing the short code**, like reset, because unlike reset there
 is nothing to put back.
+
+## 2026-09-04 — Delete stopped destroying things
+**Why:** delete shipped this afternoon and its first real use had to be undone
+within the hour. James removed a Valley at Southern fixture that looked
+invented; it had been played, 42-0. It came back only because the score was
+still known. A game with a full play-by-play would have been gone.
+**`game` is now a view over `game_all`** where `deleted_at IS NULL`. Auto
+updatable, so every insert, update and delete still works and not one of the
+twenty-odd read queries needed touching. That is the point: a filter that has
+to be remembered in twenty places is a filter that will be forgotten in one.
+**The guards came off.** Hard delete refused a game with statistics, and one a
+published RPI run was computed from. Neither is a reason to refuse now, because
+nothing is lost by saying yes: the stat lines stay attached to a hidden game
+and `rpi_input` still holds what each past run was computed from.
+**Undo is where the mistake happens.** Deleting redirects back to the list with
+the game named and an Undo button, because the moment somebody realises they
+were wrong is the moment they are looking at that screen. Everything ever
+deleted also lives at `/admin/deleted-games`.
+**Records follow immediately.** Deleting rebuilds both teams' rollups so the
+game stops counting; restoring rebuilds them again so it counts once more.
+**The natural key had to learn about it:** the unique index on (team_pair_key,
+local_date) now excludes deleted rows, so a schedule import can re-create a
+fixture that was removed. Restoring on top of a re-creation is refused, with
+the offending short code in the message.
+**Test note:** a test asserted that a game with statistics could not be
+deleted. That encoded the behaviour being replaced, so it went, like the clock
+test before it.

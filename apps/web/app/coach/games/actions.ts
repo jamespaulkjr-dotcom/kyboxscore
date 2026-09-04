@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   createScorekeeperLink,
   deleteGame,
+  restoreGame,
   normalizeClock,
   resetGameScoring,
   updateScoringPlay,
@@ -347,13 +348,26 @@ export async function deleteGameAction(
   // deleteGame refuses a game with statistics or one a published RPI run was
   // computed from. Say which, rather than leaving the row sitting there with
   // no explanation.
-  const result = await deleteGame(game.id);
+  const result = await deleteGame(game.id, user.id);
   if (!result.ok) return { error: result.reason ?? "That game could not be deleted." };
 
-  revalidatePath(`/${game.sportSlug}/${game.urlYear}/games/${game.shortCode}`);
-  revalidatePath(`/${game.sportSlug}/scores`);
+  revalidate(game.shortCode, game.sportSlug, game.urlYear);
+  // The page we were standing on is hidden now, so there is nowhere to stay.
+  // The undo travels in the URL, because the moment somebody realises they
+  // were wrong is the moment they are looking at this screen.
+  redirect(`/coach/games?undo=${game.id}&undone=${game.shortCode}`);
+}
+
+/** Put a deleted game back. Same permission as deleting it. */
+export async function restoreGameAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !isAdmin(user)) return;
+
+  const gameId = Number(formData.get("gameId"));
+  if (!Number.isInteger(gameId)) return;
+
+  await restoreGame(gameId);
   revalidatePath("/coach/games");
+  revalidatePath("/admin/deleted-games");
   revalidatePath("/");
-  // The page we are standing on is gone, so there is nowhere to stay.
-  redirect("/coach/games");
 }

@@ -230,10 +230,9 @@ That skips migrations, which the pipeline runs and this command does not.
   view stops at 200 and says so rather than hiding a game.
   An **admin** sees two controls at the bottom of the console. **Delete this
   game** is for a fixture that should not be on the schedule at all, which a
-  schedule import can invent; it refuses a game with statistics or one a
-  published RPI run was computed from, and says which. (There is also a Delete
-  on `/admin/teams/[id]`, but that one needs you to already know whose team
-  page to open, and it swallows the refusal reason.)
+  schedule import can invent. It is a **soft delete**: nothing is destroyed,
+  an undo appears immediately afterwards, and everything ever deleted is listed
+  at `/admin/deleted-games` with a Restore button.
   **Reset this game** is the other one:
   it clears every play, quarter score and score, puts the game back to
   scheduled, revokes any keeper links and rebuilds both teams' records. It
@@ -405,6 +404,28 @@ That skips migrations, which the pipeline runs and this command does not.
 - `AUTH_SECRET` is the pepper for session token hashes. **Changing it logs
   everyone out**, because every stored `token_hash` becomes unmatchable. That
   is acceptable now and will not be once coaches depend on it.
+
+### `game` is a view, `game_all` is the table
+
+Migration 0013 renamed the table to `game_all` and made `game` a view over the
+rows with `deleted_at IS NULL`. The view is auto-updatable, so INSERT, UPDATE
+and DELETE against `game` still work unchanged and no query needed editing.
+
+That is deliberate. Roughly twenty queries read games, and a soft-delete filter
+that has to be remembered in twenty places is one that will be forgotten in
+one. Query `game_all` **only** when you mean to see deleted games; the restore
+screen is the only thing that does.
+
+The natural-key index carries `AND deleted_at IS NULL`, so a deleted fixture
+does not stop a schedule import re-creating the same two teams on the same
+date. Restoring on top of such a re-creation is refused with a reason.
+
+### If the test suite fails locally, reset before trusting the next run
+
+The database tests share fixture games and an aborted run can leave one
+soft-deleted or final, after which later runs fail for reasons that have
+nothing to do with the change in front of you. `npm run db:reset && npm test`.
+CI is unaffected: it migrates and seeds fresh every time.
 
 ### `search_document` cannot be refreshed CONCURRENTLY
 

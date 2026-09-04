@@ -1,4 +1,5 @@
 import { sql } from "./client.ts";
+import { refreshTeamSeasonRollups } from "./rollups.ts";
 
 /**
  * Account and team-grant administration.
@@ -520,29 +521,121 @@ export async function createGame(input: {
   }
 }
 
-export async function deleteGame(gameId: number): Promise<{ ok: boolean; reason?: string }> {
-  const [row] = await sql<{ hasStats: boolean; inRpi: boolean }[]>`
-    SELECT EXISTS (SELECT 1 FROM stat_line WHERE game_id = ${gameId}) AS "hasStats",
-           EXISTS (SELECT 1 FROM rpi_input WHERE game_id = ${gameId}) AS "inRpi"`;
-  if (row?.hasStats) {
-    return {
-      ok: false,
-      reason: "This game has a box score recorded. Delete the statistics first.",
-    };
-  }
-  // A published RPI run keeps the games it was computed from, because the
-  // whole promise is that a past rating can be reproduced. Refusing here beats
-  // surfacing a raw foreign key error.
-  if (row?.inRpi) {
-    return {
-      ok: false,
-      reason:
-        "An RPI run has already been computed from this game. Deleting it " +
-        "would make that rating impossible to reproduce.",
-    };
-  }
-  await sql`DELETE FROM game WHERE id = ${gameId}`;
+/** Both team seasons a game belongs to, for rebuilding records around it. */
+async function teamSeasonsForGame(gameId: number): Promise<number[]> {
+  const rows = await sql<{ id: number }[]>`
+    SELECT ts.id::int
+    FROM game_participant gp
+    JOIN game_all g ON g.id = gp.game_id
+    JOIN team_season ts
+      ON ts.team_id = gp.team_id AND ts.sport_season_id = g.sport_season_id
+    WHERE gp.game_id = ${gameId}`;
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Take a game off the schedule without destroying it.
+ *
+ * It shipped as a hard delete and the first real use had to be undone within
+ * the hour: a fixture that looked invented had in fact been played 42-0. It
+ * came back only because the score was still known; a game with a full
+ * play-by-play would have been gone for good.
+ *
+ * So nothing is thrown away. The row stays, every read hides it because `game`
+ * is a view over the undeleted ones, and it can be restored whole. Statistics
+ * and past RPI runs are no longer a reason to refuse, because there is now
+ * nothing to lose by saying yes.
+ */
+export async function deleteGame(
+  gameId: number,
+  deletedByUserId?: number | null
+): Promise<{ ok: boolean; reason?: string }> {
+  const seasons = await teamSeasonsForGame(gameId);
+  const [row] = await sql<{ id: number }[]>`
+    UPDATE game_all SET deleted_at = now(),
+                        deleted_by_user_id = ${deletedByUserId ?? null},
+                        updated_at = now()
+     WHERE id = ${gameId} AND deleted_at IS NULL
+     RETURNING id::int`;
+  if (!row) return { ok: false, reason: "That game is already deleted." };
+
+  // A deleted game must stop counting towards a record straight away.
+  for (const id of seasons) await refreshTeamSeasonRollups(id);
   return { ok: true };
+}
+
+/** Put a deleted game back, exactly as it was. */
+export async function restoreGame(
+  gameId: number
+): Promise<{ ok: boolean; reason?: string }> {
+  // While it was away, a schedule import may have re-created the same fixture.
+  // Restoring on top of that would leave two of the same game.
+  const [clash] = await sql<{ shortCode: string }[]>`
+    SELECT live.short_code AS "shortCode"
+    FROM game_all gone
+    JOIN game_all live
+      ON live.team_pair_key = gone.team_pair_key
+     AND live.local_date = gone.local_date
+     AND live.id <> gone.id
+     AND live.deleted_at IS NULL
+    WHERE gone.id = ${gameId}`;
+  if (clash) {
+    return {
+      ok: false,
+      reason: `These two teams already have a game on that date (${clash.shortCode}). Delete that one first.`,
+    };
+  }
+
+  const [row] = await sql<{ id: number }[]>`
+    UPDATE game_all SET deleted_at = NULL, deleted_by_user_id = NULL,
+                        updated_at = now()
+     WHERE id = ${gameId} AND deleted_at IS NOT NULL
+     RETURNING id::int`;
+  if (!row) return { ok: false, reason: "That game is not deleted." };
+
+  for (const id of await teamSeasonsForGame(gameId)) {
+    await refreshTeamSeasonRollups(id);
+  }
+  return { ok: true };
+}
+
+export type DeletedGame = {
+  gameId: number;
+  shortCode: string;
+  localDate: string;
+  status: string;
+  fixture: string;
+  deletedAt: string;
+  deletedBy: string | null;
+  scoreLine: string | null;
+  plays: number;
+  statLines: number;
+};
+
+/** Recently deleted games, newest first, for the restore screen. */
+export async function listDeletedGames(limit = 100) {
+  return sql<DeletedGame[]>`
+    SELECT g.id::int AS "gameId", g.short_code AS "shortCode",
+           g.local_date::text AS "localDate", g.status::text,
+           coalesce(aws.short_name, aws.name) || ' at ' ||
+             coalesce(hs.short_name, hs.name) AS fixture,
+           g.deleted_at::text AS "deletedAt",
+           u.name AS "deletedBy",
+           CASE WHEN away.score IS NOT NULL AND home.score IS NOT NULL
+                THEN away.score || '-' || home.score END AS "scoreLine",
+           (SELECT count(*)::int FROM scoring_play p
+             JOIN game_participant gp ON gp.id = p.game_participant_id
+            WHERE gp.game_id = g.id AND p.voided_at IS NULL) AS plays,
+           (SELECT count(*)::int FROM stat_line WHERE game_id = g.id) AS "statLines"
+    FROM game_all g
+    JOIN game_participant home ON home.game_id = g.id AND home.role = 'home'
+    JOIN game_participant away ON away.game_id = g.id AND away.role = 'away'
+    JOIN team ht ON ht.id = home.team_id JOIN school hs ON hs.id = ht.school_id
+    JOIN team at2 ON at2.id = away.team_id JOIN school aws ON aws.id = at2.school_id
+    LEFT JOIN app_user u ON u.id = g.deleted_by_user_id
+    WHERE g.deleted_at IS NOT NULL
+    ORDER BY g.deleted_at DESC
+    LIMIT ${limit}`;
 }
 
 /* -------------------------------------------------------- alignments */

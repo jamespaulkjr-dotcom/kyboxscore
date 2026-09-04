@@ -449,28 +449,120 @@ test("a bad clock never costs somebody the score", opts, async () => {
   await db.resetGameScoring(gameId);
 });
 
-test("a game with statistics or a published RPI cannot be deleted", opts, async () => {
+test("a deleted game is hidden everywhere, and comes back whole", opts, async () => {
+  const { db, sql, userId, gameId, code } = await fixture();
+  const game = await db.getScoringGame(code);
+
+  // Give it something worth losing: a result, a scoring play, a record.
+  await db.startScoring(gameId);
+  await db.recordScoringPlay({
+    gameId,
+    participantId: game!.home.participantId,
+    periodNumber: 1,
+    points: 6,
+    description: "Touchdown",
+    playKey: "td",
+    clock: "0:54",
+    actor: { kind: "user", userId },
+  });
+  await db.setFinalScore({
+    gameId,
+    homeScore: 42,
+    awayScore: 0,
+    periodsPlayed: 4,
+    final: true,
+  });
+
+  const [{ sportSeasonId, homeTeamSeason }] = await sql<
+    { sportSeasonId: number; homeTeamSeason: number }[]
+  >`
+    SELECT g.sport_season_id::int AS "sportSeasonId",
+           (SELECT ts.id::int FROM game_participant gp
+              JOIN team_season ts ON ts.team_id = gp.team_id
+                                 AND ts.sport_season_id = g.sport_season_id
+             WHERE gp.game_id = g.id AND gp.role = 'home') AS "homeTeamSeason"
+    FROM game_all g WHERE g.id = ${gameId}`;
+  const winsNow = async () => {
+    const [r] = await sql<{ wins: number }[]>`
+      SELECT coalesce(wins, 0)::int AS wins FROM team_season_record
+      WHERE team_season_id = ${homeTeamSeason}`;
+    return r?.wins ?? 0;
+  };
+  // setFinalScore does not rebuild records, so make the baseline honest first.
+  await db.refreshTeamSeasonRollups(homeTeamSeason);
+  const before = await winsNow();
+  assert.ok(before >= 1, "the win is counted before the delete");
+
+  assert.equal((await db.deleteGame(gameId, userId)).ok, true);
+
+  // Hidden from every read: the view is the whole enforcement.
+  assert.equal(await db.getScoringGame(code), null, "not scoreable");
+  assert.equal(await db.getGameByCode(code), null, "no public game page");
+  const [{ visible }] = await sql<{ visible: number }[]>`
+    SELECT count(*)::int AS visible FROM game WHERE id = ${gameId}`;
+  assert.equal(visible, 0);
+  const scoreboard = await db.getScoreboard(sportSeasonId, game!.localDate);
+  assert.equal(scoreboard.some((g) => g.shortCode === code), false, "off the slate");
+  assert.equal(await winsNow(), before - 1, "stops counting towards the record");
+
+  // But nothing was thrown away.
+  const [{ kept }] = await sql<{ kept: number }[]>`
+    SELECT count(*)::int AS kept FROM game_all WHERE id = ${gameId}`;
+  assert.equal(kept, 1);
+  const [{ plays }] = await sql<{ plays: number }[]>`
+    SELECT count(*)::int AS plays FROM scoring_play p
+    JOIN game_participant gp ON gp.id = p.game_participant_id
+    WHERE gp.game_id = ${gameId} AND p.voided_at IS NULL`;
+  assert.equal(plays, 1, "the play-by-play survives a delete");
+
+  const listed = await db.listDeletedGames();
+  assert.ok(listed.some((g) => g.shortCode === code), "shows on the restore screen");
+
+  // And it comes back exactly as it was.
+  assert.equal((await db.restoreGame(gameId)).ok, true);
+  const back = await db.getScoringGame(code);
+  assert.ok(back);
+  assert.equal(back!.home.score, 42);
+  assert.equal(back!.status, "final");
+  assert.equal(back!.plays.length, 1);
+  assert.equal(back!.plays[0].clock, "0:54");
+  assert.equal(await winsNow(), before, "and counts again");
+
+  await db.resetGameScoring(gameId);
+});
+
+test("deleting frees the fixture so an import can re-create it", opts, async () => {
   const { db, sql, gameId } = await fixture();
-  const [src] = await sql<{ id: number }[]>`SELECT id::int FROM data_source LIMIT 1`;
-  const [participant] = await sql<{ id: number }[]>`
-    SELECT id::int FROM game_participant WHERE game_id = ${gameId} LIMIT 1`;
-  await sql`
-    INSERT INTO stat_line (game_id, game_participant_id, scope, data_source_id)
-    VALUES (${gameId}, ${participant.id}, 'team', ${src.id})`;
+  const [g] = await sql<{ pair: string; date: string; season: number }[]>`
+    SELECT team_pair_key AS pair, local_date::text AS date,
+           sport_season_id::int AS season
+    FROM game_all WHERE id = ${gameId}`;
+  const [home, away] = (await sql<{ teamId: number; role: string }[]>`
+    SELECT team_id::int AS "teamId", role::text FROM game_participant
+    WHERE game_id = ${gameId} ORDER BY role DESC`);
 
-  const refused = await db.deleteGame(gameId);
-  assert.equal(refused.ok, false);
-  assert.match(refused.reason ?? "", /box score|statistics/i);
+  await db.deleteGame(gameId, null);
 
-  await sql`DELETE FROM stat_line WHERE game_id = ${gameId}`;
+  // The same two teams on the same date must be insertable again: a deleted
+  // fixture cannot hold the natural key hostage.
+  const newId = await sql.begin(async (tx) => {
+    const [ng] = await tx<{ id: number }[]>`
+      INSERT INTO game (sport_season_id, short_code, local_date, status)
+      VALUES (${g.season}, 'zzdup1', ${g.date}::date, 'scheduled')
+      RETURNING id::int`;
+    for (const p of [home, away]) {
+      await tx`
+        INSERT INTO game_participant (game_id, team_id, role)
+        VALUES (${ng.id}, ${p.teamId}, ${p.role}::participant_role)`;
+    }
+    return ng.id;
+  });
 
-  // And with nothing attached it goes, taking its participants with it.
-  const gone = await db.deleteGame(gameId);
-  assert.equal(gone.ok, true);
-  const [{ left }] = await sql<{ left: number }[]>`
-    SELECT count(*)::int AS left FROM game WHERE id = ${gameId}`;
-  assert.equal(left, 0);
-  const [{ orphans }] = await sql<{ orphans: number }[]>`
-    SELECT count(*)::int AS orphans FROM game_participant WHERE game_id = ${gameId}`;
-  assert.equal(orphans, 0, "participants go with the game");
+  // And restoring the old one on top of that is refused, with a reason.
+  const clash = await db.restoreGame(gameId);
+  assert.equal(clash.ok, false);
+  assert.match(clash.reason ?? "", /already have a game/i);
+
+  await sql`DELETE FROM game_all WHERE id = ${newId}`;
+  assert.equal((await db.restoreGame(gameId)).ok, true, "and fine once it is gone");
 });

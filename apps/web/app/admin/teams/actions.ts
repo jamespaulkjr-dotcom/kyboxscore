@@ -187,12 +187,13 @@ export async function addGameAction(
 }
 
 export async function deleteGameAction(formData: FormData) {
-  await requireAdmin("/admin/teams");
+  const user = await requireAdmin("/admin/teams");
   const teamId = Number(formData.get("teamId"));
   const gameId = Number(formData.get("gameId"));
   if (!Number.isInteger(gameId)) return;
-  await deleteGame(gameId);
+  await deleteGame(gameId, user.id);
   revalidatePath(`/admin/teams/${teamId}`);
+  revalidatePath("/admin/deleted-games");
 }
 
 /* -------------------------------------------------------- alignments */

@@ -124,6 +124,9 @@ export default async function Page() {
             <Link href="/admin/teams" className="mt-1 block text-link underline">
               Teams and rosters
             </Link>
+            <Link href="/admin/deleted-games" className="mt-1 block text-link underline">
+              Deleted games
+            </Link>
             <Link href="/admin/schedule/sheet" className="mt-1 block text-link underline">
               Import a schedule spreadsheet (whole season)
             </Link>
