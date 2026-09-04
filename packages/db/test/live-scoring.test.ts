@@ -448,3 +448,29 @@ test("a bad clock never costs somebody the score", opts, async () => {
 
   await db.resetGameScoring(gameId);
 });
+
+test("a game with statistics or a published RPI cannot be deleted", opts, async () => {
+  const { db, sql, gameId } = await fixture();
+  const [src] = await sql<{ id: number }[]>`SELECT id::int FROM data_source LIMIT 1`;
+  const [participant] = await sql<{ id: number }[]>`
+    SELECT id::int FROM game_participant WHERE game_id = ${gameId} LIMIT 1`;
+  await sql`
+    INSERT INTO stat_line (game_id, game_participant_id, scope, data_source_id)
+    VALUES (${gameId}, ${participant.id}, 'team', ${src.id})`;
+
+  const refused = await db.deleteGame(gameId);
+  assert.equal(refused.ok, false);
+  assert.match(refused.reason ?? "", /box score|statistics/i);
+
+  await sql`DELETE FROM stat_line WHERE game_id = ${gameId}`;
+
+  // And with nothing attached it goes, taking its participants with it.
+  const gone = await db.deleteGame(gameId);
+  assert.equal(gone.ok, true);
+  const [{ left }] = await sql<{ left: number }[]>`
+    SELECT count(*)::int AS left FROM game WHERE id = ${gameId}`;
+  assert.equal(left, 0);
+  const [{ orphans }] = await sql<{ orphans: number }[]>`
+    SELECT count(*)::int AS orphans FROM game_participant WHERE game_id = ${gameId}`;
+  assert.equal(orphans, 0, "participants go with the game");
+});

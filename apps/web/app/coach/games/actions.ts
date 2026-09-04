@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   createScorekeeperLink,
+  deleteGame,
   normalizeClock,
   resetGameScoring,
   updateScoringPlay,
@@ -311,4 +313,47 @@ export async function resetGameAction(
     ok: true,
     note: `Back to scheduled, from ${result.wasStatus.replace("_", " ")}. Cleared ${bits.join(", ")}.`,
   };
+}
+
+/**
+ * Remove a game that should not be on the schedule at all.
+ *
+ * Different from reset, and the difference matters: reset says "this game has
+ * not been played yet", delete says "this game does not exist". A schedule
+ * import can invent a fixture that nobody ever arranged, and leaving it there
+ * means a parent turns up to a field where nothing is happening.
+ *
+ * Admin only, and confirmed by typing the game's own short code, because
+ * unlike reset there is nothing to put back.
+ */
+export async function deleteGameAction(
+  _prev: ScoreState,
+  formData: FormData
+): Promise<ScoreState> {
+  const user = await getCurrentUser();
+  if (!user || !isAdmin(user)) {
+    return { error: "Only an administrator can delete a game." };
+  }
+
+  const code = String(formData.get("code") ?? "");
+  const game = await getScoringGame(code);
+  if (!game) return { error: "That game no longer exists." };
+
+  const typed = String(formData.get("confirm") ?? "").trim();
+  if (typed.toLowerCase() !== game.shortCode.toLowerCase()) {
+    return { error: `Type ${game.shortCode} to confirm.` };
+  }
+
+  // deleteGame refuses a game with statistics or one a published RPI run was
+  // computed from. Say which, rather than leaving the row sitting there with
+  // no explanation.
+  const result = await deleteGame(game.id);
+  if (!result.ok) return { error: result.reason ?? "That game could not be deleted." };
+
+  revalidatePath(`/${game.sportSlug}/${game.urlYear}/games/${game.shortCode}`);
+  revalidatePath(`/${game.sportSlug}/scores`);
+  revalidatePath("/coach/games");
+  revalidatePath("/");
+  // The page we are standing on is gone, so there is nowhere to stay.
+  redirect("/coach/games");
 }

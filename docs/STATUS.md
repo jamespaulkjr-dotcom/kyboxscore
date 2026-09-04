@@ -228,7 +228,13 @@ That skips migrations, which the pipeline runs and this command does not.
   games, which holds a whole Kentucky football Friday (busiest is 107) with
   room for boys and girls basketball on one winter night. The unnarrowed "All"
   view stops at 200 and says so rather than hiding a game.
-  An **admin** sees a "Reset this game" control at the bottom of the console:
+  An **admin** sees two controls at the bottom of the console. **Delete this
+  game** is for a fixture that should not be on the schedule at all, which a
+  schedule import can invent; it refuses a game with statistics or one a
+  published RPI run was computed from, and says which. (There is also a Delete
+  on `/admin/teams/[id]`, but that one needs you to already know whose team
+  page to open, and it swallows the refusal reason.)
+  **Reset this game** is the other one:
   it clears every play, quarter score and score, puts the game back to
   scheduled, revokes any keeper links and rebuilds both teams' records. It
   refuses a game that already has an imported box score, and asks you to type

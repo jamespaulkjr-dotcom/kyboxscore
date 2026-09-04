@@ -1042,3 +1042,20 @@ hundred games the one you are actually keeping should never need finding.
 **Test note:** an existing test asserted `normalizeClock("412") === null`. That
 test encoded exactly the behaviour that failed two real people, so it was
 deleted rather than worked around.
+
+## 2026-09-04 — Deleting a game from where you find it
+**Did:** An admin-only "Delete this game" on the scoring console, beside Reset.
+**Why:** James found a Valley at Southern fixture on 3 September that nobody
+ever arranged, and had no way to remove it from where he was standing. Delete
+did already exist, on `/admin/teams/[id]`, but that requires knowing whose team
+page to open before you can act on a game you are already looking at.
+**Reset and delete are different claims.** Reset says "this has not been played
+yet"; delete says "this does not exist". A schedule import can invent a
+fixture, and leaving it up means a parent drives to a field where nothing is
+happening.
+**It reports refusals**, which the admin-page version does not: `deleteGame`
+declines a game with statistics, and one a published RPI run was computed from,
+because `rpi_input` is what makes an old rating reproducible. The console says
+which; the admin page still silently does nothing. Worth fixing there too.
+**Confirmed by typing the short code**, like reset, because unlike reset there
+is nothing to put back.
