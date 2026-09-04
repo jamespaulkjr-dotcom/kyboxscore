@@ -208,6 +208,13 @@ That skips migrations, which the pipeline runs and this command does not.
   `game_participant.score_adjustment`, and the published score is
   `sum(plays) + adjustment`, so somebody who picks a game up at half time and
   types 14-7 does not lose it the moment they tap the next touchdown.
+  The **clock sits on the scoring form**, beside the quarter, and clears itself
+  after every score so it cannot stamp a stale time on the next three. Digits
+  are enough: `054` is 0:54, `412` is 4:12. That matters because the field asks
+  for a numeric keypad and a phone keypad has no colon key, which is how two
+  scorekeepers ended up unable to enter a time at all.
+  Games being scored right now are **pinned to the top** of the coach Scores
+  list, lifted out of their date group so they are never in two places.
   Each play can then be given **detail**: who scored, how (rush, pass, kickoff
   return…), who threw it, and the clock. Detail is always a second step and
   never a condition of scoring — the tap has to land while the crowd is still

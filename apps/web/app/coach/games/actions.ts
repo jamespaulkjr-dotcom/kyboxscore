@@ -83,6 +83,11 @@ export async function addPlayAction(
     return { error: "Choose a quarter." };
   }
 
+  // The clock rides along with the tap when there is one. A bad clock must
+  // never cost somebody the score itself, so it is dropped rather than
+  // refused: the play still lands, and the time can be fixed underneath.
+  const clock = normalizeClock(String(formData.get("clock") ?? ""));
+
   // Scoring a game that has not been started should just start it, rather than
   // making somebody find the right button while a kick is in the air.
   if (game.status === "scheduled" || game.status === "postponed") {
@@ -96,6 +101,7 @@ export async function addPlayAction(
     points: play.points,
     description: play.description,
     playKey: play.key,
+    clock,
     actor: scorer.actor,
   });
   if (!result.ok) return { error: result.reason ?? "That did not save." };
@@ -184,7 +190,9 @@ export async function updatePlayAction(
   const clockRaw = String(formData.get("clock") ?? "");
   const clock = normalizeClock(clockRaw);
   if (clockRaw.trim() !== "" && clock === null) {
-    return { error: "Write the clock as minutes:seconds, like 4:12." };
+    return {
+      error: "Digits are enough for the clock: 054 for 0:54, 412 for 4:12.",
+    };
   }
 
   const periodRaw = String(formData.get("period") ?? "").trim();

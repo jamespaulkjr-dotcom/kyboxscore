@@ -242,18 +242,6 @@ test("play detail names the players and reads as a sentence", opts, async () => 
   await db.resetGameScoring(gameId);
 });
 
-test("the clock is accepted only when it is a real clock", opts, async () => {
-  const { db } = await fixture();
-  assert.equal(db.normalizeClock("4:12"), "4:12");
-  assert.equal(db.normalizeClock(" 04:07 "), "4:07");
-  assert.equal(db.normalizeClock("12:00"), "12:00");
-  assert.equal(db.normalizeClock(""), null);
-  assert.equal(db.normalizeClock("4:99"), null);
-  assert.equal(db.normalizeClock("99:00"), null);
-  assert.equal(db.normalizeClock("412"), null);
-  assert.equal(db.normalizeClock("soon"), null);
-});
-
 test("the description is built from the parts, not typed", opts, async () => {
   const { db } = await fixture();
   const d = db.describePlay;
@@ -402,4 +390,61 @@ test("a narrowed list holds a whole slate, and says when it does not", opts, asy
   }
 
   await sql`DELETE FROM user_team_grant WHERE user_id = ${user.id}`;
+});
+
+test("the clock is accepted the way a phone keypad types it", opts, async () => {
+  const { db } = await fixture();
+  const c = db.normalizeClock;
+
+  // The reason this exists: a numeric keypad on a phone has no colon key, so
+  // two scorekeepers on 2026-09-03 could not enter 0:54 at all.
+  assert.equal(c("054"), "0:54");
+  assert.equal(c("54"), "0:54");
+  assert.equal(c("412"), "4:12");
+  assert.equal(c("1200"), "12:00");
+  assert.equal(c("5"), "0:05");
+  assert.equal(c("0"), "0:00");
+
+  // Punctuation still works for anyone with a full keyboard.
+  assert.equal(c("0:54"), "0:54");
+  assert.equal(c("4:12"), "4:12");
+  assert.equal(c("04:07"), "4:07");
+  assert.equal(c("1:2"), "1:02");
+  assert.equal(c(" 412 "), "4:12");
+  assert.equal(c("0.54"), "0:54");
+
+  // And nonsense is still nonsense.
+  assert.equal(c(""), null);
+  assert.equal(c("99"), null, "99 seconds is not a time");
+  assert.equal(c("4:99"), null);
+  assert.equal(c("2100"), null, "21 minutes is longer than any period");
+  assert.equal(c("abc"), null);
+  assert.equal(c("12:60"), null);
+});
+
+test("a bad clock never costs somebody the score", opts, async () => {
+  const { db, userId, gameId, code } = await fixture();
+  const game = await db.getScoringGame(code);
+  await db.startScoring(gameId);
+
+  // recordScoringPlay takes the clock already normalised; the action drops a
+  // bad one rather than refusing the play. This is the shape that matters:
+  // a score with no time beats no score at all.
+  const r = await db.recordScoringPlay({
+    gameId,
+    participantId: game!.home.participantId,
+    periodNumber: 1,
+    points: 6,
+    description: "Touchdown",
+    playKey: "td",
+    clock: db.normalizeClock("not a time"),
+    actor: { kind: "user", userId },
+  });
+  assert.equal(r.ok, true);
+
+  const after = await db.getScoringGame(code);
+  assert.equal(after!.home.score, 6);
+  assert.equal(after!.plays[0].clock, null);
+
+  await db.resetGameScoring(gameId);
 });

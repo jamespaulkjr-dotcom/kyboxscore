@@ -1017,3 +1017,28 @@ truncating it silently is not, so the query fetches one row past the cap purely
 to find out whether anything was left off, and the page says so.
 **Verified against production**, not just fixtures: Sep 4 returns all 106 of
 its games with nothing dropped.
+
+## 2026-09-04 — The clock nobody could type
+**What happened:** two scorekeepers worked a real game on 2026-09-03 and could
+not enter a time like 0:54. The field asked for a numeric keypad, and a numeric
+keypad on a phone has no colon key. They typed "054" and the parser told them
+to write it as minutes:seconds, which they had no way to do. Demanding
+punctuation the keyboard does not offer is the software's fault.
+**Fixed two ways.** `normalizeClock` now takes it however it is typed: with a
+separator, or digits alone where the last two are the seconds and anything in
+front is the minutes. One rule that covers everything they might type: 54 is
+0:54, 054 is 0:54, 412 is 4:12, 1200 is 12:00. Nonsense is still refused.
+**And the clock moved to where the score is entered.** It was only in the
+per-play editor, a second step after the tap, so the time could only ever be
+added afterwards. It now sits beside the quarter on the scoring form, and
+clears itself the moment a play lands: a clock left sitting there would quietly
+stamp the wrong time on the next three scores, which is worse than no time.
+**A bad clock never costs the score.** The action drops an unparseable time and
+records the play anyway. Losing a touchdown because the time was mistyped would
+be a far worse failure than a missing timestamp.
+**Also:** games being scored right now pin to the top of the coach Scores list,
+lifted out of their date group rather than duplicated. On a Friday with a
+hundred games the one you are actually keeping should never need finding.
+**Test note:** an existing test asserted `normalizeClock("412") === null`. That
+test encoded exactly the behaviour that failed two real people, so it was
+deleted rather than worked around.

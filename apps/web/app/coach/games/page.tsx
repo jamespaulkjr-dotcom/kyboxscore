@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listScorableDates, listScorableGames, listSports } from "@kyboxscore/db";
+import {
+  listScorableDates,
+  listScorableGames,
+  listSports,
+  type ScorableGame,
+} from "@kyboxscore/db";
 import { SiteHeader } from "../../components/site-header";
 import { requireUser } from "../../../lib/auth";
 import { formatShortDate, formatSlateDate } from "../../../lib/format";
@@ -29,12 +34,19 @@ export default async function Page(props: PageProps<"/coach/games">) {
   const today = new Date().toISOString().slice(0, 10);
   const totalGames = dates.reduce((n, d) => n + d.games, 0);
 
-  // Grouped by date, each group in kick-off order. Somebody holding one team
-  // sees a short list either way; somebody holding every school in Kentucky
-  // sees a hundred rows, and a date heading is the difference between scanning
-  // that and giving up.
+  // Anything being scored right now goes to the top, on its own, and comes
+  // out of its date group so it is not in two places at once. On a Friday with
+  // a hundred games the one you are actually keeping should never need
+  // finding.
+  const live = games.filter((g) => g.isLive);
+  const rest = games.filter((g) => !g.isLive);
+
+  // The rest grouped by date, each group in kick-off order. Somebody holding
+  // one team sees a short list either way; somebody holding every school in
+  // Kentucky sees a hundred rows, and a date heading is the difference between
+  // scanning that and giving up.
   const byDate = new Map<string, (typeof games)[number][]>();
-  for (const g of games) {
+  for (const g of rest) {
     if (!byDate.has(g.localDate)) byDate.set(g.localDate, []);
     byDate.get(g.localDate)!.push(g);
   }
@@ -126,6 +138,22 @@ export default async function Page(props: PageProps<"/coach/games">) {
           )}
         </form>
 
+        {live.length > 0 && (
+          <section className="mt-5">
+            <h2 className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-fg-muted">
+              <span className="inline-flex items-center gap-1 rounded-full bg-live-fill px-1.5 py-0.5 text-xs font-bold tracking-wide text-on-live">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-on-live motion-safe:animate-pulse"
+                  aria-hidden
+                />
+                Live
+              </span>
+              being scored now
+            </h2>
+            <GameList games={live} showDate />
+          </section>
+        )}
+
         {games.length === 0 ? (
           <p className="mt-5 rounded-lg border border-border bg-surface px-4 py-6 text-sm text-fg-muted">
             {totalGames === 0 ? (
@@ -151,56 +179,7 @@ export default async function Page(props: PageProps<"/coach/games">) {
               <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-fg-muted">
                 {groupDate === today ? "Today" : formatSlateDate(groupDate)}
               </h2>
-              <ul className="overflow-hidden rounded-lg border border-border bg-surface">
-                {list.map((g) => (
-                  <li key={g.gameId} className="border-b border-border last:border-0">
-                    <Link
-                      href={`/coach/games/${g.shortCode}`}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
-                    >
-                      <span className="min-w-0 flex-1">
-                        {/* Away at home, the way the rest of the site reads a
-                            fixture. Your own team is the bold one. */}
-                        <span className="block truncate font-medium">
-                          <span
-                            className={
-                              g.awayIsMine ? "font-semibold" : "font-normal text-fg-muted"
-                            }
-                          >
-                            {g.awayName}
-                          </span>
-                          <span className="font-normal text-fg-muted"> at </span>
-                          <span
-                            className={
-                              g.homeIsMine ? "font-semibold" : "font-normal text-fg-muted"
-                            }
-                          >
-                            {g.homeName}
-                          </span>
-                        </span>
-                        <span className="block text-sm text-fg-muted">
-                          {g.localTime ?? "Time to be confirmed"}
-                        </span>
-                      </span>
-                      {g.isLive && (
-                        <span className="shrink-0 rounded-full bg-live-fill px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-on-live">
-                          Live
-                        </span>
-                      )}
-                      {g.awayScore !== null && g.homeScore !== null && (
-                        <span className="tabular shrink-0 font-semibold">
-                          {g.awayScore}–{g.homeScore}
-                        </span>
-                      )}
-                      {g.status === "scheduled" && !g.isLive && (
-                        <span className="shrink-0 text-sm text-scheduled">
-                          Not started
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <GameList games={list} showDate={false} />
             </section>
           ))
         )}
@@ -213,5 +192,70 @@ export default async function Page(props: PageProps<"/coach/games">) {
         )}
       </main>
     </>
+  );
+}
+
+/**
+ * One renderer for both the pinned live group and the date groups, so they
+ * cannot drift apart. The pinned group carries its own date, because a game
+ * lifted out of Friday still needs to say it is Friday's.
+ */
+function GameList({
+  games,
+  showDate,
+}: {
+  games: ScorableGame[];
+  showDate: boolean;
+}) {
+  return (
+    <ul className="overflow-hidden rounded-lg border border-border bg-surface">
+      {games.map((g) => (
+        <li key={g.gameId} className="border-b border-border last:border-0">
+          <Link
+            href={`/coach/games/${g.shortCode}`}
+            className="flex items-center gap-3 px-4 py-3 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-link"
+          >
+            <span className="min-w-0 flex-1">
+              {/* Away at home, the way the rest of the site reads a fixture.
+                  Your own team is the bold one. */}
+              <span className="block truncate font-medium">
+                <span
+                  className={
+                    g.awayIsMine ? "font-semibold" : "font-normal text-fg-muted"
+                  }
+                >
+                  {g.awayName}
+                </span>
+                <span className="font-normal text-fg-muted"> at </span>
+                <span
+                  className={
+                    g.homeIsMine ? "font-semibold" : "font-normal text-fg-muted"
+                  }
+                >
+                  {g.homeName}
+                </span>
+              </span>
+              <span className="block text-sm text-fg-muted">
+                {showDate ? `${formatShortDate(g.localDate)} · ` : ""}
+                {g.localTime ?? "Time to be confirmed"}
+              </span>
+            </span>
+            {g.isLive && (
+              <span className="shrink-0 rounded-full bg-live-fill px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-on-live">
+                Live
+              </span>
+            )}
+            {g.awayScore !== null && g.homeScore !== null && (
+              <span className="tabular shrink-0 font-semibold">
+                {g.awayScore}–{g.homeScore}
+              </span>
+            )}
+            {g.status === "scheduled" && !g.isLive && (
+              <span className="shrink-0 text-sm text-scheduled">Not started</span>
+            )}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -73,6 +73,10 @@ export function ScoringConsole({
   const [period, setPeriod] = useState<number>(
     Math.min(Math.max(game.periodsPlayed ?? 1, 1), 5)
   );
+  // Typed once, next to the quarter, and cleared the moment a play lands. A
+  // clock left sitting there would quietly stamp the wrong time on the next
+  // three scores, which is worse than having no time at all.
+  const [clock, setClock] = useState("");
 
   const [addState, addPlay, addPending] = useActionState<ScoreState, FormData>(
     addPlayAction,
@@ -95,6 +99,14 @@ export function ScoringConsole({
       [d.side]: score[d.side] + d.points,
     })
   );
+
+  const lastAdd = useRef(addState);
+  useEffect(() => {
+    if (addState !== lastAdd.current) {
+      lastAdd.current = addState;
+      if (addState.ok) setClock("");
+    }
+  }, [addState]);
 
   const error = addState.error ?? undoState.error ?? startState.error;
   const started = game.status === "in_progress" || game.status === "final";
@@ -160,7 +172,8 @@ export function ScoringConsole({
 
       {/* Quarter. Duplicated into each form as a hidden field so the whole
           console still submits correctly with JavaScript off. */}
-      <fieldset className="mt-5">
+      <div className="mt-5 flex flex-wrap items-end gap-4">
+      <fieldset>
         <legend className="text-sm font-medium">Quarter</legend>
         <div className="mt-2 flex flex-wrap gap-2">
           {PERIODS.map((p) => (
@@ -181,6 +194,25 @@ export function ScoringConsole({
         </div>
       </fieldset>
 
+      <label>
+        <span className="block text-sm font-medium">
+          Clock <span className="font-normal text-fg-muted">(optional)</span>
+        </span>
+        <input
+          value={clock}
+          onChange={(e) => setClock(e.target.value)}
+          inputMode="numeric"
+          placeholder="054"
+          aria-describedby="clock-help"
+          className="tabular mt-2 min-h-12 w-24 rounded-md border border-border bg-surface px-3 text-lg"
+        />
+      </label>
+      </div>
+      <p id="clock-help" className="mt-1.5 text-xs text-fg-muted">
+        Digits are enough. 054 is 0:54, 412 is 4:12. It clears itself after
+        every score.
+      </p>
+
       {(["away", "home"] as const).map((side) => (
         <form key={side} action={addPlay} className="mt-5">
           <input type="hidden" name="code" value={game.shortCode} />
@@ -199,6 +231,7 @@ export function ScoringConsole({
             </label>
           </noscript>
           <input type="hidden" name="period" value={period} />
+          <input type="hidden" name="clock" value={clock} />
 
           <h2 className="text-sm font-semibold">
             {game[side].shortName ?? game[side].schoolName} scored
@@ -396,12 +429,12 @@ function PlayDetail({
               <label className="block">
                 <span className="block text-sm font-medium">
                   Clock{" "}
-                  <span className="font-normal text-fg-muted">(optional)</span>
+                  <span className="font-normal text-fg-muted">(digits are fine)</span>
                 </span>
                 <input
                   name="clock"
                   inputMode="numeric"
-                  placeholder="4:12"
+                  placeholder="054"
                   defaultValue={play.clock ?? ""}
                   className="tabular mt-1 min-h-12 w-24 rounded-md border border-border bg-bg px-3"
                 />

@@ -767,15 +767,43 @@ export async function listGameRoster(gameId: number) {
              pl.last_name`;
 }
 
-/** Clock as printed on a scoreboard. Blank is fine; wrong is not. */
+/** Longest a period can plausibly be, in minutes. Football is 12, basketball 8. */
+const MAX_CLOCK_MINUTES = 20;
+
+/**
+ * Clock as printed on a scoreboard. Blank is fine; wrong is not.
+ *
+ * Accepts it typed however somebody actually types it, because two
+ * scorekeepers on 2026-09-03 could not enter 0:54 at all. The field asks for a
+ * numeric keypad, and a numeric keypad on a phone has no colon key: they typed
+ * "054" and were told to write it as minutes:seconds, which they had no way to
+ * do. Demanding punctuation the keyboard does not offer is the software's
+ * fault, not theirs.
+ *
+ * So a separator is optional. With digits alone the last two are the seconds
+ * and anything in front is the minutes, which is one rule that holds for
+ * everything they might type: 54 is 0:54, 054 is 0:54, 412 is 4:12, 1200 is
+ * 12:00.
+ */
 export function normalizeClock(raw: string): string | null {
   const value = raw.trim();
   if (!value) return null;
-  const m = value.match(/^(\d{1,2}):(\d{2})$/);
-  if (!m) return null;
-  const minutes = Number(m[1]);
-  const seconds = Number(m[2]);
-  if (minutes > 20 || seconds > 59) return null;
+
+  let minutes: number;
+  let seconds: number;
+
+  const separated = value.match(/^(\d{1,2})\s*[:.,;'\-\s]\s*(\d{1,2})$/);
+  if (separated) {
+    minutes = Number(separated[1]);
+    seconds = Number(separated[2]);
+  } else {
+    if (!/^\d{1,4}$/.test(value)) return null;
+    const digits = value.padStart(3, "0");
+    minutes = Number(digits.slice(0, -2));
+    seconds = Number(digits.slice(-2));
+  }
+
+  if (minutes > MAX_CLOCK_MINUTES || seconds > 59) return null;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
