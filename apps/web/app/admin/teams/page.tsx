@@ -5,11 +5,13 @@ import {
   listSchoolsForSelect,
   listSports,
   listSportsForSelect,
+  OPPONENT_STATES,
   listTeamsAdmin,
 } from "@kyboxscore/db";
 import { SiteHeader } from "../../components/site-header";
 import { requireAdmin } from "../../../lib/auth";
 import { CreateTeamForm } from "./create-team-form";
+import { OpponentForm } from "./opponent-form";
 
 export const metadata: Metadata = {
   title: "Teams",
@@ -64,6 +66,18 @@ export default async function Page(props: PageProps<"/admin/teams">) {
           Add a team
         </h2>
         <CreateTeamForm schools={schools} sports={sportOptions} />
+
+        <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+          Add an out-of-state opponent
+        </h2>
+        <p className="mt-1 max-w-prose text-sm text-fg-muted">
+          For a school outside Kentucky that one of our teams is playing. It
+          becomes selectable as an opponent straight away. We do not track its
+          record: the official RPI gives every out-of-state opponent a flat
+          .500, and Shadow RPI uses a real record only if one is entered on the
+          out-of-state page.
+        </p>
+        <OpponentForm sports={sportOptions} states={OPPONENT_STATES} />
 
         <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-fg-muted">
           Existing teams

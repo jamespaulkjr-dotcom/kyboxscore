@@ -224,8 +224,9 @@ export async function listScorableGames(
     JOIN school aws ON aws.id = at2.school_id
     JOIN sport_season ss ON ss.id = g.sport_season_id
     JOIN sport sp ON sp.id = ss.sport_id
-    WHERE g.status <> 'canceled'
-      AND EXISTS (
+    -- Canceled games stay in the list. A schedule is a forecast, and the one
+    -- that got played anyway is exactly the one somebody needs to find.
+    WHERE EXISTS (
         SELECT 1 FROM user_team_grant ut
         WHERE ut.user_id = ${userId}
           AND ut.team_id IN (home.team_id, away.team_id))
@@ -256,8 +257,7 @@ export async function listScorableDates(userId: number) {
     FROM game g
     JOIN game_participant home ON home.game_id = g.id AND home.role = 'home'
     JOIN game_participant away ON away.game_id = g.id AND away.role = 'away'
-    WHERE g.status <> 'canceled'
-      AND EXISTS (
+    WHERE EXISTS (
         SELECT 1 FROM user_team_grant ut
         WHERE ut.user_id = ${userId}
           AND ut.team_id IN (home.team_id, away.team_id))
@@ -944,4 +944,76 @@ export async function getScoringSummary(gameId: number) {
                            WHERE game_id = ${gameId} AND role = 'away'))::int
              AS "awayAfter"
     FROM plays ORDER BY sequence`;
+}
+
+/* ------------------------------------------------------------- status */
+
+/** What a game's status can be set to by hand, and what each one means. */
+export const GAME_STATUSES = [
+  { value: "scheduled", label: "Scheduled", detail: "not played yet" },
+  { value: "in_progress", label: "In progress", detail: "being played now" },
+  { value: "final", label: "Final", detail: "played, the score stands" },
+  { value: "postponed", label: "Postponed", detail: "not played, will be rearranged" },
+  { value: "canceled", label: "Canceled", detail: "not played, and will not be" },
+  { value: "forfeit", label: "Forfeit", detail: "awarded without being played" },
+] as const;
+
+export function isGameStatus(value: string): boolean {
+  return GAME_STATUSES.some((s) => s.value === value);
+}
+
+/**
+ * Change a game's status by hand.
+ *
+ * Needed because a schedule is a forecast. A game called off in the paper gets
+ * played anyway, and one that was on gets rained out: Doss at Jeffersontown was
+ * carried as canceled and finished 45-0. Until this existed the only way back
+ * was somebody editing the database.
+ *
+ * Records are rebuilt either way, because a game that stops being final has to
+ * stop counting and one that becomes final has to start.
+ */
+export async function setGameStatus(
+  gameId: number,
+  status: string
+): Promise<{ ok: boolean; reason?: string }> {
+  if (!isGameStatus(status)) return { ok: false, reason: "Unknown status." };
+
+  const [game] = await sql<
+    { homeScore: number | null; awayScore: number | null }[]
+  >`
+    SELECT (SELECT score::int FROM game_participant
+             WHERE game_id = g.id AND role = 'home') AS "homeScore",
+           (SELECT score::int FROM game_participant
+             WHERE game_id = g.id AND role = 'away') AS "awayScore"
+    FROM game g WHERE g.id = ${gameId}`;
+  if (!game) return { ok: false, reason: "That game no longer exists." };
+
+  // A final game without a score produces no record and no RPI, so it would
+  // sit there looking finished and counting for nothing.
+  if (
+    (status === "final" || status === "forfeit") &&
+    (game.homeScore === null || game.awayScore === null)
+  ) {
+    return {
+      ok: false,
+      reason: "Put the score in first. A final game with no score counts for nothing.",
+    };
+  }
+
+  await sql`
+    UPDATE game
+       SET status = ${status}::game_status, score_updated_at = now(),
+           updated_at = now()
+     WHERE id = ${gameId}`;
+
+  const seasons = await sql<{ id: number }[]>`
+    SELECT ts.id::int
+    FROM game_participant gp
+    JOIN game g ON g.id = gp.game_id
+    JOIN team_season ts
+      ON ts.team_id = gp.team_id AND ts.sport_season_id = g.sport_season_id
+    WHERE gp.game_id = ${gameId}`;
+  for (const s of seasons) await refreshTeamSeasonRollups(s.id);
+  return { ok: true };
 }

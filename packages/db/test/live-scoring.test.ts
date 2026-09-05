@@ -566,3 +566,105 @@ test("deleting frees the fixture so an import can re-create it", opts, async () 
   await sql`DELETE FROM game_all WHERE id = ${newId}`;
   assert.equal((await db.restoreGame(gameId)).ok, true, "and fine once it is gone");
 });
+
+test("a game called off can be marked played, and back again", opts, async () => {
+  const { db, sql, gameId, code } = await fixture();
+
+  // Doss at Jeffersontown was carried as canceled and finished 45-0. Until
+  // status could be edited the only way back was editing the database.
+  assert.equal((await db.setGameStatus(gameId, "canceled")).ok, true);
+  let game = await db.getScoringGame(code);
+  assert.equal(game!.status, "canceled");
+
+  // A final game with no score counts for nothing, so it is refused.
+  const noScore = await db.setGameStatus(gameId, "final");
+  assert.equal(noScore.ok, false);
+  assert.match(noScore.reason ?? "", /score/i);
+
+  await db.setFinalScore({
+    gameId,
+    homeScore: 45,
+    awayScore: 0,
+    periodsPlayed: 4,
+    final: false,
+  });
+  assert.equal((await db.setGameStatus(gameId, "final")).ok, true);
+  game = await db.getScoringGame(code);
+  assert.equal(game!.status, "final");
+  assert.equal(game!.home.score, 45);
+
+  assert.equal((await db.setGameStatus(gameId, "nonsense")).ok, false);
+  await db.resetGameScoring(gameId);
+});
+
+test("a canceled game is still findable, so it can be corrected", opts, async () => {
+  const { db, sql, gameId } = await fixture();
+  const [user] = await sql<{ id: number }[]>`
+    INSERT INTO app_user (email, name, role)
+    VALUES ('cancel-test@example.invalid', 'C', 'admin')
+    ON CONFLICT (email) DO UPDATE SET role = 'admin' RETURNING id::int`;
+  await sql`
+    INSERT INTO user_team_grant (user_id, team_id)
+    SELECT ${user.id}, team_id FROM game_participant WHERE game_id = ${gameId}
+    ON CONFLICT DO NOTHING`;
+
+  await db.setGameStatus(gameId, "canceled");
+  const { games } = await db.listScorableGames(user.id);
+  assert.ok(
+    games.some((g) => g.gameId === gameId),
+    "the game that got played anyway is exactly the one somebody needs to find"
+  );
+
+  await db.setGameStatus(gameId, "scheduled");
+  await sql`DELETE FROM user_team_grant WHERE user_id = ${user.id}`;
+});
+
+test("an out-of-state opponent can be created and played", opts, async () => {
+  const { db, sql } = await fixture();
+  const [sport] = await sql<{ id: number }[]>`
+    SELECT id::int FROM sport WHERE slug = 'football'`;
+
+  const made = await db.createOutOfStateOpponent({
+    name: "McKenzie",
+    state: "TN",
+    sportId: sport.id,
+    gender: "boys",
+    level: "varsity",
+  });
+  assert.equal(made.ok, true);
+
+  const [school] = await sql<{ state: string; shortName: string }[]>`
+    SELECT sc.state, sc.short_name AS "shortName"
+    FROM team t JOIN school sc ON sc.id = t.school_id WHERE t.id = ${made.teamId}`;
+  // The real state, not the seed's XX placeholder: the code asks whether a
+  // school is not Kentucky, and the state says which association to ask for a
+  // record.
+  assert.equal(school.state, "TN");
+  assert.equal(school.shortName, "McKenzie (TN)");
+
+  // Idempotent: adding the same school twice must not make two of them.
+  const again = await db.createOutOfStateOpponent({
+    name: "McKenzie",
+    state: "TN",
+    sportId: sport.id,
+    gender: "boys",
+    level: "varsity",
+  });
+  assert.equal(again.teamId, made.teamId);
+
+  assert.equal(
+    (await db.createOutOfStateOpponent({
+      name: "Somewhere",
+      state: "KY",
+      sportId: sport.id,
+      gender: "boys",
+      level: "varsity",
+    })).ok,
+    false,
+    "a Kentucky school is a team, not an opponent"
+  );
+
+  await sql`DELETE FROM team_season WHERE team_id = ${made.teamId}`;
+  await sql`DELETE FROM team WHERE id = ${made.teamId}`;
+  await sql`DELETE FROM school WHERE slug = 'mckenzie-tn'`;
+});

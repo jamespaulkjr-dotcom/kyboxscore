@@ -6,6 +6,7 @@ import {
   addRosterPlayer,
   createGame,
   createTeam,
+  createOutOfStateOpponent,
   deleteGame,
   setGameStage,
   setTeamSeasonAlignment,
@@ -223,4 +224,38 @@ export async function setGameStageAction(formData: FormData) {
 
   await setGameStage(gameId, stage as "regular_season" | "preseason" | "scrimmage");
   revalidatePath(`/admin/teams/${teamId}`);
+}
+
+export type OpponentState = { error?: string; added?: string };
+
+/**
+ * Add a school from outside Kentucky so a game can be scheduled against it.
+ * Its record is not tracked by us; the official RPI gives it a flat .500 and
+ * Shadow RPI uses a real record only if one is entered on the out-of-state
+ * page.
+ */
+export async function createOpponentAction(
+  _prev: OpponentState,
+  formData: FormData
+): Promise<OpponentState> {
+  await requireAdmin("/admin/teams");
+
+  const name = String(formData.get("name") ?? "");
+  const state = String(formData.get("state") ?? "");
+  const sportId = Number(formData.get("sportId"));
+  const gender = String(formData.get("gender") ?? "boys");
+  const level = String(formData.get("level") ?? "varsity");
+  if (!Number.isInteger(sportId)) return { error: "Choose a sport." };
+
+  const result = await createOutOfStateOpponent({
+    name,
+    state,
+    sportId,
+    gender,
+    level,
+  });
+  if (!result.ok) return { error: result.reason ?? "That did not save." };
+
+  revalidatePath("/admin/teams");
+  return { added: `${name.trim()} (${state}) added.` };
 }

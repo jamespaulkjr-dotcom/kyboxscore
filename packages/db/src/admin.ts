@@ -1012,3 +1012,92 @@ export async function countTeamsBySport(includeOutOfState = false) {
     HAVING count(t.id) > 0
     ORDER BY sp.display_order`;
 }
+
+/* -------------------------------------------------- out-of-state opponents */
+
+/** US states Kentucky schools actually border or travel to play. */
+export const OPPONENT_STATES = [
+  ["TN", "Tennessee"],
+  ["OH", "Ohio"],
+  ["IN", "Indiana"],
+  ["WV", "West Virginia"],
+  ["VA", "Virginia"],
+  ["MO", "Missouri"],
+  ["IL", "Illinois"],
+  ["AL", "Alabama"],
+  ["GA", "Georgia"],
+  ["NC", "North Carolina"],
+  ["SC", "South Carolina"],
+  ["MS", "Mississippi"],
+  ["FL", "Florida"],
+  ["PA", "Pennsylvania"],
+  ["MI", "Michigan"],
+  ["XX", "Somewhere else"],
+] as const;
+
+/**
+ * Add an out-of-state school so a game can be scheduled against it.
+ *
+ * Kentucky schools play across every border, and until now an opponent that
+ * was not already in the seed could not be entered at all: Christian County
+ * beat McKenzie of Tennessee 47-28 and there was nowhere to put it.
+ *
+ * The real state is stored rather than the seed's `XX` placeholder. Nothing
+ * keys off `XX` - the code asks whether a school is not Kentucky - and knowing
+ * it is Tennessee tells whoever chases the out-of-state record for Shadow RPI
+ * which association to ask.
+ */
+export async function createOutOfStateOpponent(input: {
+  name: string;
+  state: string;
+  sportId: number;
+  gender: string;
+  level: string;
+}): Promise<{ ok: boolean; reason?: string; teamId?: number }> {
+  const name = input.name.trim();
+  if (name.length < 2) return { ok: false, reason: "Give the school a name." };
+  if (input.state === "KY") {
+    return { ok: false, reason: "Kentucky schools are added as teams, not opponents." };
+  }
+  if (!OPPONENT_STATES.some(([code]) => code === input.state)) {
+    return { ok: false, reason: "Choose a state." };
+  }
+
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
+  const slug = `${base}-${input.state.toLowerCase()}`;
+
+  return sql.begin(async (tx) => {
+    const [existing] = await tx<{ id: number }[]>`
+      SELECT id::int FROM school WHERE slug = ${slug}`;
+    const [school] = existing
+      ? [existing]
+      : await tx<{ id: number }[]>`
+          INSERT INTO school (slug, name, short_name, state, is_khsaa_member)
+          VALUES (${slug}, ${name}, ${`${name} (${input.state})`},
+                  ${input.state}, false)
+          RETURNING id::int`;
+
+    const [team] = await tx<{ id: number }[]>`
+      INSERT INTO team (school_id, sport_id, gender, level)
+      VALUES (${school.id}, ${input.sportId}, ${input.gender}::gender,
+              ${input.level}::team_level)
+      ON CONFLICT (school_id, sport_id, gender, level)
+        DO UPDATE SET level = EXCLUDED.level
+      RETURNING id::int`;
+
+    const [season] = await tx<{ id: number }[]>`
+      SELECT id::int FROM sport_season
+      WHERE sport_id = ${input.sportId} AND is_current`;
+    if (season) {
+      await tx`
+        INSERT INTO team_season (team_id, sport_season_id)
+        VALUES (${team.id}, ${season.id})
+        ON CONFLICT DO NOTHING`;
+    }
+    return { ok: true as const, teamId: team.id };
+  });
+}

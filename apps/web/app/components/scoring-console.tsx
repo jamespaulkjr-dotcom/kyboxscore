@@ -5,6 +5,7 @@ import type { GameRosterPlayer, ScoringGame, ScoringPlay } from "@kyboxscore/db"
 import {
   addPlayAction,
   finalScoreAction,
+  setStatusAction,
   startGameAction,
   undoPlayAction,
   updatePlayAction,
@@ -47,6 +48,16 @@ const PLAYS = [
 }[];
 
 const PERIODS = [1, 2, 3, 4, 5] as const;
+
+/** Mirrors GAME_STATUSES on the server, which is what actually validates. */
+const STATUSES = [
+  { value: "scheduled", label: "Scheduled", detail: "not played yet" },
+  { value: "in_progress", label: "In progress", detail: "being played now" },
+  { value: "final", label: "Final", detail: "played, the score stands" },
+  { value: "postponed", label: "Postponed", detail: "not played, will be rearranged" },
+  { value: "canceled", label: "Canceled", detail: "not played, and will not be" },
+  { value: "forfeit", label: "Forfeit", detail: "awarded without being played" },
+] as const;
 const periodLabel = (p: number) => (p > 4 ? `OT${p - 4}` : `Q${p}`);
 
 /**
@@ -141,6 +152,7 @@ export function ScoringConsole({
       </div>
 
       <TypeTheScore game={game} />
+      <GameStatus game={game} />
 
       {error && (
         <p role="alert" className="mt-3 rounded-md border border-loss px-3 py-2 text-sm text-loss">
@@ -270,6 +282,77 @@ export function ScoringConsole({
 
       <PlayList game={game} roster={roster} />
     </div>
+  );
+}
+
+/**
+ * What actually happened to this game.
+ *
+ * A schedule is a forecast, and this is where somebody who was there corrects
+ * it. Doss at Jeffersontown was carried as canceled and finished 45-0; until
+ * this existed the only way back was editing the database by hand.
+ */
+function GameStatus({ game }: { game: ScoringGame }) {
+  const [state, submit, pending] = useActionState<ScoreState, FormData>(
+    setStatusAction,
+    {}
+  );
+  const current = STATUSES.find((s) => s.value === game.status);
+
+  return (
+    <details className="mt-2 overflow-hidden rounded-lg border border-border bg-surface">
+      <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-medium">
+        Status: {current?.label ?? game.status}
+        <span className="ml-1 font-normal text-fg-muted">
+          {current ? `(${current.detail})` : ""}
+        </span>
+        <span aria-hidden className="ml-1 text-fg-muted">
+          ▾
+        </span>
+      </summary>
+      <form action={submit} className="border-t border-border px-4 py-3">
+        <input type="hidden" name="code" value={game.shortCode} />
+        <fieldset>
+          <legend className="sr-only">Game status</legend>
+          <div className="space-y-2">
+            {STATUSES.map((s) => (
+              <label key={s.value} className="flex items-baseline gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="status"
+                  value={s.value}
+                  defaultChecked={game.status === s.value}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="font-medium">{s.label}</span>{" "}
+                  <span className="text-fg-muted">{s.detail}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {state.error && (
+          <p role="alert" className="mt-2 text-sm text-loss">
+            {state.error}
+          </p>
+        )}
+        {state.note && !state.error && (
+          <p role="status" className="mt-2 text-sm text-win">
+            {state.note}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="mt-3 min-h-12 rounded-lg border border-border px-4 font-medium disabled:opacity-60"
+        >
+          {pending ? "Saving…" : "Save status"}
+        </button>
+      </form>
+    </details>
   );
 }
 

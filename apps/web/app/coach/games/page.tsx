@@ -275,6 +275,13 @@ function GameList({
             {g.status === "scheduled" && !g.isLive && (
               <span className="shrink-0 text-sm text-scheduled">Not started</span>
             )}
+            {/* Called off games stay in the list on purpose: the one that got
+                played anyway is exactly the one somebody needs to find. */}
+            {(g.status === "canceled" || g.status === "postponed") && (
+              <span className="shrink-0 text-sm font-medium text-loss">
+                {g.status === "canceled" ? "Canceled" : "Postponed"}
+              </span>
+            )}
           </Link>
         </li>
       ))}

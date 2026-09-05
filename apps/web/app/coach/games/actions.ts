@@ -6,6 +6,8 @@ import {
   createScorekeeperLink,
   deleteGame,
   restoreGame,
+  setGameStatus,
+  GAME_STATUSES,
   normalizeClock,
   resetGameScoring,
   updateScoringPlay,
@@ -219,6 +221,31 @@ export async function updatePlayAction(
 
   revalidate(game.shortCode, game.sportSlug, game.urlYear);
   return { ok: true, note: "Play updated." };
+}
+
+/**
+ * Change a game's status by hand.
+ *
+ * A schedule is a forecast. A game called off gets played anyway, and one that
+ * was on gets rained out. Anybody who can score a game can correct this,
+ * because the person who knows is the person who was there.
+ */
+export async function setStatusAction(
+  _prev: ScoreState,
+  formData: FormData
+): Promise<ScoreState> {
+  const auth = await authorize(formData);
+  if ("error" in auth) return auth;
+  const { game } = auth;
+
+  const status = String(formData.get("status") ?? "");
+  const result = await setGameStatus(game.id, status);
+  if (!result.ok) return { error: result.reason ?? "That did not save." };
+
+  revalidate(game.shortCode, game.sportSlug, game.urlYear);
+  const label =
+    GAME_STATUSES.find((s) => s.value === status)?.label ?? status;
+  return { ok: true, note: `Marked ${label.toLowerCase()}.` };
 }
 
 /* ------------------------------------------------------------ delegation */

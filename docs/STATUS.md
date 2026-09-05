@@ -228,6 +228,11 @@ That skips migrations, which the pipeline runs and this command does not.
   games, which holds a whole Kentucky football Friday (busiest is 107) with
   room for boys and girls basketball on one winter night. The unnarrowed "All"
   view stops at 200 and says so rather than hiding a game.
+  **Status is editable** from the console: scheduled, in progress, final,
+  postponed, canceled, forfeit. A schedule is a forecast, and the game called
+  off in the paper gets played anyway. Marking a game final without a score is
+  refused, because it would look finished and count for nothing. Canceled games
+  stay in the coach Scores list for exactly this reason.
   An **admin** sees two controls at the bottom of the console. **Delete this
   game** is for a fixture that should not be on the schedule at all, which a
   schedule import can invent. It is a **soft delete**: nothing is destroyed,
@@ -239,6 +244,11 @@ That skips migrations, which the pipeline runs and this command does not.
   refuses a game that already has an imported box score, and asks you to type
   the game's short code, because it is the only control there that destroys
   something.
+- **Out-of-state opponents** — `/admin/teams` has a form to add a school from
+  another state, which then becomes selectable as an opponent. The **real**
+  state is stored, not the seed's `XX` placeholder: nothing keys off `XX` (the
+  code asks whether a school is not Kentucky), and the state says which
+  association to ask for a record.
 - **Front page** — a plain statement of what the site is, followed teams, the
   most recent slate, top 5 RPI, an "Every sport" section that lists sports with
   nothing in them rather than hiding them, and links onward. The sport it leads

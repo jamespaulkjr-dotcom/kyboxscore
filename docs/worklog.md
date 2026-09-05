@@ -1086,3 +1086,27 @@ the offending short code in the message.
 **Test note:** a test asserted that a game with statistics could not be
 deleted. That encoded the behaviour being replaced, so it went, like the clock
 test before it.
+
+## 2026-09-05 — A schedule is a forecast
+**What James hit:** Doss at Jeffersontown was carried as canceled and had been
+played, 45-0. Christian County beat McKenzie of Tennessee 47-28 and there was
+nowhere to put it, because the opponent did not exist and could not be created.
+Neither was fixable without me editing the database.
+**Status is editable now**, from the console: scheduled, in progress, final,
+postponed, canceled, forfeit, each with a line saying what it means. Marking a
+game final with no score is refused, because it would sit there looking
+finished and counting for nothing. Records rebuild in both directions.
+**Canceled games stay in the coach list.** They were filtered out, which meant
+the one game somebody urgently needs to correct was the one they could not
+find.
+**Out-of-state opponents can be created** from `/admin/teams`, which then makes
+them selectable in the existing add-a-game form. Kentucky schools play across
+every border and the seed only knew 51 of those opponents.
+**On `XX`:** the seed stored every out-of-state school as state `XX`. Nothing
+keys off it - the code asks whether a school is `<> 'KY'` - so new opponents
+store their real state. Knowing McKenzie is Tennessee tells whoever chases its
+record for Shadow RPI which association to ask. The 51 seeded rows still say
+`XX` and could be backfilled if it ever matters.
+**Data fixed by hand today:** dcyaqw posted final 45-0 (Jeffersontown 2-1, Doss
+0-3), and ccmk04 added, Christian County 47 McKenzie 28. Venue was not stated
+so Christian County was put at home, which is now editable if wrong.
