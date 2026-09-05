@@ -1,6 +1,23 @@
 kyboxscore.com, www.kyboxscore.com {
     encode gzip zstd
 
+    # Access log, so we can answer "how many people used the site on Friday"
+    # without putting a tracker on the page. No JavaScript, no cookies, no
+    # third party, and nothing about a visitor leaves this droplet.
+    #
+    # It holds IP addresses, which is why it is kept for a week and no longer:
+    # long enough to count a season's Fridays as they happen, short enough that
+    # we are not quietly building a log of who reads about which school's kids.
+    # scripts/traffic.mjs turns it into counts.
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 20mb
+            roll_keep 8
+            roll_keep_for 168h
+        }
+        format json
+    }
+
     @scoreboard path /scores* /football* /basketball* /teams*
     header @scoreboard Cache-Control "public, max-age=30, s-maxage=30, stale-while-revalidate=300"
 

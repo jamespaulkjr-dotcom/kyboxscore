@@ -59,7 +59,7 @@ state associations for out-of-state records.
 | Thing | Value |
 |---|---|
 | Production host | DigitalOcean droplet `kyboxscore-prod`, `68.183.98.229` |
-| Live site | https://kyboxscore.com (Cloudflare → Caddy → Next.js) |
+| Live site | https://kyboxscore.com (Caddy → Next.js) |
 | Repo | `github.com/jamespaulkjr-dotcom/kyboxscore` |
 | Registry | `ghcr.io/jamespaulkjr-dotcom/kyboxscore:latest` |
 | Prod compose + env | `/home/deploy/kyboxscore/` on the droplet |
@@ -71,6 +71,35 @@ compose` commands, port binds, and anything touching
 `/home/deploy/kyboxscore/` affect the live site immediately. Never run `docker
 volume prune` or add `--volumes` to a prune here; the `pgdata` volume is the
 live database.
+
+## Traffic
+
+`./traffic.sh` on the droplet (`docker/traffic.sh` in the repo) reports
+visitors and page views per day from Caddy's own access log, plus the most read
+pages. `--days 1` for today.
+
+There is **no tracker on the page** and there does not need to be: Caddy sees
+every request already. No JavaScript, no cookies, no consent banner, no third
+party, and nothing about a visitor leaves the droplet. "Visitors" means
+distinct client addresses in a day, which undercounts a household sharing a
+connection and overcounts a phone changing towers; it is a good indicator, not
+a headcount.
+
+The log holds IP addresses, so it is kept for **7 days** (`roll_keep_for 168h`)
+and no longer. The report runs in a throwaway container because Caddy writes
+the log as root mode 600, which is right for a file full of visitor addresses.
+
+**Nothing was recorded before 2026-09-05.** Logging was off until then, so
+there is no history of the first week.
+
+### Cloudflare is not actually in front
+
+The setup notes say Cloudflare proxies this site. It does not: `kyboxscore.com`
+resolves straight to the droplet and responses carry no `cf-ray`. So there is
+no Cloudflare analytics to read, no edge cache, no DDoS absorption, and the
+origin IP is public. Caddy is doing TLS and compression on its own, which is
+why the site is fast anyway. Worth deciding deliberately rather than leaving as
+an accident.
 
 ## Deploying
 

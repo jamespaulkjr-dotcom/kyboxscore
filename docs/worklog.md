@@ -1110,3 +1110,26 @@ record for Shadow RPI which association to ask. The 51 seeded rows still say
 **Data fixed by hand today:** dcyaqw posted final 45-0 (Jeffersontown 2-1, Doss
 0-3), and ccmk04 added, Christian County 47 McKenzie 28. Venue was not stated
 so Christian County was put at home, which is now editable if wrong.
+
+## 2026-09-05 — Counting visitors without following them
+**Did:** Turned on Caddy's access log and wrote `traffic.sh`, which reports
+visitors and page views per day and the most read pages.
+**Why not an analytics script:** the scores page is already at 136 KB of
+JavaScript against a 150 KB budget, the brief bans popups, and a tracker on a
+site about other people's children is a thing to avoid rather than a thing to
+configure. Caddy sees every request already. No JavaScript, no cookies, no
+third party, nothing leaves the droplet.
+**What the number means:** distinct client addresses per day. That undercounts
+a household on one connection and overcounts a phone changing towers. It is the
+honest number available without following anybody around, and the report prints
+hashes rather than addresses.
+**Kept for a week.** The log holds IP addresses. Seven days is long enough to
+watch a season's Fridays as they happen and short enough that we are not
+quietly building a record of who reads about which school's kids.
+**Found while doing it: Cloudflare is not in front of this site.** The setup
+notes say it is. DNS resolves straight to the droplet and there is no `cf-ray`
+on any response, so there is no edge cache, no DDoS absorption, no Cloudflare
+analytics, and the origin IP is public. The site is fast because Caddy is doing
+compression and TLS well. Worth a deliberate decision rather than leaving it as
+an accident.
+**Nothing was recorded before today**, so the first week of traffic is gone.
