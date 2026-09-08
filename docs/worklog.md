@@ -1171,3 +1171,30 @@ Postponed and canceled are excluded, because somebody has already said what
 happened to those. A game left in progress is included and labelled "still
 open": a keeper who stopped at half time leaves the same hole as one nobody
 touched, and it is worse, because it is published as live.
+
+## 2026-09-08 — Out-of-state records, and a rule I over-applied
+**The rule.** James pushed back on my refusal to gather out-of-state records.
+He was right. `CLAUDE.md` names three sites to never scrape: KHSAA,
+ArbiterLive, Riherds. Line 87 of the same document says out-of-state records
+come from "the publishing state associations or manual entry". I had stretched
+a ban on three named sites across a whole category the brief explicitly
+permits. Source is allowed; method is the open question, and that is per
+association rather than a blanket no.
+**Step one, done:** all 51 opponents stored as the seed's `XX` placeholder now
+carry their real state, and it shows in their display name. 45 from knowledge,
+6 checked by search because I would rather look than guess. Worth it: Jackson,
+who beat Ballard 42-6, is Missouri, not the Ohio I assumed from the name.
+Search index refreshed, because school names changed.
+**The shape of the job:** 52 schools, seven states, 61 games. TN 22, OH 12,
+IN 7, VA 4, WV 4, MO 2, IL 1. An evening by hand, not a project.
+**Step two, done:** the paste box already existed and was already linked from
+the dashboard. What it could not do was read anything except strictly
+`name, wins, losses`. `Elder 3-0` was rejected as an unknown school, and so was
+our own display name `Elder (OH)`. `parseTeamRecords` now finds the record at
+the end of the line and treats the rest as the name, which covers commas, tabs,
+runs of spaces, hyphens, en dashes, markdown pipes and a trailing note. Header
+rows and table rules are recognised rather than reported. Unreadable lines come
+back with a reason.
+**Third time this has happened:** delete, add-a-game, and now this. The feature
+existed; the reason it felt missing was that it only worked one exact way, or
+lived somewhere you would not look. Worth checking that first from now on.

@@ -8,3 +8,4 @@ export * from "./schedule-sheet.ts";
 export * from "./xlsx.ts";
 export * from "./roster-sheet.ts";
 export * from "./person-name.ts";
+export * from "./team-records.ts";

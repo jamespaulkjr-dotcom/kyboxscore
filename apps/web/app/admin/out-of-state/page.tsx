@@ -24,9 +24,12 @@ export default async function Page() {
   const teams = await listOutOfStateTeams(season.id);
   const known = teams.filter((t) => t.wins !== null);
   const today = new Date().toISOString().slice(0, 10);
+  // Real opponents from this season, written three different ways, because
+  // the box takes all of them and the placeholder is the only place anybody
+  // will learn that.
   const example = teams
     .slice(0, 3)
-    .map((t) => `${t.schoolName}, 3, 1`)
+    .map((t, i) => [`${t.schoolName} 3-1`, `${t.schoolName}, 2, 2`, `${t.schoolName}\t4\t0`][i])
     .join("\n");
 
   return (

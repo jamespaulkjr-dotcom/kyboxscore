@@ -67,7 +67,7 @@ export function OutOfStateForm({
 
       <div>
         <label htmlFor="text" className="block text-sm font-medium">
-          One school per line: name, wins, losses
+          One school per line
         </label>
         <textarea
           id="text" name="text" rows={10} required
@@ -76,8 +76,11 @@ export function OutOfStateForm({
           className="mt-1 w-full rounded-md border border-border bg-surface p-3 font-mono text-sm text-fg"
         />
         <p className="mt-1 text-xs text-fg-muted">
-          Ties optional as a fourth column. Only schools Kentucky teams actually
-          played are accepted. Everyone else is reported rather than created.
+          Write it however it comes: <code>Elder 3-0</code>,{" "}
+          <code>Elder, 3, 0</code>, tabs, or a pasted table. A third number is
+          taken as ties, and a trailing <code>(OH)</code> is fine. Only schools
+          Kentucky teams actually played are accepted; anything else is
+          reported back rather than created.
         </p>
       </div>
 

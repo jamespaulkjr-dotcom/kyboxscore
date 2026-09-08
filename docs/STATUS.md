@@ -146,6 +146,14 @@ That skips migrations, which the pipeline runs and this command does not.
   and canceled games are excluded because somebody has already said what
   happened to those; a game left `in_progress` is included, because a keeper
   who went home at half time leaves the same hole and it is published as live.
+- **Out-of-state records** — `/admin/out-of-state` lists every opponent
+  ordered by how many Kentucky teams they played, and takes a paste of records
+  in whatever shape they arrive: `Elder 3-0`, `Elder, 3, 0`, tabs, a markdown
+  table, a trailing `(OH)`. A third number is ties. Lines it cannot read are
+  reported back rather than dropped. Saving recomputes rollups and RPI, because
+  Shadow RPI reads these and a stale rating would show a zero delta against
+  records we now hold. **All 52 opponents carry their real state** as of
+  2026-09-08; the seed's `XX` placeholder is gone.
 - **Out-of-state opponents** — 51 schools created from the 2026 schedule so
   Kentucky records are not short. Their `state` is `'XX'`, deliberately not a
   guess: the column is never displayed and is used only as "Kentucky or not",
@@ -285,6 +293,14 @@ That skips migrations, which the pipeline runs and this command does not.
   and canceled games are excluded because somebody has already said what
   happened to those; a game left `in_progress` is included, because a keeper
   who went home at half time leaves the same hole and it is published as live.
+- **Out-of-state records** — `/admin/out-of-state` lists every opponent
+  ordered by how many Kentucky teams they played, and takes a paste of records
+  in whatever shape they arrive: `Elder 3-0`, `Elder, 3, 0`, tabs, a markdown
+  table, a trailing `(OH)`. A third number is ties. Lines it cannot read are
+  reported back rather than dropped. Saving recomputes rollups and RPI, because
+  Shadow RPI reads these and a stale rating would show a zero delta against
+  records we now hold. **All 52 opponents carry their real state** as of
+  2026-09-08; the seed's `XX` placeholder is gone.
 - **Out-of-state opponents** — `/admin/teams` has a form to add a school from
   another state, which then becomes selectable as an opponent. The **real**
   state is stored, not the seed's `XX` placeholder: nothing keys off `XX` (the

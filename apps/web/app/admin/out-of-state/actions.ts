@@ -9,7 +9,7 @@ import {
   setOutOfStateRecords,
   type OutOfStateEntry,
 } from "@kyboxscore/db";
-import { parseCsv } from "@kyboxscore/parsers";
+import { nameWithoutState, parseTeamRecords } from "@kyboxscore/parsers";
 import { requireAdmin } from "../../../lib/auth";
 
 export type OosState = {
@@ -49,9 +49,15 @@ export async function saveOutOfStateAction(
     return { error: "Missing season." };
   }
 
-  const rows = parseCsv(text).filter((r) => r.some((c) => c !== ""));
-  const names = rows.map((r) => r[0]?.trim()).filter(Boolean) as string[];
-  const matches = await matchSchoolNames(names);
+  // Takes it however it is written: commas, tabs, "Elder 3-0", a pasted
+  // markdown table, a trailing "(OH)". The old parser accepted strictly
+  // "name, wins, losses" and rejected everything else as an unknown school.
+  const { records, issues } = parseTeamRecords(text);
+
+  // Match on the name as written, and again with any "(OH)" removed, because
+  // our own display names carry the state now and a source's will not.
+  const names = records.flatMap((r) => [r.name, nameWithoutState(r.name)]);
+  const matches = await matchSchoolNames([...new Set(names)]);
   const bySchool = new Map(matches.map((m) => [m.input.toLowerCase(), m]));
 
   // school_id -> team_id for the out-of-state teams in this season.
@@ -59,24 +65,20 @@ export async function saveOutOfStateAction(
   const teamBySchool = new Map(known.map((k) => [k.schoolId, k.teamId]));
 
   const entries: OutOfStateEntry[] = [];
-  const unmatched: string[] = [];
-  for (const row of rows) {
-    const name = (row[0] ?? "").trim();
-    if (!name) continue;
-    const wins = Number((row[1] ?? "").trim());
-    const losses = Number((row[2] ?? "").trim());
-    const ties = row[3] === undefined || row[3].trim() === "" ? 0 : Number(row[3].trim());
-    if (!Number.isInteger(wins) || !Number.isInteger(losses) || !Number.isInteger(ties)) {
-      unmatched.push(`${name} (record not a whole number)`);
-      continue;
-    }
-    const schoolId = bySchool.get(name.toLowerCase())?.schoolId;
+  // Lines that could not be read at all are reported alongside names that
+  // could: never fail silently, and never make somebody diff two lists to
+  // work out what was skipped.
+  const unmatched: string[] = issues.map((i) => `${i.line} (${i.reason})`);
+  for (const r of records) {
+    const schoolId =
+      bySchool.get(r.name.toLowerCase())?.schoolId ??
+      bySchool.get(nameWithoutState(r.name).toLowerCase())?.schoolId;
     const teamId = schoolId ? teamBySchool.get(schoolId) : undefined;
     if (!teamId) {
-      unmatched.push(name);
+      unmatched.push(r.name);
       continue;
     }
-    entries.push({ teamId, wins, losses, ties });
+    entries.push({ teamId, wins: r.wins, losses: r.losses, ties: r.ties });
   }
 
   if (entries.length === 0) {
