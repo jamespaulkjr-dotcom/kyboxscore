@@ -565,6 +565,7 @@ function TypeTheScore({ game }: { game: ScoringGame }) {
   );
   const [saved, setSaved] = useState(false);
   const seen = useRef(state);
+  const finished = game.status === "final" || game.status === "forfeit";
 
   useEffect(() => {
     if (state !== seen.current) {
@@ -576,14 +577,14 @@ function TypeTheScore({ game }: { game: ScoringGame }) {
   return (
     <details className="mt-2 overflow-hidden rounded-lg border border-border bg-surface">
       <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-medium">
-        Type the score instead ▾
+        {finished ? "Correct the score" : "Type the score instead"} ▾
       </summary>
       <form action={submit} className="border-t border-border px-4 py-3">
         <input type="hidden" name="code" value={game.shortCode} />
         <p className="max-w-prose text-sm text-fg-muted">
-          Use this if you picked the game up late, or if the buttons and the
-          scoreboard have drifted apart. Anything you tap afterwards is added on
-          top of what you type here.
+          {finished
+            ? "This game is posted as final. Changing the score here corrects it in front of everybody and updates both records; it does not reopen the game."
+            : "Use this if you picked the game up late, or if the buttons and the scoreboard have drifted apart. Anything you tap afterwards is added on top of what you type here."}
         </p>
 
         <div className="mt-3 grid grid-cols-2 gap-3">
@@ -630,25 +631,42 @@ function TypeTheScore({ game }: { game: ScoringGame }) {
           </p>
         )}
 
+        {/* A finished game gets one button, because the other one used to
+            read "Save score" and quietly reopened it. Status changes belong to
+            the status control, not to a button labelled save. */}
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="submit"
-            name="final"
-            value="no"
-            disabled={pending}
-            className="min-h-12 flex-1 rounded-lg border border-border px-4 font-medium disabled:opacity-60"
-          >
-            {pending ? "Saving…" : "Save score"}
-          </button>
-          <button
-            type="submit"
-            name="final"
-            value="yes"
-            disabled={pending}
-            className="min-h-12 rounded-lg bg-brand-fill px-4 font-semibold text-on-brand disabled:opacity-60"
-          >
-            Save as final
-          </button>
+          {finished ? (
+            <button
+              type="submit"
+              name="final"
+              value="no"
+              disabled={pending}
+              className="min-h-12 flex-1 rounded-lg bg-brand-fill px-4 font-semibold text-on-brand disabled:opacity-60"
+            >
+              {pending ? "Saving…" : "Save correction"}
+            </button>
+          ) : (
+            <>
+              <button
+                type="submit"
+                name="final"
+                value="no"
+                disabled={pending}
+                className="min-h-12 flex-1 rounded-lg border border-border px-4 font-medium disabled:opacity-60"
+              >
+                {pending ? "Saving…" : "Save score, still playing"}
+              </button>
+              <button
+                type="submit"
+                name="final"
+                value="yes"
+                disabled={pending}
+                className="min-h-12 rounded-lg bg-brand-fill px-4 font-semibold text-on-brand disabled:opacity-60"
+              >
+                Save as final
+              </button>
+            </>
+          )}
         </div>
       </form>
     </details>

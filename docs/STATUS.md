@@ -444,6 +444,30 @@ That skips migrations, which the pipeline runs and this command does not.
   everyone out**, because every stored `token_hash` becomes unmatchable. That
   is acceptable now and will not be once coaches depend on it.
 
+### Records are derived, so every write path has to rebuild them
+
+`team_season_record` is computed from finished games, never entered. Any
+function that finishes a game, corrects a finished one, deletes or restores one
+must call `refreshRecordsForGame`. `setFinalScore` did not, and **188 of 245
+football records were wrong for three days**: the score went public and the
+record never moved.
+
+The tests missed it because every test that checked a record rebuilt the
+rollups first. The regression tests deliberately do not: they call the write
+path and then read the stored record, which is what the site does.
+
+RPI was unaffected throughout, because it computes from games directly rather
+than from the stored record.
+
+### "Save score" must never un-finish a game
+
+`setFinalScore({ final: false })` used to set status to `in_progress`
+unconditionally, so pressing it to correct a finished game reopened it and took
+the result straight out of both records. That is how John Hardin showed 2-0
+after losing to Bardstown. Status now only moves forward there; a finished game
+shows one "Save correction" button, and changing status is the status
+control's job.
+
 ### `game` is a view, `game_all` is the table
 
 Migration 0013 renamed the table to `game_all` and made `game` a view over the

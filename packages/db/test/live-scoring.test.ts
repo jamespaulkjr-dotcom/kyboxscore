@@ -668,3 +668,136 @@ test("an out-of-state opponent can be created and played", opts, async () => {
   await sql`DELETE FROM team WHERE id = ${made.teamId}`;
   await sql`DELETE FROM school WHERE slug = 'mckenzie-tn'`;
 });
+
+/* --------------------------------------------------------------------------
+ * Records are derived, so every path that finishes a game or corrects a
+ * finished one has to rebuild them. These tests deliberately never call
+ * refreshTeamSeasonRollups: that was the blind spot. Every existing test that
+ * checked a record rebuilt it first, so 188 of 245 football records were wrong
+ * for three days with a green suite.
+ * ------------------------------------------------------------------------ */
+
+/** A team's stored record, read exactly as the site reads it. */
+async function storedRecord(sql: any, teamSeasonId: number) {
+  const [r] = await sql`
+    SELECT coalesce(wins, 0)::int AS wins, coalesce(losses, 0)::int AS losses
+    FROM team_season_record WHERE team_season_id = ${teamSeasonId}`;
+  return r ? `${r.wins}-${r.losses}` : "0-0";
+}
+
+async function seasonsOf(sql: any, gameId: number) {
+  const rows = await sql`
+    SELECT gp.role::text, ts.id::int AS id
+    FROM game_participant gp
+    JOIN game g ON g.id = gp.game_id
+    JOIN team_season ts ON ts.team_id = gp.team_id
+                       AND ts.sport_season_id = g.sport_season_id
+    WHERE gp.game_id = ${gameId}`;
+  return {
+    home: rows.find((r: any) => r.role === "home").id,
+    away: rows.find((r: any) => r.role === "away").id,
+  };
+}
+
+test("typing a final score moves both teams' records", opts, async () => {
+  const { db, sql, gameId } = await fixture();
+  const { home, away } = await seasonsOf(sql, gameId);
+  const homeBefore = await storedRecord(sql, home);
+  const awayBefore = await storedRecord(sql, away);
+
+  await db.setFinalScore({
+    gameId,
+    homeScore: 42,
+    awayScore: 0,
+    periodsPlayed: 4,
+    final: true,
+  });
+
+  // No rebuild called here on purpose. The write path owns it.
+  const homeAfter = await storedRecord(sql, home);
+  const awayAfter = await storedRecord(sql, away);
+  assert.notEqual(homeAfter, homeBefore, "the winner's record moved");
+  assert.notEqual(awayAfter, awayBefore, "the loser's record moved");
+  assert.equal(Number(homeAfter.split("-")[0]), Number(homeBefore.split("-")[0]) + 1);
+  assert.equal(Number(awayAfter.split("-")[1]), Number(awayBefore.split("-")[1]) + 1);
+
+  await db.resetGameScoring(gameId);
+});
+
+test("saving a score does not un-finish a finished game", opts, async () => {
+  const { db, sql, gameId, code } = await fixture();
+  const { home } = await seasonsOf(sql, gameId);
+
+  await db.setFinalScore({ gameId, homeScore: 14, awayScore: 48, periodsPlayed: 4, final: true });
+  assert.equal((await db.getScoringGame(code))!.status, "final");
+  const recordWhenFinal = await storedRecord(sql, home);
+
+  // This is exactly what took John Hardin's loss to Bardstown off their record:
+  // pressing "save score" to correct a game that was already over.
+  await db.setFinalScore({ gameId, homeScore: 14, awayScore: 45, periodsPlayed: 4, final: false });
+
+  const after = await db.getScoringGame(code);
+  assert.equal(after!.status, "final", "a finished game stays finished");
+  assert.equal(after!.away.score, 45, "but the correction lands");
+  assert.equal(await storedRecord(sql, home), recordWhenFinal, "and the record holds");
+
+  await db.resetGameScoring(gameId);
+});
+
+test("a scheduled game does become in progress when a score is saved", opts, async () => {
+  const { db, gameId, code } = await fixture();
+  assert.equal((await db.getScoringGame(code))!.status, "scheduled");
+  await db.setFinalScore({ gameId, homeScore: 7, awayScore: 0, periodsPlayed: 1, final: false });
+  assert.equal((await db.getScoringGame(code))!.status, "in_progress");
+  await db.resetGameScoring(gameId);
+});
+
+test("correcting a finished game by play moves the record with it", opts, async () => {
+  const { db, sql, userId, gameId, code } = await fixture();
+  const game = await db.getScoringGame(code);
+  const { home, away } = await seasonsOf(sql, gameId);
+
+  // Home wins by one.
+  await db.setFinalScore({ gameId, homeScore: 7, awayScore: 6, periodsPlayed: 4, final: true });
+  const homeWins = Number((await storedRecord(sql, home)).split("-")[0]);
+  const awayWins = Number((await storedRecord(sql, away)).split("-")[0]);
+
+  // A late touchdown for the visitors turns the result around. Again, no
+  // rebuild called here: adding a play to a finished game has to do it.
+  await db.recordScoringPlay({
+    gameId,
+    participantId: game!.away.participantId,
+    periodNumber: 4,
+    points: 6,
+    description: "Touchdown",
+    playKey: "td",
+    actor: { kind: "user", userId },
+  });
+
+  assert.equal(
+    Number((await storedRecord(sql, away)).split("-")[0]),
+    awayWins + 1,
+    "the visitors now have the win"
+  );
+  assert.equal(
+    Number((await storedRecord(sql, home)).split("-")[0]),
+    homeWins - 1,
+    "and the home side no longer does"
+  );
+
+  await db.resetGameScoring(gameId);
+});
+
+test("deleting a finished game takes it off both records", opts, async () => {
+  const { db, sql, gameId } = await fixture();
+  const { home } = await seasonsOf(sql, gameId);
+  await db.setFinalScore({ gameId, homeScore: 30, awayScore: 0, periodsPlayed: 4, final: true });
+  const withGame = Number((await storedRecord(sql, home)).split("-")[0]);
+
+  await db.deleteGame(gameId, null);
+  assert.equal(Number((await storedRecord(sql, home)).split("-")[0]), withGame - 1);
+
+  await db.restoreGame(gameId);
+  assert.equal(Number((await storedRecord(sql, home)).split("-")[0]), withGame);
+  await db.resetGameScoring(gameId);
+});

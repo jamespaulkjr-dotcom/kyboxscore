@@ -449,11 +449,13 @@ export async function recordScoringPlay(input: {
 }): Promise<{ ok: boolean; reason?: string; playId?: number }> {
   const { userId, keeperId } = actorColumns(input.actor);
 
-  return sql.begin(async (tx) => {
+  const outcome = await sql.begin(async (tx) => {
     const [belongs] = await tx<{ one: number }[]>`
       SELECT 1 AS one FROM game_participant
       WHERE id = ${input.participantId} AND game_id = ${input.gameId}`;
-    if (!belongs) return { ok: false, reason: "That team is not in this game." };
+    if (!belongs) {
+      return { ok: false as const, reason: "That team is not in this game." };
+    }
 
     // Sequence is game-wide, not per side, so the play list has one honest
     // order. The column's UNIQUE is per participant, which a game-wide counter
@@ -476,25 +478,33 @@ export async function recordScoringPlay(input: {
     await resyncScores(tx, input.gameId, input.periodNumber);
     return { ok: true, playId: row.id };
   });
+
+  // A play added to a game that is already finished changes the result, so
+  // the record has to follow it.
+  await refreshRecordsForGame(input.gameId);
+  return outcome;
 }
 
 /** Undo. The row stays; only readers stop seeing it. */
 export async function voidLastPlay(
   gameId: number
 ): Promise<{ ok: boolean; reason?: string }> {
-  return sql.begin(async (tx) => {
+  const outcome = await sql.begin(async (tx) => {
     const [last] = await tx<{ id: number; periodNumber: number }[]>`
       SELECT p.id::int, p.period_number::int AS "periodNumber"
       FROM scoring_play p
       JOIN game_participant gp ON gp.id = p.game_participant_id
       WHERE gp.game_id = ${gameId} AND p.voided_at IS NULL
       ORDER BY p.sequence DESC LIMIT 1`;
-    if (!last) return { ok: false, reason: "There is nothing to undo." };
+    if (!last) return { ok: false as const, reason: "There is nothing to undo." };
 
     await tx`UPDATE scoring_play SET voided_at = now() WHERE id = ${last.id}`;
     await resyncScores(tx, gameId, last.periodNumber);
-    return { ok: true };
+    return { ok: true as const };
   });
+
+  await refreshRecordsForGame(gameId);
+  return outcome;
 }
 
 /** Both sides' scores, and the period tally, rebuilt from the surviving plays. */
@@ -541,6 +551,12 @@ async function resyncScores(
  * The simple path, and the one most people will use: type the two numbers when
  * it is over. Overwrites whatever live scoring produced, because the person
  * typing it is looking at the scoreboard and the play list may have gaps.
+ *
+ * `final: false` means "save this score, the game is not over". It must never
+ * *un*-finish a game that is already final: pressing it to correct a score on
+ * a finished game knocked John Hardin's loss to Bardstown back to in progress
+ * and took it straight out of their record. Status only ever moves forward
+ * here; going back is what the status control is for.
  */
 export async function setFinalScore(input: {
   gameId: number;
@@ -549,14 +565,16 @@ export async function setFinalScore(input: {
   periodsPlayed: number | null;
   final: boolean;
 }): Promise<{ ok: boolean; reason?: string }> {
-  return sql.begin(async (tx) => {
+  const result = await sql.begin(async (tx) => {
     const sides = await tx<{ id: number; role: string; played: number }[]>`
       SELECT gp.id::int, gp.role::text,
              coalesce((SELECT sum(p.points)::int FROM scoring_play p
                         WHERE p.game_participant_id = gp.id
                           AND p.voided_at IS NULL), 0) AS played
       FROM game_participant gp WHERE gp.game_id = ${input.gameId}`;
-    if (sides.length !== 2) return { ok: false, reason: "That game is incomplete." };
+    if (sides.length !== 2) {
+      return { ok: false as const, reason: "That game is incomplete." };
+    }
 
     for (const s of sides) {
       const wanted = s.role === "home" ? input.homeScore : input.awayScore;
@@ -571,13 +589,24 @@ export async function setFinalScore(input: {
 
     await tx`
       UPDATE game
-         SET status = ${input.final ? "final" : "in_progress"}::game_status,
+         SET status = CASE
+               WHEN ${input.final} THEN 'final'::game_status
+               -- Already finished? Correcting the score does not reopen it.
+               WHEN status IN ('final', 'forfeit') THEN status
+               ELSE 'in_progress'::game_status
+             END,
              periods_played = coalesce(${input.periodsPlayed}, periods_played),
              score_updated_at = now(),
              updated_at = now()
        WHERE id = ${input.gameId}`;
-    return { ok: true };
+    return { ok: true as const };
   });
+  if (!result.ok) return result;
+
+  // Outside the transaction: a rollup failure must not undo a score that
+  // saved, and re-running rollups is always safe.
+  await refreshRecordsForGame(input.gameId);
+  return { ok: true };
 }
 
 /* ---------------------------------------------------------- keeper links */
@@ -876,7 +905,35 @@ export async function updateScoringPlay(input: {
     await resyncAllPeriods(tx, input.gameId);
   });
 
+  await refreshRecordsForGame(input.gameId);
   return { ok: true };
+}
+
+/**
+ * Rebuild both teams' records from a game whose result may have changed.
+ *
+ * Records are derived, so every path that can finish a game or correct a
+ * finished one has to call this. `setFinalScore` did not, and 188 of 245
+ * football records were quietly wrong for three days: the score went public
+ * and the record did not move.
+ *
+ * A game that is not finished is skipped, because an unfinished game does not
+ * count towards anything and rebuilding on every tap during live scoring would
+ * be work for nothing.
+ */
+export async function refreshRecordsForGame(gameId: number) {
+  const [game] = await sql<{ status: string }[]>`
+    SELECT status::text FROM game WHERE id = ${gameId}`;
+  if (!game || (game.status !== "final" && game.status !== "forfeit")) return;
+
+  const seasons = await sql<{ id: number }[]>`
+    SELECT ts.id::int
+    FROM game_participant gp
+    JOIN game g ON g.id = gp.game_id
+    JOIN team_season ts
+      ON ts.team_id = gp.team_id AND ts.sport_season_id = g.sport_season_id
+    WHERE gp.game_id = ${gameId}`;
+  for (const s of seasons) await refreshTeamSeasonRollups(s.id);
 }
 
 /** Rebuild every period tally. Used when a play moves between quarters. */

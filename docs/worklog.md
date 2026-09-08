@@ -1133,3 +1133,29 @@ analytics, and the origin IP is public. The site is fast because Caddy is doing
 compression and TLS well. Worth a deliberate decision rather than leaving it as
 an accident.
 **Nothing was recorded before today**, so the first week of traffic is gone.
+
+## 2026-09-08 — 188 wrong records
+**What James saw:** John Hardin showing 2-0 after losing to Bardstown.
+**Two bugs, one on top of the other.**
+**The one he saw:** `setFinalScore({ final: false })` set status to
+`in_progress` unconditionally, so pressing "Save score" to correct a game that
+was already over quietly reopened it. Records count finished games, so the loss
+stopped counting. Status now only moves forward there, and a finished game
+shows a single "Save correction" button instead of one labelled as though the
+game were still going.
+**The one underneath, which was worse:** `setFinalScore` never rebuilt team
+records. Every score typed into the app went public without moving a record.
+An audit found **188 of 245** football team records stale, including every team
+that played on 4 September. All rebuilt.
+**RPI was fine** the whole time: it computes from games directly, not from the
+stored record. Only the displayed win-loss records were wrong.
+**Why 138 tests missed it:** every test that checked a record called
+`refreshTeamSeasonRollups` itself first. The new tests deliberately do not.
+They call the write path and read the stored record, which is what the site
+does. Verified by putting both bugs back: four tests fail, and pass again when
+the fix returns.
+**Now centralised:** `refreshRecordsForGame` is called by `setFinalScore`,
+`recordScoringPlay`, `voidLastPlay`, `updateScoringPlay`, `setGameStatus`,
+`deleteGame`, `restoreGame` and reset. It skips a game that is not finished,
+because an unfinished game counts towards nothing and rebuilding on every tap
+during live scoring would be work for nothing.
