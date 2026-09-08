@@ -494,6 +494,30 @@ That skips migrations, which the pipeline runs and this command does not.
   everyone out**, because every stored `token_hash` becomes unmatchable. That
   is acceptable now and will not be once coaches depend on it.
 
+### Out-of-state opponents: raw record, adjusted per matchup
+
+`out_of_state_record` holds an opponent's **raw overall record**, a fact about
+them. The **adjusted** record is per `(season, Kentucky team, out-of-state
+opponent)` and is a *view*, `out_of_state_adjusted`, never a stored value: RPI
+removes only the game against the team being rated, so an opponent who played
+two Kentucky schools owes each of them a different number. Storing one adjusted
+record per opponent was wrong even on a week when the two agreed.
+
+`out_of_state_game` holds an opponent's own schedule. When it carries completed
+results the adjusted record is computed from it, with the head-to-head removed
+**by identifying the row** (`kentucky_game_id`) rather than by subtracting a
+result, so it is correct whether or not the Kentucky games are in the schedule.
+Without schedule results it falls back to the raw record minus the head-to-head.
+
+`games = 0` means **there is no winning percentage**, not one of .500. The
+fallback is a separate, neutral number and the two are never printed as the
+same thing.
+
+**Shadow RPI is the official rating with one input corrected**, not an
+independent calculation. We hold out-of-state records but not their opponents'
+opponents, so the OOWP third of the formula still assumes .500 for them. The
+RPI page says this in as many words; do not let it drift into claiming more.
+
 ### A forfeit counts
 
 `status = 'forfeit'` is included in records **and** in RPI. It was excluded

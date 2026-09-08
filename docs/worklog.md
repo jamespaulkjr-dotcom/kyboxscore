@@ -1283,3 +1283,37 @@ record but not the rating would have been incoherent.
 because it matches KHSAA's convention and the only other forfeit in the data,
 and two forfeits scored differently would be worse than either choice. Flagged
 for him rather than silently changed.
+
+## 2026-09-08 — Adjusted per matchup, not per opponent
+**James was right and my shortcut was wrong.** I stored one adjusted record per
+out-of-state opponent. RPI removes only the game against the team being rated,
+so an opponent who played two Kentucky schools owes each of them a different
+number, and a single stored value is wrong even on a week when the two agree.
+**Now:** `out_of_state_record` holds the raw overall record, a fact about the
+opponent. `out_of_state_adjusted` is a view keyed on (season, Kentucky team,
+opponent) and is never stored, because derived data stored as fact goes stale
+and this project has already paid for that once.
+**`out_of_state_game`** holds an opponent's own schedule, deduplicated on
+canonical identity — season, team id, date, and the opponent's id where we hold
+them, the lower-cased name where we do not. Never on a school name alone; that
+lesson cost nine mismatched games.
+**The head-to-head is removed by identifying the row**, not by subtracting a
+result, whenever the schedule is the source. A test caught the difference: my
+first version subtracted an aggregate, which double-removes when the schedule
+does not itself contain the Kentucky game.
+**No games means no percentage.** `adjustedWp` is null and `usedFallback` is
+true, with the 0.500 kept as a separate `fallbackWp`. It is a neutral stand-in,
+never a claim about how a team played, and nothing prints them as the same.
+**What the file can and cannot do:** 313 schedule rows, but only 34 carry a
+result, and those 34 are exactly the Kentucky matchups. The other 279 are
+opponent and date with no score, so they cannot update anybody's record yet.
+They are the skeleton to fill in weekly.
+**Labelling, per James's point 7:** the RPI page now says Shadow RPI is the
+official rating with one input corrected, not an independent calculation. We
+hold out-of-state records but not their opponents' opponents, so the OOWP third
+still assumes .500 for them. Saying otherwise would be a claim we cannot
+support.
+**Regression tests** for every collision by name: Saint Xavier of Louisville
+against St. Xavier of Cincinnati, Franklin County of Frankfort against Franklin
+County of Winchester, Union County against Union City, and Badin and Archbishop
+Moeller resolving by alias but never across a border.

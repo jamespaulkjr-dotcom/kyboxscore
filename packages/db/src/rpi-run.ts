@@ -64,8 +64,9 @@ export async function loadTeamInputs(
            (opp_school.state <> 'KY' OR opp_school.is_home_school)
              AS "opponentAssumedFiveHundred",
            opp_cls.ordinal::int AS "opponentClass",
-           -- Shadow RPI needs the opponent's real record. Stored as W/L/T,
-           -- so the percentage is derived here rather than assumed to exist.
+           -- Null when the opponent has played nobody else: that is the
+           -- absence of a winning percentage, not a winning percentage of
+           -- .500. The engine falls back to the flat assumption and says so.
            CASE WHEN (oos.wins + oos.losses + oos.ties) > 0
                 THEN (oos.wins + 0.5 * oos.ties)::float8
                      / (oos.wins + oos.losses + oos.ties)
@@ -81,9 +82,16 @@ export async function loadTeamInputs(
     LEFT JOIN alignment opp_a   ON opp_a.id = opp_ts.alignment_id
     LEFT JOIN alignment opp_cls ON opp_cls.id = opp_a.parent_id
                                AND opp_cls.kind = 'classification'
-    LEFT JOIN out_of_state_record oos
-           ON oos.team_id = opp.team_id
-          AND oos.sport_season_id = ${sportSeasonId}
+    -- The opponent's record with THIS Kentucky team's game removed. Keyed on
+    -- both sides, because RPI excludes only the head-to-head: an opponent who
+    -- played two Kentucky schools owes each of them a different number.
+    LEFT JOIN LATERAL (
+      SELECT adj.wins, adj.losses, adj.ties
+      FROM out_of_state_adjusted adj
+      WHERE adj.sport_season_id = ${sportSeasonId}
+        AND adj.opponent_team_id = opp.team_id
+        AND adj.kentucky_team_id = mine.team_id
+    ) oos ON true
     -- A forfeit counts, the same as it does for a record. Margin never
     -- matters in this formula, so a 1-0 forfeit is simply a win and a loss.
     WHERE g.status IN ('final', 'forfeit')

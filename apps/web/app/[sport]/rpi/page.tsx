@@ -18,7 +18,7 @@ export async function generateMetadata(
   const { sport } = await props.params;
   return {
     title: "RPI",
-    description: `KHSAA RPI ratings for Kentucky high school ${sport}, with the shadow rating that lets out-of-state opponents carry their real record.`,
+    description: `KHSAA RPI ratings for Kentucky high school ${sport}, with a shadow rating that replaces the flat .500 assumption with an adjusted out-of-state opponent winning percentage.`,
   };
 }
 
@@ -149,10 +149,27 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
               <p className="mt-2">
                 Under the official formula every out-of-state opponent is
                 treated as a .500 team, however good or bad they actually are.{" "}
-                <strong>Shadow RPI is the same arithmetic with their real record
-                used instead</strong>, and Δ is the difference. A positive delta
-                means the .500 assumption is costing that team; a negative one
-                means it is helping.
+                <strong>Shadow RPI replaces that one assumption with an
+                adjusted out-of-state opponent winning percentage</strong>, and
+                Δ is the difference. A positive delta means the .500 assumption
+                is costing that team; a negative one means it is helping.
+              </p>
+              <p className="mt-2">
+                That adjusted percentage is the opponent&rsquo;s record with
+                only the game against this team removed, which is what the
+                formula asks for. An opponent who played two Kentucky schools is
+                therefore counted differently by each of them.
+              </p>
+              {/* Saying exactly what this is, because it is not a second RPI
+                  computed from scratch and calling it one would be a claim we
+                  cannot support. */}
+              <p className="mt-2">
+                Everything else in Shadow RPI is the official calculation
+                unchanged. We hold out-of-state opponents&rsquo; records but not
+                their opponents&rsquo; opponents, so the last 30% of the formula
+                still treats an out-of-state opponent&rsquo;s schedule as .500.
+                Shadow RPI is the official rating with one input corrected, not
+                an independently calculated rating.
               </p>
               {withDelta.length > 0 ? (
                 <p className="mt-2">
