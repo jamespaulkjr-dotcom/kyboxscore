@@ -1270,3 +1270,16 @@ record to carry and the shadow delta is honestly zero.
 alias lookup entirely, so "Archbishop Moeller" would not resolve to the school
 we hold as "Moeller" even with an alias recorded. Aliases now run first, and
 still cannot drag a match across a state border.
+
+## 2026-09-08 — A forfeit is a win and a loss
+**Did:** Forfeits now count towards records and towards RPI. They counted for
+neither, so Rockcastle County's forfeit win over Russellville sat outside both
+teams' records and outside every rating.
+**Why RPI too:** margin of victory never matters in this formula, so a forfeit
+is simply a win for one side and a loss for the other. Counting it for the
+record but not the rating would have been incoherent.
+**Williamsburg and Frankfort** was already in as Williamsburg 1-0, entered as
+`final`. Marked `forfeit`. James's list wrote it "2-F"; the 1-0 was kept
+because it matches KHSAA's convention and the only other forfeit in the data,
+and two forfeits scored differently would be worse than either choice. Flagged
+for him rather than silently changed.

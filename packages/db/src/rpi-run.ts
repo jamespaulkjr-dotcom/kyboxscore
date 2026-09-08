@@ -84,7 +84,9 @@ export async function loadTeamInputs(
     LEFT JOIN out_of_state_record oos
            ON oos.team_id = opp.team_id
           AND oos.sport_season_id = ${sportSeasonId}
-    WHERE g.status = 'final'
+    -- A forfeit counts, the same as it does for a record. Margin never
+    -- matters in this formula, so a 1-0 forfeit is simply a win and a loss.
+    WHERE g.status IN ('final', 'forfeit')
       AND g.stage = 'regular_season'
       AND g.local_date <= ${throughDate}::date`;
 

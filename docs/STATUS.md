@@ -494,6 +494,15 @@ That skips migrations, which the pipeline runs and this command does not.
   everyone out**, because every stored `token_hash` becomes unmatchable. That
   is acceptable now and will not be once coaches depend on it.
 
+### A forfeit counts
+
+`status = 'forfeit'` is included in records **and** in RPI. It was excluded
+from both, so Rockcastle County's forfeit win over Russellville counted for
+neither team. Margin never matters in this formula, so a forfeit is simply a
+win and a loss.
+
+Our convention is **1-0**, matching KHSAA. Both forfeits in the data use it.
+
 ### Records are derived, so every write path has to rebuild them
 
 `team_season_record` is computed from finished games, never entered. Any

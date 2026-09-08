@@ -106,7 +106,9 @@ export async function refreshTeamSeasonRollups(
              g.stage = 'regular_season' AS counts
     ) d
     WHERE ts.id = ${teamSeasonId}
-      AND g.status = 'final'
+      -- A forfeit is a win and a loss. It was excluded here, so Rockcastle
+      -- County's forfeit win over Russellville counted for neither of them.
+      AND g.status IN ('final', 'forfeit')
       AND mine.score IS NOT NULL
       AND opp.score IS NOT NULL
       -- Scrimmages are excluded entirely: they have no record of any kind.

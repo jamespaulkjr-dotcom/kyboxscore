@@ -961,3 +961,22 @@ test("an alias beats the state lookup, but cannot cross a border", opts, async (
 
   await sql`DELETE FROM school_alias WHERE alias = 'zz-alias-test'`;
 });
+
+test("a forfeit is a win and a loss on both records", opts, async () => {
+  const { db, sql, gameId } = await fixture();
+  const { home, away } = await seasonsOf(sql, gameId);
+  const homeWins = async () => Number((await storedRecord(sql, home)).split("-")[0]);
+  const awayLosses = async () => Number((await storedRecord(sql, away)).split("-")[1]);
+
+  await db.setFinalScore({ gameId, homeScore: 1, awayScore: 0, periodsPlayed: 1, final: false });
+  const w = await homeWins();
+  const l = await awayLosses();
+
+  // A forfeit used to count for neither team, so Rockcastle County's forfeit
+  // win over Russellville sat outside both their records.
+  assert.equal((await db.setGameStatus(gameId, "forfeit")).ok, true);
+  assert.equal(await homeWins(), w + 1, "the team awarded the game has a win");
+  assert.equal(await awayLosses(), l + 1, "and the team that forfeited has a loss");
+
+  await db.resetGameScoring(gameId);
+});
