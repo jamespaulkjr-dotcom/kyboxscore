@@ -242,6 +242,20 @@ export function ScoringConsole({
               </select>
             </label>
           </noscript>
+          {/* The quarter pills and the clock box live above both forms and
+              are kept in sync by JavaScript. Without it, each form carries its
+              own controls so a score can still be entered with a time on it. */}
+          <noscript>
+            <label className="mr-3 text-sm">
+              Clock{" "}
+              <input
+                name="clock"
+                inputMode="numeric"
+                placeholder="054"
+                className="tabular min-h-11 w-24 rounded-md border border-border bg-surface px-3"
+              />
+            </label>
+          </noscript>
           <input type="hidden" name="period" value={period} />
           <input type="hidden" name="clock" value={clock} />
 

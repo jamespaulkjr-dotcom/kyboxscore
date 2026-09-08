@@ -1317,3 +1317,25 @@ support.
 against St. Xavier of Cincinnati, Franklin County of Frankfort against Franklin
 County of Winchester, Union County against Union City, and Badin and Archbishop
 Moeller resolving by alias but never across a border.
+
+## 2026-09-08 — Robots, a sitemap, and the no-JavaScript answer
+**Did:** `/robots.txt` and `/sitemap.xml`, canonical URLs on game pages, and
+closed the one no-JavaScript gap I had left open.
+**robots:** everything readable without a login is open, because the point is
+that a parent searching "Corbin football score" finds it. `/admin/`, `/coach/`,
+`/score/`, `/account/`, `/login` and `/api/` are disallowed. `/score/` is the
+one that matters: those URLs are handed to a scorekeeper for one night and a
+crawler has no business following one.
+**sitemap:** every team page and every non-scrimmage game in an open season,
+with `lastModified` so a crawler comes back for a score that changed. Deleted
+games are absent for free, because `game` is a view.
+**Two bugs found by rendering it rather than trusting it:** `team_season` has no
+`created_at`, and `to_char(..., 'OF')` yields `+00`, which JavaScript will not
+parse as a date. The sitemap now also survives a bad timestamp instead of
+returning 500 to a crawler over one row.
+**The no-JS answer:** every reader-facing page is complete without JavaScript,
+which is the performance budget rather than a nicety. Four things need it and
+all four degrade: following, live polling, the header's Admin link, and the
+scoring console's quarter pills and shared clock. That last one was a real gap
+I introduced — the clock sits outside both forms — so each form now carries its
+own clock inside `<noscript>`, matching how the quarter already worked.

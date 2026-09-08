@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(
   props: PageProps<"/[sport]/[year]/games/[code]">
 ): Promise<Metadata> {
-  const { code } = await props.params;
+  const { sport, year, code } = await props.params;
   const game = await getGameByCode(code);
   if (!game) return { title: "Game not found" };
   const sides = await getGameSides(game.id);
@@ -27,6 +27,7 @@ export async function generateMetadata(
   const score =
     game.status === "final" ? ` ${away?.score}-${home?.score}` : "";
   return {
+    alternates: { canonical: `/${sport}/${year}/games/${code}` },
     title: `${away?.schoolName} at ${home?.schoolName}${score}`,
     description: `Box score and scoring summary: ${away?.schoolName} at ${home?.schoolName}, ${formatSlateDate(game.localDate)}.`,
   };

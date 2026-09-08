@@ -769,3 +769,46 @@ export async function getFollowedTeams(
     ) lg ON TRUE
     ORDER BY f.school_name`;
 }
+
+export type SitemapEntry = {
+  kind: "team" | "game";
+  path: string;
+  updatedAt: string | null;
+  isFinal: boolean;
+};
+
+/**
+ * Every public page a crawler should know about: team pages and game pages,
+ * across every open season.
+ *
+ * Deleted games are absent for free, because `game` is a view over the ones
+ * that still exist. Out-of-state schools get a page only where they played a
+ * Kentucky team, which is the only reason we hold them.
+ */
+export async function listSitemapEntries() {
+  return sql<SitemapEntry[]>`
+    SELECT 'team' AS kind,
+           '/' || sp.slug || '/' || ss.url_year || '/teams/' || sc.slug AS path,
+           to_char(rec.computed_at AT TIME ZONE 'UTC',
+                   'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "updatedAt",
+           false AS "isFinal"
+    FROM team_season ts
+    JOIN team t ON t.id = ts.team_id
+    JOIN school sc ON sc.id = t.school_id AND sc.state = 'KY'
+    JOIN sport_season ss ON ss.id = ts.sport_season_id AND ss.is_current
+    JOIN sport sp ON sp.id = ss.sport_id AND sp.is_active
+    LEFT JOIN team_season_record rec ON rec.team_season_id = ts.id
+
+    UNION ALL
+
+    SELECT 'game' AS kind,
+           '/' || sp.slug || '/' || ss.url_year || '/games/' || g.short_code AS path,
+           to_char(g.updated_at AT TIME ZONE 'UTC',
+                   'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "updatedAt",
+           (g.status IN ('final', 'forfeit')) AS "isFinal"
+    FROM game g
+    JOIN sport_season ss ON ss.id = g.sport_season_id AND ss.is_current
+    JOIN sport sp ON sp.id = ss.sport_id AND sp.is_active
+    WHERE g.stage <> 'scrimmage'
+    ORDER BY 1, 2`;
+}

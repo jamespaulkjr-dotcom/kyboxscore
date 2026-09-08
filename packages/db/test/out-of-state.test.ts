@@ -35,6 +35,14 @@ async function jellicoFixture() {
       SELECT id FROM game_all WHERE short_code IN ('zzjel1','zzjel2'))`;
   await sql`DELETE FROM game_all WHERE short_code IN ('zzjel1','zzjel2')`;
   await sql`
+    DELETE FROM team_season WHERE team_id IN (
+      SELECT t.id FROM team t JOIN school sc ON sc.id = t.school_id
+      WHERE sc.slug IN ('zz-oos-ky-1','zz-oos-ky-2'))`;
+  await sql`
+    DELETE FROM team WHERE school_id IN (
+      SELECT id FROM school WHERE slug IN ('zz-oos-ky-1','zz-oos-ky-2'))`;
+  await sql`DELETE FROM school WHERE slug IN ('zz-oos-ky-1','zz-oos-ky-2')`;
+  await sql`
     DELETE FROM out_of_state_game WHERE team_id IN (
       SELECT t.id FROM team t JOIN school sc ON sc.id = t.school_id
       WHERE sc.slug = 'zz-jellico-tn')`;
@@ -61,14 +69,26 @@ async function jellicoFixture() {
     INSERT INTO team_season (team_id, sport_season_id)
     VALUES (${oosTeam.id}, ${season.id}) ON CONFLICT DO NOTHING`;
 
-  // Two Kentucky teams with no other games, so nothing else moves.
-  const ky = await sql<{ id: number }[]>`
-    SELECT t.id::int FROM team t
-    JOIN school sc ON sc.id = t.school_id AND sc.state = 'KY'
-    JOIN team_season ts ON ts.team_id = t.id AND ts.sport_season_id = ${season.id}
-    WHERE t.id NOT IN (SELECT team_id FROM game_participant)
-    LIMIT 2`;
-  assert.ok(ky.length === 2, "fixtures need two unplayed Kentucky teams");
+  // Two Kentucky teams of our own, rather than borrowing seeded ones. Test
+  // files run in parallel, so anything shared is a race: this file was picking
+  // teams that another file was busy giving games to.
+  const ky: { id: number }[] = [];
+  for (const n of [1, 2]) {
+    const [school] = await sql<{ id: number }[]>`
+      INSERT INTO school (slug, name, short_name, city, state, is_khsaa_member)
+      VALUES (${`zz-oos-ky-${n}`}, ${`ZZ Test County ${n}`}, ${`ZZ Test ${n}`},
+              'Nowhere', 'KY', true)
+      ON CONFLICT (slug) DO UPDATE SET city = EXCLUDED.city RETURNING id::int`;
+    const [team] = await sql<{ id: number }[]>`
+      INSERT INTO team (school_id, sport_id, gender, level)
+      VALUES (${school.id}, ${season.sportId}, 'boys', 'varsity')
+      ON CONFLICT (school_id, sport_id, gender, level) DO UPDATE SET level = 'varsity'
+      RETURNING id::int`;
+    await sql`
+      INSERT INTO team_season (team_id, sport_season_id)
+      VALUES (${team.id}, ${season.id}) ON CONFLICT DO NOTHING`;
+    ky.push({ id: team.id });
+  }
 
   // The out-of-state side BEATS the first and LOSES to the second. That is the
   // whole point: the two Kentucky teams must see different adjusted records.
@@ -93,15 +113,21 @@ async function jellicoFixture() {
 }
 
 async function cleanup(sql: any, oosTeam: number) {
+  const slugs = ["zz-jellico-tn", "zz-oos-ky-1", "zz-oos-ky-2"];
   await sql`
     DELETE FROM rpi_input WHERE game_id IN (
       SELECT id FROM game_all WHERE short_code IN ('zzjel1','zzjel2'))`;
   await sql`DELETE FROM game_all WHERE short_code IN ('zzjel1','zzjel2')`;
   await sql`DELETE FROM out_of_state_game WHERE team_id = ${oosTeam}`;
   await sql`DELETE FROM out_of_state_record WHERE team_id = ${oosTeam}`;
-  await sql`DELETE FROM team_season WHERE team_id = ${oosTeam}`;
-  await sql`DELETE FROM team WHERE id = ${oosTeam}`;
-  await sql`DELETE FROM school WHERE slug = 'zz-jellico-tn'`;
+  await sql`
+    DELETE FROM team_season WHERE team_id IN (
+      SELECT t.id FROM team t JOIN school sc ON sc.id = t.school_id
+      WHERE sc.slug = ANY(${slugs}))`;
+  await sql`
+    DELETE FROM team WHERE school_id IN (
+      SELECT id FROM school WHERE slug = ANY(${slugs}))`;
+  await sql`DELETE FROM school WHERE slug = ANY(${slugs})`;
 }
 
 test("two Kentucky teams get different adjusted records from one opponent", opts, async () => {
