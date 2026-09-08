@@ -1354,3 +1354,16 @@ further change, once those 279 scores exist.
 way, because the fixture gave the schedule a fuller record than the typed one -
 the opposite of the real data. There are now tests for both directions, and the
 second one describes the production shape exactly.
+
+## 2026-09-08 — Sorting the RPI page by delta
+**Why:** James said the shadow numbers were not on the page. They were, all 49
+of them, but the first five teams have played nobody out of state so the top of
+the table is a column of dashes. The first delta is at rank 6. On a phone that
+reads as "nothing happened".
+**Did:** `?sort=delta` on the RPI page, with a chip above the table naming the
+count. Default stays by rank, because the page's first job is still "where do
+we stand".
+**When sorted by delta the unaffected teams come out entirely.** Ordering 222
+rows by a value 173 of them do not have would bury the answer in the middle.
+Helped at the top, hurt at the bottom, and the # column still shows the
+official statewide rank so nobody loses their place.

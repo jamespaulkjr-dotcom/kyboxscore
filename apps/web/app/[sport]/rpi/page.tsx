@@ -27,6 +27,9 @@ const fmt = (n: number) => n.toFixed(3);
 
 export default async function Page(props: PageProps<"/[sport]/rpi">) {
   const { sport } = await props.params;
+  const params = await props.searchParams;
+  const sortByDelta =
+    (typeof params.sort === "string" ? params.sort : "") === "delta";
 
   const [season, sports] = await Promise.all([
     getSportSeason(sport),
@@ -40,6 +43,14 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
   ]);
 
   const withDelta = standings.filter((s) => s.delta !== null && Math.abs(s.delta) > 0.0005);
+
+  // Sorted by rank the table answers "where do we stand". Sorted by delta it
+  // answers a different question - who does the .500 assumption actually move
+  // - and for that the teams it does not move are noise, so they come out.
+  // Helped at the top, hurt at the bottom, nothing in between.
+  const rows = sortByDelta
+    ? [...withDelta].sort((a, b) => (b.delta ?? 0) - (a.delta ?? 0))
+    : standings;
 
   return (
     <>
@@ -87,7 +98,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                   </tr>
                 </thead>
                 <tbody>
-                  {standings.map((s) => (
+                  {rows.map((s) => (
                     <tr key={s.teamId} className="border-b border-border last:border-0">
                       <td className="px-3 py-2 tabular-nums text-fg-muted">{s.stateRank}</td>
                       <td className="px-3 py-2">
