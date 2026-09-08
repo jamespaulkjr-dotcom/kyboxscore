@@ -840,3 +840,40 @@ test("games still to be played are not missing a result", opts, async () => {
   assert.equal(listed.some((g) => g.gameId === gameId), false,
     "a game in the future has not failed to happen");
 });
+
+test("a team booked twice on one night is flagged, a jamboree is not", opts, async () => {
+  const { db, sql } = await fixture();
+  const [g] = await sql<{ id: number; teamId: number; date: string; season: number }[]>`
+    SELECT g.id::int, g.sport_season_id::int AS season, g.local_date::text AS date,
+           (SELECT team_id::int FROM game_participant
+             WHERE game_id = g.id AND role = 'home') AS "teamId"
+    FROM game g WHERE g.stage = 'regular_season' ORDER BY g.id LIMIT 1`;
+  const [other] = await sql<{ id: number }[]>`
+    SELECT t.id::int FROM team t
+    JOIN team_season ts ON ts.team_id = t.id AND ts.sport_season_id = ${g.season}
+    WHERE t.id NOT IN (SELECT team_id FROM game_participant WHERE game_id = ${g.id})
+    LIMIT 1`;
+
+  const flagged = async (stage: string) => {
+    const dupe = await sql.begin(async (tx) => {
+      const [ng] = await tx<{ id: number }[]>`
+        INSERT INTO game (sport_season_id, short_code, local_date, status, stage)
+        VALUES (${g.season}, 'zzconf', ${g.date}::date, 'scheduled', ${stage}::game_stage)
+        RETURNING id::int`;
+      await tx`
+        INSERT INTO game_participant (game_id, team_id, role)
+        VALUES (${ng.id}, ${g.teamId}, 'home'), (${ng.id}, ${other.id}, 'away')`;
+      return ng.id;
+    });
+    const hit = (await db.listScheduleConflicts()).some((c) => c.gameId === dupe);
+    await sql`DELETE FROM game_all WHERE id = ${dupe}`;
+    return hit;
+  };
+
+  assert.equal(await flagged("regular_season"), true,
+    "nobody plays two regular season games in an evening");
+  // A jamboree really is several opponents in one night, and flagging every
+  // one of those would bury the handful that matter.
+  assert.equal(await flagged("preseason"), false, "a jamboree is not a mistake");
+  assert.equal(await flagged("scrimmage"), false);
+});

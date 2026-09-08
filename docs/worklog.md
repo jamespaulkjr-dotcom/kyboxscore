@@ -1198,3 +1198,27 @@ back with a reason.
 **Third time this has happened:** delete, add-a-game, and now this. The feature
 existed; the reason it felt missing was that it only worked one exact way, or
 lived somewhere you would not look. Worth checking that first from now on.
+
+## 2026-09-08 — Two teams, one night, and what that was hiding
+**Did:** Added a double-booking check to the admin page, which is now "Games
+that need attention" with two sections. The URL and badge are unchanged.
+**What it found before it was even a page.** James sent a list of Kentucky
+games against out-of-state opponents, with cities. Six of them had been
+recorded against a *Kentucky* school sharing the opponent's name: Clay County
+for Clay County of Celina TN, Western Hills for Western Hills of Cincinnati,
+Anderson County for Anderson of Cincinnati, Jackson County for Jackson County
+of Gainesboro TN, Scott for Scott of Huntsville TN, Tates Creek for Whites
+Creek of Nashville.
+**Five of those Kentucky schools were carrying two games on one night**, which
+is impossible and had been sitting there since the schedule import. Records
+were wrong for all six, and RPI worse: an in-state opponent contributes their
+real winning percentage to everyone's strength of schedule, an out-of-state one
+a flat .500. Six games were feeding the wrong number into every rating in
+Kentucky.
+**Also from that list:** four games we did not have at all, one score, and one
+venue. Ten new out-of-state schools with their cities.
+**Jamborees are excluded** from the check. Twenty legitimate preseason
+multi-game nights would bury the three regular-season ones that matter.
+**Still unresolved, needs James:** Union County twice on 11 Sep, Saint Xavier
+twice on 2 Oct, Franklin County twice on 9 Oct. One of each pair is wrong and
+there is no way to tell which from here.

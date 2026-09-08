@@ -1145,3 +1145,79 @@ export async function countGamesMissingResults(days = 21): Promise<number> {
       AND g.status IN ('scheduled', 'in_progress')`;
   return row?.n ?? 0;
 }
+
+/* ------------------------------------------------- schedules that cannot be */
+
+export type ScheduleConflict = {
+  teamId: number;
+  teamName: string;
+  localDate: string;
+  gameId: number;
+  shortCode: string;
+  status: string;
+  stage: string;
+  opponentName: string;
+  isHome: boolean;
+  sportSlug: string;
+};
+
+/**
+ * Teams the schedule has playing twice on the same night.
+ *
+ * This is not a warning, it is a certainty: nobody plays two football games in
+ * an evening. Every one of these is a bad row, and they hide well - the first
+ * six found this way had been recorded against a Kentucky school that shares a
+ * name with the real out-of-state opponent, quietly corrupting six records and
+ * feeding the wrong strength of schedule into everybody's RPI.
+ *
+ * Preseason and scrimmage dates are excluded. A jamboree really is several
+ * opponents in one evening, and flagging twenty of those would bury the three
+ * that matter.
+ */
+export async function listScheduleConflicts(sportSlug?: string | null) {
+  const sport = sportSlug ?? null;
+  return sql<ScheduleConflict[]>`
+    WITH doubled AS (
+      SELECT gp.team_id, g.local_date
+      FROM game g
+      JOIN game_participant gp ON gp.game_id = g.id
+      JOIN sport_season ss ON ss.id = g.sport_season_id
+      JOIN sport sp ON sp.id = ss.sport_id
+      WHERE g.status <> 'canceled'
+        AND g.stage NOT IN ('preseason', 'scrimmage')
+        AND (${sport}::text IS NULL OR sp.slug::text = ${sport})
+      GROUP BY gp.team_id, g.local_date
+      HAVING count(*) > 1
+    )
+    SELECT d.team_id::int AS "teamId",
+           coalesce(sc.short_name, sc.name) AS "teamName",
+           d.local_date::text AS "localDate",
+           g.id::int AS "gameId", g.short_code AS "shortCode",
+           g.status::text, g.stage::text,
+           coalesce(osc.short_name, osc.name) AS "opponentName",
+           (mine.role = 'home') AS "isHome",
+           sp.slug::text AS "sportSlug"
+    FROM doubled d
+    JOIN game_participant mine ON mine.team_id = d.team_id
+    JOIN game g ON g.id = mine.game_id AND g.local_date = d.local_date
+    JOIN game_participant opp ON opp.game_id = g.id AND opp.id <> mine.id
+    JOIN team t ON t.id = d.team_id JOIN school sc ON sc.id = t.school_id
+    JOIN team ot ON ot.id = opp.team_id JOIN school osc ON osc.id = ot.school_id
+    JOIN sport_season ss ON ss.id = g.sport_season_id
+    JOIN sport sp ON sp.id = ss.sport_id
+    WHERE g.status <> 'canceled' AND g.stage NOT IN ('preseason', 'scrimmage')
+    ORDER BY d.local_date, sc.name, g.short_code`;
+}
+
+/** How many teams are double-booked, for the dashboard badge. */
+export async function countScheduleConflicts(): Promise<number> {
+  const [row] = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM (
+      SELECT gp.team_id, g.local_date
+      FROM game g
+      JOIN game_participant gp ON gp.game_id = g.id
+      WHERE g.status <> 'canceled' AND g.stage NOT IN ('preseason', 'scrimmage')
+      GROUP BY gp.team_id, g.local_date HAVING count(*) > 1
+    ) x`;
+  return row?.n ?? 0;
+}

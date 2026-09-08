@@ -140,12 +140,19 @@ That skips migrations, which the pipeline runs and this command does not.
   Seeded with "The Academy @ Shawnee" → Shawnee: the 2026 schedule export uses
   the current official name while the alignment uses the short one, and the two
   strings share almost nothing.
-- **Games without a result** — `/admin/missing-results` lists every game whose
-  date has passed with nothing posted, grouped by date, each linking straight
-  to its scoring console, with a count badge on the coach dashboard. Postponed
-  and canceled games are excluded because somebody has already said what
-  happened to those; a game left `in_progress` is included, because a keeper
-  who went home at half time leaves the same hole and it is published as live.
+- **Games that need attention** — `/admin/missing-results` (URL kept, the page
+  is broader now), with a count badge on the coach dashboard. Two checks:
+  **Playing twice on one night.** Nobody plays two football games in an
+  evening, so one of each pair is a bad row. This found six games recorded
+  against a Kentucky school that shares a name with the real out-of-state
+  opponent — Clay County KY for Clay County TN, Western Hills KY for Western
+  Hills OH — which had corrupted six records and fed the wrong strength of
+  schedule into every rating in the state. Preseason and scrimmage dates are
+  excluded, because a jamboree really is several opponents in one evening.
+  **No result posted.** Games whose date has passed with nothing on them.
+  Postponed and canceled are excluded because somebody has already said what
+  happened; a game left `in_progress` is included, because a keeper who went
+  home at half time leaves the same hole and it is published as live.
 - **Out-of-state records** — `/admin/out-of-state` lists every opponent
   ordered by how many Kentucky teams they played, and takes a paste of records
   in whatever shape they arrive: `Elder 3-0`, `Elder, 3, 0`, tabs, a markdown
@@ -291,12 +298,19 @@ That skips migrations, which the pipeline runs and this command does not.
   refuses a game that already has an imported box score, and asks you to type
   the game's short code, because it is the only control there that destroys
   something.
-- **Games without a result** — `/admin/missing-results` lists every game whose
-  date has passed with nothing posted, grouped by date, each linking straight
-  to its scoring console, with a count badge on the coach dashboard. Postponed
-  and canceled games are excluded because somebody has already said what
-  happened to those; a game left `in_progress` is included, because a keeper
-  who went home at half time leaves the same hole and it is published as live.
+- **Games that need attention** — `/admin/missing-results` (URL kept, the page
+  is broader now), with a count badge on the coach dashboard. Two checks:
+  **Playing twice on one night.** Nobody plays two football games in an
+  evening, so one of each pair is a bad row. This found six games recorded
+  against a Kentucky school that shares a name with the real out-of-state
+  opponent — Clay County KY for Clay County TN, Western Hills KY for Western
+  Hills OH — which had corrupted six records and fed the wrong strength of
+  schedule into every rating in the state. Preseason and scrimmage dates are
+  excluded, because a jamboree really is several opponents in one evening.
+  **No result posted.** Games whose date has passed with nothing on them.
+  Postponed and canceled are excluded because somebody has already said what
+  happened; a game left `in_progress` is included, because a keeper who went
+  home at half time leaves the same hole and it is published as live.
 - **Out-of-state records** — `/admin/out-of-state` lists every opponent
   ordered by how many Kentucky teams they played, and takes a paste of records
   in whatever shape they arrive: `Elder 3-0`, `Elder, 3, 0`, tabs, a markdown
