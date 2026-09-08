@@ -622,6 +622,17 @@ The natural-key index carries `AND deleted_at IS NULL`, so a deleted fixture
 does not stop a schedule import re-creating the same two teams on the same
 date. Restoring on top of such a re-creation is refused with a reason.
 
+### The database tests run one file at a time
+
+`npm test` passes `--test-concurrency=1`. Most of the suite talks to one shared
+database, and files running in parallel step on each other: one file creating
+schools that another file's matcher then sees as ambiguous, one file's game
+appearing between another file's count and its assertion. It cost two red CI
+runs that passed locally at every concurrency I could reproduce.
+
+If a DB-backed test needs isolation, create its own schools and teams rather
+than borrowing seeded ones, and clean up **before** it runs as well as after.
+
 ### If the test suite fails locally, reset before trusting the next run
 
 The database tests share fixture games and an aborted run can leave one
