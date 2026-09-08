@@ -1245,3 +1245,28 @@ whatever came back, which is why it failed rather than passing quietly.
 **Not imported:** the out-of-state workbook in `data-inbox`. Its `source_url`
 column is MaxPreps on every row, and `CLAUDE.md` names MaxPreps as the
 competitor not to build on. Raised with James rather than loaded.
+
+## 2026-09-08 — Nathan's out-of-state records, loaded
+**Provenance, checked first:** the workbook's `source_url` column is MaxPreps on
+all 314 rows, so I asked before importing. James confirmed Nathan compiled it
+by hand from public results, which is "manual entry by our own staff" under
+`CLAUDE.md`. The facts are nobody's property; a systematic extraction of
+someone's compilation would have been a different thing, which is why it was
+worth one question.
+**What was loaded:** 33 out-of-state teams' records into `out_of_state_record`.
+**Not their overall record — the record excluding their Kentucky game**, which
+is what the RPI formula needs from an opponent. Nathan's sheet computes it per
+matchup, and no team's adjusted record differs depending on which Kentucky team
+is asking, so one stored value per team is exact for all 33. The source line
+says so, because a field called `wins` holding an adjusted number would mislead
+anybody who read it later.
+**Why not the full 314-row schedule:** out-of-state games between two
+out-of-state teams would appear on a Kentucky scoreboard. The brief's design is
+a record in `OutOfStateTeams`, not games, and it is right.
+**Four teams stay at a flat .500** — Clay County, Gleason, South Fulton,
+Huntington have played nobody but their Kentucky opponent, so there is no other
+record to carry and the shadow delta is honestly zero.
+**Two bugs in my own matcher, found by using it:** the state branch skipped the
+alias lookup entirely, so "Archbishop Moeller" would not resolve to the school
+we hold as "Moeller" even with an alias recorded. Aliases now run first, and
+still cannot drag a match across a state border.

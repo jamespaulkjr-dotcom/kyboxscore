@@ -937,3 +937,27 @@ test("a state that holds no such school does not silently fall back", opts, asyn
     assert.equal(got.state, "OH", "if it answered at all, it answered in Ohio");
   }
 });
+
+test("an alias beats the state lookup, but cannot cross a border", opts, async () => {
+  const { db, sql } = await fixture();
+  const [school] = await sql<{ id: number; name: string; state: string }[]>`
+    SELECT id::int, name, state FROM school WHERE state = 'KY' AND is_active
+    ORDER BY id LIMIT 1`;
+  await sql`
+    INSERT INTO school_alias (school_id, alias)
+    VALUES (${school.id}, 'zz-alias-test') ON CONFLICT DO NOTHING`;
+
+  // Somebody decided this name means this school. Nothing below should argue.
+  const [plain] = await db.matchSchoolNames(["zz-alias-test"]);
+  assert.equal(plain.schoolId, school.id);
+
+  // Including when a state is given and agrees.
+  const [right] = await db.matchSchoolNames([{ name: "zz-alias-test", state: "KY" }]);
+  assert.equal(right.schoolId, school.id);
+
+  // But an alias must not drag a match across a border either.
+  const [wrong] = await db.matchSchoolNames([{ name: "zz-alias-test", state: "OH" }]);
+  assert.equal(wrong.schoolId, null, "the alias points at a Kentucky school");
+
+  await sql`DELETE FROM school_alias WHERE alias = 'zz-alias-test'`;
+});

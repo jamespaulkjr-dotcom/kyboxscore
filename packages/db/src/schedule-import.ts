@@ -65,6 +65,29 @@ export async function matchSchoolNames(
     const state = query.state?.trim().toUpperCase() || null;
     const city = query.city?.trim() || null;
 
+    // An alias is a person's decision and beats every rule below, including
+    // the state lookup: somebody wrote down that "Archbishop Moeller" is the
+    // school we hold as "Moeller", and no query should second-guess that. A
+    // state hint still has to agree, so an alias cannot drag a match across a
+    // border either.
+    const aliased = await sql<{ id: number; name: string; state: string }[]>`
+      SELECT sc.id::int, sc.name, sc.state
+      FROM school_alias a
+      JOIN school sc ON sc.id = a.school_id
+      WHERE a.alias = ${input} AND sc.is_active
+        AND (${state}::text IS NULL OR upper(sc.state) = ${state})`;
+    if (aliased.length === 1) {
+      out.push({
+        input,
+        schoolId: aliased[0].id,
+        schoolName: aliased[0].name,
+        method: "exact",
+        confidence: 1,
+        candidates: [],
+      });
+      continue;
+    }
+
     // When the city and state are known, they decide it. This is the whole
     // point: "Clay County, Celina, TN" is not Kentucky's Clay County however
     // similar the names look.
