@@ -1159,3 +1159,15 @@ the fix returns.
 `deleteGame`, `restoreGame` and reset. It skips a game that is not finished,
 because an unfinished game counts towards nothing and rebuilding on every tap
 during live scoring would be work for nothing.
+
+## 2026-09-08 — The gaps, and only the gaps
+**Did:** `/admin/missing-results`. Every game whose date has passed with
+nothing posted, grouped by date, each row linking to its scoring console, with
+a window filter and a count badge on the dashboard.
+**Why:** closing out the first full Friday took reconciling a 112-row list by
+hand to find twelve gaps. This is the twelve.
+**What counts as missing:** past date, status `scheduled` or `in_progress`.
+Postponed and canceled are excluded, because somebody has already said what
+happened to those. A game left in progress is included and labelled "still
+open": a keeper who stopped at half time leaves the same hole as one nobody
+touched, and it is worse, because it is published as live.

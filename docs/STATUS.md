@@ -140,6 +140,12 @@ That skips migrations, which the pipeline runs and this command does not.
   Seeded with "The Academy @ Shawnee" → Shawnee: the 2026 schedule export uses
   the current official name while the alignment uses the short one, and the two
   strings share almost nothing.
+- **Games without a result** — `/admin/missing-results` lists every game whose
+  date has passed with nothing posted, grouped by date, each linking straight
+  to its scoring console, with a count badge on the coach dashboard. Postponed
+  and canceled games are excluded because somebody has already said what
+  happened to those; a game left `in_progress` is included, because a keeper
+  who went home at half time leaves the same hole and it is published as live.
 - **Out-of-state opponents** — 51 schools created from the 2026 schedule so
   Kentucky records are not short. Their `state` is `'XX'`, deliberately not a
   guess: the column is never displayed and is used only as "Kentucky or not",
@@ -273,6 +279,12 @@ That skips migrations, which the pipeline runs and this command does not.
   refuses a game that already has an imported box score, and asks you to type
   the game's short code, because it is the only control there that destroys
   something.
+- **Games without a result** — `/admin/missing-results` lists every game whose
+  date has passed with nothing posted, grouped by date, each linking straight
+  to its scoring console, with a count badge on the coach dashboard. Postponed
+  and canceled games are excluded because somebody has already said what
+  happened to those; a game left `in_progress` is included, because a keeper
+  who went home at half time leaves the same hole and it is published as live.
 - **Out-of-state opponents** — `/admin/teams` has a form to add a school from
   another state, which then becomes selectable as an opponent. The **real**
   state is stored, not the seed's `XX` placeholder: nothing keys off `XX` (the

@@ -801,3 +801,42 @@ test("deleting a finished game takes it off both records", opts, async () => {
   assert.equal(Number((await storedRecord(sql, home)).split("-")[0]), withGame);
   await db.resetGameScoring(gameId);
 });
+
+test("a played game with no score shows up as missing, a finished one does not", opts, async () => {
+  const { db, sql, gameId } = await fixture();
+
+  // Put it in the past so it is a game that has been played, not one to come.
+  await sql`UPDATE game SET local_date = CURRENT_DATE - 2 WHERE id = ${gameId}`;
+  const has = async () =>
+    (await db.listGamesMissingResults({ days: 30 })).some((g) => g.gameId === gameId);
+
+  assert.equal(await has(), true, "scheduled and in the past means nobody posted it");
+
+  // A keeper who stopped at half time leaves the same hole, and worse: it is
+  // published as live.
+  await db.startScoring(gameId);
+  assert.equal(await has(), true, "left in progress still counts as missing");
+
+  await db.setFinalScore({ gameId, homeScore: 21, awayScore: 7, periodsPlayed: 4, final: true });
+  assert.equal(await has(), false, "a result closes it");
+
+  // Somebody saying a game was called off is an answer, not a gap.
+  await db.setGameStatus(gameId, "canceled");
+  assert.equal(await has(), false, "canceled is accounted for");
+  await db.setGameStatus(gameId, "postponed");
+  assert.equal(await has(), false, "so is postponed");
+
+  await db.setGameStatus(gameId, "scheduled");
+  assert.equal(await has(), true);
+  assert.ok((await db.countGamesMissingResults(30)) >= 1, "and the badge counts it");
+
+  await db.resetGameScoring(gameId);
+});
+
+test("games still to be played are not missing a result", opts, async () => {
+  const { db, sql, gameId } = await fixture();
+  await sql`UPDATE game SET local_date = CURRENT_DATE + 3 WHERE id = ${gameId}`;
+  const listed = await db.listGamesMissingResults({ days: 60 });
+  assert.equal(listed.some((g) => g.gameId === gameId), false,
+    "a game in the future has not failed to happen");
+});

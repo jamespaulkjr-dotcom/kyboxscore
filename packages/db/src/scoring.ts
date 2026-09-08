@@ -1074,3 +1074,74 @@ export async function setGameStatus(
   for (const s of seasons) await refreshTeamSeasonRollups(s.id);
   return { ok: true };
 }
+
+/* --------------------------------------------------- games without a result */
+
+export type MissingResult = {
+  gameId: number;
+  shortCode: string;
+  localDate: string;
+  localTime: string | null;
+  status: string;
+  sportSlug: string;
+  sportName: string;
+  urlYear: number;
+  homeName: string;
+  awayName: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  daysAgo: number;
+};
+
+/**
+ * Games whose date has passed with no result on them.
+ *
+ * Closing out a Friday used to mean reconciling a hundred-row list by hand to
+ * find the dozen gaps. This is that list, and only that list.
+ *
+ * Postponed and canceled games are not here: somebody has already said what
+ * happened to those. A game left `in_progress` is, because the keeper going
+ * home at half time leaves exactly the same hole as one nobody touched, and it
+ * is worse - it is published as live.
+ */
+export async function listGamesMissingResults(
+  options: { days?: number; sportSlug?: string | null } = {}
+) {
+  const days = Math.min(Math.max(options.days ?? 21, 1), 365);
+  const sport = options.sportSlug ?? null;
+  return sql<MissingResult[]>`
+    SELECT g.id::int AS "gameId", g.short_code AS "shortCode",
+           g.local_date::text AS "localDate",
+           to_char(g.local_time, 'HH12:MI AM') AS "localTime",
+           g.status::text,
+           sp.slug::text AS "sportSlug", sp.name AS "sportName",
+           ss.url_year::int AS "urlYear",
+           coalesce(hs.short_name, hs.name) AS "homeName",
+           coalesce(aws.short_name, aws.name) AS "awayName",
+           home.score::int AS "homeScore", away.score::int AS "awayScore",
+           (CURRENT_DATE - g.local_date)::int AS "daysAgo"
+    FROM game g
+    JOIN game_participant home ON home.game_id = g.id AND home.role = 'home'
+    JOIN game_participant away ON away.game_id = g.id AND away.role = 'away'
+    JOIN team ht ON ht.id = home.team_id JOIN school hs ON hs.id = ht.school_id
+    JOIN team at2 ON at2.id = away.team_id JOIN school aws ON aws.id = at2.school_id
+    JOIN sport_season ss ON ss.id = g.sport_season_id
+    JOIN sport sp ON sp.id = ss.sport_id
+    WHERE g.local_date < CURRENT_DATE
+      AND g.local_date >= CURRENT_DATE - ${days}::int
+      AND g.status IN ('scheduled', 'in_progress')
+      AND (${sport}::text IS NULL OR sp.slug::text = ${sport})
+    ORDER BY g.local_date DESC, g.local_time, hs.name
+    LIMIT 500`;
+}
+
+/** Just the count, for a badge on the dashboard. */
+export async function countGamesMissingResults(days = 21): Promise<number> {
+  const [row] = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n
+    FROM game g
+    WHERE g.local_date < CURRENT_DATE
+      AND g.local_date >= CURRENT_DATE - ${Math.min(Math.max(days, 1), 365)}::int
+      AND g.status IN ('scheduled', 'in_progress')`;
+  return row?.n ?? 0;
+}

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listGrantedTeams, listSports } from "@kyboxscore/db";
+import {
+  countGamesMissingResults,
+  listGrantedTeams,
+  listSports,
+} from "@kyboxscore/db";
 import { SiteHeader } from "../components/site-header";
 import { isAdmin, requireUser } from "../../lib/auth";
 import { logout } from "../login/actions";
@@ -19,9 +23,10 @@ const ROLE_LABEL: Record<string, string> = {
 
 export default async function Page() {
   const user = await requireUser("/coach");
-  const [teams, sports] = await Promise.all([
+  const [teams, sports, missingResults] = await Promise.all([
     listGrantedTeams(user.id),
     listSports(),
+    isAdmin(user) ? countGamesMissingResults() : Promise.resolve(0),
   ]);
 
   return (
@@ -123,6 +128,17 @@ export default async function Page() {
             </Link>
             <Link href="/admin/teams" className="mt-1 block text-link underline">
               Teams and rosters
+            </Link>
+            <Link
+              href="/admin/missing-results"
+              className="mt-1 block text-link underline"
+            >
+              Games without a result
+              {missingResults > 0 && (
+                <span className="ml-2 rounded-full bg-loss/15 px-2 py-0.5 text-xs font-semibold text-loss">
+                  {missingResults}
+                </span>
+              )}
             </Link>
             <Link href="/admin/deleted-games" className="mt-1 block text-link underline">
               Deleted games
