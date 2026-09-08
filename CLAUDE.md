@@ -151,6 +151,8 @@ Commit both with the work, not as an afterthought. A future session should be ab
   gotchas. Read this first, it is kept up to date.**
 - `docs/kyboxscore-setup.md` — droplet provisioning, compose, CI/CD, backups
 - `docs/ky-scoreboard-build-prompt.md` — the full product brief and phase one scope
+- `docs/out-of-state-sources.md` — what each state association's terms allow,
+  checked 8 September 2026, and why we type the records rather than fetch them
 - `packages/db/schema.sql` — data model
 
 Next.js version-specific rules, generated and re-added by `next dev`:

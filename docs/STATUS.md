@@ -154,6 +154,10 @@ That skips migrations, which the pipeline runs and this command does not.
   Shadow RPI reads these and a stale rating would show a zero delta against
   records we now hold. **All 52 opponents carry their real state** as of
   2026-09-08; the seed's `XX` placeholder is gone.
+  Whether any of it can be fetched rather than typed is answered in
+  `docs/out-of-state-sources.md`: only Tennessee is clearly permitted and
+  holds the data, Indiana's robots file names ClaudeBot and refuses it, and
+  Virginia refuses everyone. The recommendation is to type them.
 - **Out-of-state opponents** — 51 schools created from the 2026 schedule so
   Kentucky records are not short. Their `state` is `'XX'`, deliberately not a
   guess: the column is never displayed and is used only as "Kentucky or not",
@@ -301,6 +305,10 @@ That skips migrations, which the pipeline runs and this command does not.
   Shadow RPI reads these and a stale rating would show a zero delta against
   records we now hold. **All 52 opponents carry their real state** as of
   2026-09-08; the seed's `XX` placeholder is gone.
+  Whether any of it can be fetched rather than typed is answered in
+  `docs/out-of-state-sources.md`: only Tennessee is clearly permitted and
+  holds the data, Indiana's robots file names ClaudeBot and refuses it, and
+  Virginia refuses everyone. The recommendation is to type them.
 - **Out-of-state opponents** — `/admin/teams` has a form to add a school from
   another state, which then becomes selectable as an opponent. The **real**
   state is stored, not the seed's `XX` placeholder: nothing keys off `XX` (the
