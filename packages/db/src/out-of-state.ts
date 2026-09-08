@@ -90,6 +90,8 @@ export type AdjustedOpponentWp = {
   adjustedWp: number | null;
   fallbackWp: number;
   usedFallback: boolean;
+  /** True when the opponent's own schedule was the fuller account. */
+  fromSchedule: boolean;
 };
 
 /** What RPI uses for an out-of-state opponent, when nothing else is known. */
@@ -125,7 +127,8 @@ export async function adjustedOpponentWp(
                 THEN ((a.wins + 0.5 * a.ties) / a.games)::float8
            END AS "adjustedWp",
            ${NEUTRAL_FALLBACK_WP}::float8 AS "fallbackWp",
-           (a.games = 0) AS "usedFallback"
+           (a.games = 0) AS "usedFallback",
+           a.from_schedule AS "fromSchedule"
     FROM out_of_state_adjusted a
     JOIN team t ON t.id = a.opponent_team_id
     JOIN school sc ON sc.id = t.school_id

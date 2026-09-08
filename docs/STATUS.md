@@ -532,11 +532,16 @@ removes only the game against the team being rated, so an opponent who played
 two Kentucky schools owes each of them a different number. Storing one adjusted
 record per opponent was wrong even on a week when the two agreed.
 
-`out_of_state_game` holds an opponent's own schedule. When it carries completed
-results the adjusted record is computed from it, with the head-to-head removed
-**by identifying the row** (`kentucky_game_id`) rather than by subtracting a
-result, so it is correct whether or not the Kentucky games are in the schedule.
-Without schedule results it falls back to the raw record minus the head-to-head.
+`out_of_state_game` holds an opponent's own schedule. **Whichever source has
+seen more completed games wins**: today the hand-entered totals, because of the
+313 imported schedule rows only 34 carry a result and those 34 are exactly the
+Kentucky matchups. It hands over to the schedule on its own, with no further
+change, once the rest are scored. Preferring the schedule whenever it held any
+result wiped out 32 of 34 shadow deltas the moment the file was imported.
+
+Where the schedule is the source the head-to-head is removed **by identifying
+the row** (`kentucky_game_id`) rather than by subtracting a result, so it is
+right whether or not the Kentucky games appear in the schedule.
 
 `games = 0` means **there is no winning percentage**, not one of .500. The
 fallback is a separate, neutral number and the two are never printed as the

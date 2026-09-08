@@ -1339,3 +1339,18 @@ all four degrade: following, live polling, the header's Admin link, and the
 scoring console's quarter pills and shared clock. That last one was a real gap
 I introduced — the clock sits outside both forms — so each form now carries its
 own clock inside `<noscript>`, matching how the quarter already worked.
+
+## 2026-09-08 — The import broke the thing it was meant to feed
+**What happened:** loading 313 schedule rows immediately wiped out 32 of the 34
+shadow deltas. The view preferred the schedule whenever it held any completed
+game, and ours holds exactly one per team: the Kentucky matchup. So the
+schedule "knew" Anderson had played one game, the typed record knew they had
+played three, the schedule won, the head-to-head was removed, nothing was left,
+and every one of them fell back to a flat .500.
+**Fixed:** whichever source has seen more completed games wins. The typed
+totals stay in charge today and the schedule takes over on its own, with no
+further change, once those 279 scores exist.
+**Caught by looking at the result, not by the tests.** All 164 passed either
+way, because the fixture gave the schedule a fuller record than the typed one -
+the opposite of the real data. There are now tests for both directions, and the
+second one describes the production shape exactly.

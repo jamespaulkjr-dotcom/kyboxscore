@@ -204,18 +204,19 @@ test("an opponent who played nobody else has no winning percentage", opts, async
   await cleanup(sql, oosTeam);
 });
 
-test("a completed schedule supersedes the hand-entered record", opts, async () => {
+test("a fuller schedule supersedes the hand-entered record", opts, async () => {
   const { db, sql, season, oosTeam, kyA } = await jellicoFixture();
   await db.setOutOfStateRecords(
     season.id,
-    [{ teamId: oosTeam, wins: 5, losses: 3, ties: 0 }],
+    [{ teamId: oosTeam, wins: 2, losses: 1, ties: 0 }],
     "typed by hand", null, "2026-09-08"
   );
 
-  // Three of their own games with scores: 2-1, which should win over the 5-3.
+  // Four scored games of their own, which is more of the season than the
+  // typed three, so the schedule takes over.
   await db.upsertOutOfStateGames(
     season.id,
-    [1, 2, 3].map((n) => ({
+    [1, 2, 3, 4].map((n) => ({
       teamId: oosTeam,
       opponentTeamId: null,
       opponentName: `Somebody ${n}`,
@@ -223,9 +224,9 @@ test("a completed schedule supersedes the hand-entered record", opts, async () =
       localDate: `2026-08-0${n}`,
       homeAway: "home" as const,
       status: "Final",
-      result: (n === 3 ? "L" : "W") as "W" | "L",
-      teamScore: n === 3 ? 0 : 20,
-      opponentScore: n === 3 ? 20 : 0,
+      result: (n === 4 ? "L" : "W") as "W" | "L",
+      teamScore: n === 4 ? 0 : 20,
+      opponentScore: n === 4 ? 20 : 0,
       isKentuckyOpponent: false,
       kentuckyGameId: null,
       gameKey: `zz-${n}`,
@@ -236,10 +237,54 @@ test("a completed schedule supersedes the hand-entered record", opts, async () =
   const [row] = (await db.adjustedOpponentWp(season.id)).filter(
     (r) => r.kentuckyTeamId === kyA && r.opponentTeamId === oosTeam
   );
-  // The schedule says 2-1 and none of those three were the Kentucky game, so
-  // nothing is removed and the adjusted record is the schedule's.
-  assert.deepEqual([row.rawWins, row.rawLosses], [2, 1]);
-  assert.equal(row.adjustedGames, 3);
+  assert.deepEqual([row.rawWins, row.rawLosses], [3, 1], "the schedule's own count");
+  // None of those four was the Kentucky game, so nothing is removed.
+  assert.equal(row.adjustedGames, 4);
+
+  await cleanup(sql, oosTeam);
+});
+
+test("a half-scored schedule does not overrule a fuller typed record", opts, async () => {
+  const { db, sql, season, oosTeam, kyA } = await jellicoFixture();
+
+  // Exactly the shape of the real import: the typed record knows the whole
+  // season, the schedule holds only the Kentucky game's score. Preferring the
+  // schedule here wiped out 32 of 34 shadow deltas in production.
+  await db.setOutOfStateRecords(
+    season.id,
+    [{ teamId: oosTeam, wins: 4, losses: 2, ties: 0 }],
+    "typed by hand", null, "2026-09-08"
+  );
+  const [kyGame] = await sql<{ id: number }[]>`
+    SELECT id::int FROM game WHERE short_code = 'zzjel1'`;
+  await db.upsertOutOfStateGames(
+    season.id,
+    [{
+      teamId: oosTeam,
+      opponentTeamId: null,
+      opponentName: "A Kentucky School",
+      opponentState: "KY",
+      localDate: "2026-09-01",
+      homeAway: "away" as const,
+      status: "Final",
+      result: "W" as const,
+      teamScore: 30,
+      opponentScore: 7,
+      isKentuckyOpponent: true,
+      kentuckyGameId: kyGame.id,
+      gameKey: "zz-ky",
+    }],
+    "test schedule", null, "2026-09-08"
+  );
+
+  const [row] = (await db.adjustedOpponentWp(season.id)).filter(
+    (r) => r.kentuckyTeamId === kyA && r.opponentTeamId === oosTeam
+  );
+  assert.equal(row.fromSchedule ?? false, false, "the typed record still wins");
+  assert.deepEqual([row.rawWins, row.rawLosses], [4, 2]);
+  // They beat this Kentucky team, so one win comes out: 3-2, five games.
+  assert.deepEqual([row.adjustedWins, row.adjustedLosses, row.adjustedGames], [3, 2, 5]);
+  assert.notEqual(row.adjustedWp, null, "and there is still a real percentage");
 
   await cleanup(sql, oosTeam);
 });
