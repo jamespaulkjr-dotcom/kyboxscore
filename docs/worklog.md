@@ -1367,3 +1367,20 @@ we stand".
 rows by a value 173 of them do not have would bury the answer in the middle.
 Helped at the top, hurt at the bottom, and the # column still shows the
 official statewide rank so nobody loses their place.
+
+## 2026-09-08 — Shipping half a feature, and how it hid
+**What happened:** the previous commit sorted the RPI table by delta but never
+rendered the chips to switch between views. The insertion was anchored on a
+string that did not exist in the file, so the replace did nothing. Typecheck
+passed, the build was clean, the tests passed, and the feature shipped
+half-built. Nothing anywhere complained.
+**How it was found:** by fetching the deployed page and counting the control,
+after James said the numbers were not showing.
+**Verified properly this time**, which took creating the condition rather than
+assuming it: the chips are gated on there being deltas at all, and the dev
+fixtures have no out-of-state opponents and a season dated in the future, so
+the gate was false for two different reasons. With a real matchup and past
+dates: by rank 20 rows, by delta 3 rows, chips in both views, the explainer
+only in the delta view.
+**The lesson worth keeping:** a Python string-replace that misses is silent.
+Anchor on something checked, or assert the replacement happened.

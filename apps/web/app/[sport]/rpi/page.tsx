@@ -79,6 +79,42 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
 
         {standings.length > 0 && (
           <>
+            {withDelta.length > 0 && (
+              <nav aria-label="Sort" className="mt-4 flex flex-wrap gap-2">
+                {[
+                  { label: "By rank", active: !sortByDelta, href: `/${sport}/rpi` },
+                  {
+                    label: `Most affected by the .500 assumption (${withDelta.length})`,
+                    active: sortByDelta,
+                    href: `/${sport}/rpi?sort=delta`,
+                  },
+                ].map((tab) => (
+                  <Link
+                    key={tab.label}
+                    href={tab.href}
+                    aria-current={tab.active ? "page" : undefined}
+                    className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                      tab.active
+                        ? "border-accent bg-accent-fill text-on-accent"
+                        : "border-border bg-surface text-fg hover:bg-surface-raised"
+                    }`}
+                  >
+                    {tab.label}
+                  </Link>
+                ))}
+              </nav>
+            )}
+
+            {sortByDelta && (
+              <p className="mt-3 max-w-prose text-sm text-fg-muted">
+                Only the {withDelta.length} teams whose rating moves, ordered by
+                how much. The ones at the top are held down by the .500
+                assumption; the ones at the bottom are held up by it. The{" "}
+                <span className="font-semibold">#</span> column is still their
+                official statewide rank.
+              </p>
+            )}
+
             <div className="mt-5 overflow-x-auto rounded-lg border border-border">
               <table className="w-full min-w-[40rem] border-collapse bg-surface text-sm">
                 <caption className="sr-only">
