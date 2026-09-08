@@ -10,6 +10,18 @@ import { refreshTeamSeasonRollups } from "./rollups.ts";
  * confidence and its runners-up, and anything short of certain goes to a human
  * rather than being guessed - the same rule the box score importer follows for
  * jersey numbers.
+ *
+ * **A name on its own is not a key.** Kentucky has a Clay County, a Jackson
+ * County, a Western Hills, a Scott, a Franklin County, a Union County and a
+ * Saint Xavier; so do Tennessee and Ohio. Matching on name alone put nine
+ * Kentucky schools in games they never played, corrupted their records, and
+ * fed the wrong strength of schedule into every rating in the state, because
+ * an in-state opponent contributes its real winning percentage and an
+ * out-of-state one a flat .500.
+ *
+ * So a caller that knows the city or the state says so, and a bare name that
+ * could be more than one school across states is returned as ambiguous rather
+ * than resolved.
  */
 
 export type SchoolMatch = {
@@ -24,11 +36,128 @@ export type SchoolMatch = {
 /** Below this, a trigram hit is noise rather than a near miss. */
 const SIMILARITY_FLOOR = 0.45;
 
-export async function matchSchoolNames(names: string[]): Promise<SchoolMatch[]> {
-  const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+/** A name, and whatever else is known about which school it is. */
+export type SchoolQuery = { name: string; city?: string | null; state?: string | null };
+
+function asQueries(names: (string | SchoolQuery)[]): SchoolQuery[] {
+  const seen = new Set<string>();
+  const out: SchoolQuery[] = [];
+  for (const n of names) {
+    const q: SchoolQuery = typeof n === "string" ? { name: n } : n;
+    const name = q.name?.trim();
+    if (!name) continue;
+    const key = `${name}|${q.city ?? ""}|${q.state ?? ""}`.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ...q, name });
+  }
+  return out;
+}
+
+export async function matchSchoolNames(
+  names: (string | SchoolQuery)[]
+): Promise<SchoolMatch[]> {
+  const unique = asQueries(names);
   const out: SchoolMatch[] = [];
 
-  for (const input of unique) {
+  for (const query of unique) {
+    const input = query.name;
+    const state = query.state?.trim().toUpperCase() || null;
+    const city = query.city?.trim() || null;
+
+    // When the city and state are known, they decide it. This is the whole
+    // point: "Clay County, Celina, TN" is not Kentucky's Clay County however
+    // similar the names look.
+    if (state) {
+      const placed = await sql<{ id: number; name: string }[]>`
+        SELECT id::int, name FROM school
+        WHERE is_active AND upper(state) = ${state}
+          AND (lower(name) = lower(${input})
+            OR lower(regexp_replace(name, '[[:space:]]+(Senior[[:space:]]+)?High[[:space:]]+School$', '', 'i'))
+               = lower(${input})
+            OR lower(coalesce(short_name, '')) = lower(${input}))
+          AND (${city}::text IS NULL OR city IS NULL OR lower(city) = lower(${city}))
+        ORDER BY (lower(coalesce(city, '')) = lower(coalesce(${city}, ''))) DESC
+        LIMIT 5`;
+      if (placed.length === 1) {
+        out.push({
+          input,
+          schoolId: placed[0].id,
+          schoolName: placed[0].name,
+          method: "exact",
+          confidence: 1,
+          candidates: [],
+        });
+        continue;
+      }
+      if (placed.length > 1) {
+        out.push({
+          input,
+          schoolId: null,
+          schoolName: null,
+          method: "unmatched",
+          confidence: null,
+          candidates: placed.map((p) => ({ schoolId: p.id, name: p.name, score: 1 })),
+        });
+        continue;
+      }
+
+      // No exact hit in that state. Try spelling drift, still inside the
+      // state: "Paduka Tilghman" should find Paducah Tilghman in Kentucky.
+      const near = await sql<{ id: number; name: string; score: number }[]>`
+        SELECT id::int, name,
+               greatest(
+                 similarity(name, ${input}),
+                 similarity(coalesce(short_name, name), ${input}),
+                 similarity(
+                   regexp_replace(name, '[[:space:]]+(Senior[[:space:]]+)?High[[:space:]]+School$', '', 'i'),
+                   ${input})
+               )::float8 AS score
+        FROM school
+        WHERE is_active AND upper(state) = ${state}
+        ORDER BY score DESC LIMIT 5`;
+      const best = near.filter((n) => n.score > SIMILARITY_FLOOR);
+      if (best.length === 1 || (best.length > 1 && best[0].score - best[1].score > 0.15)) {
+        out.push({
+          input,
+          schoolId: best[0].id,
+          schoolName: best[0].name,
+          method: "similar",
+          confidence: best[0].score,
+          candidates: best.slice(1).map((c) => ({ schoolId: c.id, name: c.name, score: c.score })),
+        });
+        continue;
+      }
+
+      // Nothing in the state the caller named. Falling back to a school in a
+      // different state would be exactly the mistake this parameter exists to
+      // prevent, so report it instead - with whatever does exist elsewhere,
+      // because "there is a Clay County, but in Kentucky" is the useful answer.
+      const elsewhere = await sql<{ id: number; name: string; state: string }[]>`
+        SELECT id::int, name, state FROM school
+        WHERE is_active
+          AND (lower(name) = lower(${input})
+            OR lower(coalesce(short_name, '')) = lower(${input})
+            OR lower(regexp_replace(name, '[[:space:]]+(Senior[[:space:]]+)?High[[:space:]]+School$', '', 'i'))
+               = lower(${input}))
+        LIMIT 5`;
+      out.push({
+        input,
+        schoolId: null,
+        schoolName: null,
+        method: "unmatched",
+        confidence: null,
+        candidates: [
+          ...best.map((c) => ({ schoolId: c.id, name: c.name, score: c.score })),
+          ...elsewhere.map((c) => ({
+            schoolId: c.id,
+            name: `${c.name} [${c.state}]`,
+            score: 1,
+          })),
+        ].slice(0, 5),
+      });
+      continue;
+    }
     // 0. A confirmed alias beats every other rule. A person decided this, and
     // no amount of string similarity should be allowed to overrule them.
     const alias = await sql<{ id: number; name: string }[]>`
@@ -44,6 +173,37 @@ export async function matchSchoolNames(names: string[]): Promise<SchoolMatch[]> 
         method: "exact",
         confidence: 1,
         candidates: [],
+      });
+      continue;
+    }
+
+    // A bare name that exists in more than one state is not answerable, and
+    // guessing is how Barren County ended up playing Kentucky's Clay County.
+    const across = await sql<{ states: number }[]>`
+      SELECT count(DISTINCT state)::int AS states FROM school
+      WHERE is_active
+        AND (lower(name) = lower(${input})
+          OR lower(regexp_replace(name, '[[:space:]]+(Senior[[:space:]]+)?High[[:space:]]+School$', '', 'i'))
+             = lower(${input}))`;
+    if ((across[0]?.states ?? 0) > 1) {
+      const spread = await sql<{ id: number; name: string; state: string }[]>`
+        SELECT id::int, name, state FROM school
+        WHERE is_active
+          AND (lower(name) = lower(${input})
+            OR lower(regexp_replace(name, '[[:space:]]+(Senior[[:space:]]+)?High[[:space:]]+School$', '', 'i'))
+               = lower(${input}))
+        LIMIT 5`;
+      out.push({
+        input,
+        schoolId: null,
+        schoolName: null,
+        method: "unmatched",
+        confidence: null,
+        candidates: spread.map((c) => ({
+          schoolId: c.id,
+          name: `${c.name} [${c.state}]`,
+          score: 1,
+        })),
       });
       continue;
     }

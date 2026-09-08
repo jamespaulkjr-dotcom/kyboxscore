@@ -1222,3 +1222,26 @@ multi-game nights would bury the three regular-season ones that matter.
 **Still unresolved, needs James:** Union County twice on 11 Sep, Saint Xavier
 twice on 2 Oct, Franklin County twice on 9 Oct. One of each pair is wrong and
 there is no way to tell which from here.
+
+## 2026-09-08 — Name is not a key
+**Did:** Corrected the three remaining double bookings, all the same failure as
+the six before them, and changed the matcher so it cannot happen again.
+**The three:** Crittenden County were at **Union City, Tennessee**, not Union
+County, Kentucky. The 2 October Trinity game belongs to **St. Xavier of
+Cincinnati**, not Saint Xavier of Louisville, who play Boyle County that night
+and Trinity on 25 September. And Fort Campbell hosted **Franklin County of
+Winchester, Tennessee**, not Franklin County of Frankfort. Zero double bookings
+remain.
+**The rule James asked for, now in code.** `matchSchoolNames` takes
+`{ name, city?, state? }`. With a state it searches only that state, spelling
+drift included, and returns unmatched rather than falling back across the
+border. Without a state, a name that exists in more than one state returns
+unmatched and lists which states. A city separates two schools of a name within
+one state.
+**A test caught my own first attempt.** I let a state-scoped miss fall through
+to the name-only rules, so asking for an Ohio school returned the Kentucky one:
+exactly the bug the parameter exists to prevent. The test asserted the state of
+whatever came back, which is why it failed rather than passing quietly.
+**Not imported:** the out-of-state workbook in `data-inbox`. Its `source_url`
+column is MaxPreps on every row, and `CLAUDE.md` names MaxPreps as the
+competitor not to build on. Raised with James rather than loaded.

@@ -518,6 +518,28 @@ after losing to Bardstown. Status now only moves forward there; a finished game
 shows one "Save correction" button, and changing status is the status
 control's job.
 
+### A school name is not a matching key
+
+Kentucky has a Clay County, a Jackson County, a Western Hills, a Scott, a
+Franklin County, a Union County and a Saint Xavier. So do Tennessee and Ohio.
+Matching on name alone put **nine** Kentucky schools in games they never
+played, corrupted their records, and fed the wrong strength of schedule into
+every rating in the state, because an in-state opponent contributes its real
+winning percentage to OWP and OOWP while an out-of-state one contributes a flat
+.500.
+
+`matchSchoolNames` now takes `{ name, city?, state? }` as well as a bare
+string:
+
+- with a state, it searches **only** that state, including for spelling drift,
+  and returns unmatched rather than falling back to another state's school
+- without a state, a name that exists in more than one state returns
+  unmatched, with the states listed as candidates
+- a city disambiguates two schools of the same name within one state
+
+When feeding it anything from outside Kentucky, pass the city and state. The
+out-of-state schedule James supplies carries both columns for this reason.
+
 ### `game` is a view, `game_all` is the table
 
 Migration 0013 renamed the table to `game_all` and made `game` a view over the

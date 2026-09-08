@@ -877,3 +877,63 @@ test("a team booked twice on one night is flagged, a jamboree is not", opts, asy
   assert.equal(await flagged("preseason"), false, "a jamboree is not a mistake");
   assert.equal(await flagged("scrimmage"), false);
 });
+
+/* --------------------------------------------------------------------------
+ * A school name is not a key. Kentucky has a Clay County, a Jackson County, a
+ * Western Hills, a Scott, a Franklin County, a Union County and a Saint
+ * Xavier; so do Tennessee and Ohio. Matching on name alone put nine Kentucky
+ * schools in games they never played.
+ * ------------------------------------------------------------------------ */
+
+test("a name shared across states will not resolve without a state", opts, async () => {
+  const { db, sql } = await fixture();
+  const [ky] = await sql<{ name: string }[]>`
+    SELECT name FROM school WHERE state = 'KY' AND is_active ORDER BY id LIMIT 1`;
+
+  // On its own the name is answerable.
+  const [alone] = await db.matchSchoolNames([ky.name]);
+  assert.equal(alone.schoolId !== null, true, "one school, one answer");
+
+  // Give the same name to a school in another state and it stops being one.
+  await sql`
+    INSERT INTO school (slug, name, short_name, city, state, is_khsaa_member)
+    VALUES ('zz-collision-tn', ${ky.name}, ${ky.name + " (TN)"}, 'Nowhere', 'TN', false)
+    ON CONFLICT (slug) DO NOTHING`;
+
+  const [ambiguous] = await db.matchSchoolNames([ky.name]);
+  assert.equal(ambiguous.schoolId, null, "two states, no answer without one");
+  assert.equal(ambiguous.method, "unmatched");
+  assert.ok(
+    ambiguous.candidates.some((c) => c.name.includes("[TN]")),
+    "and it says which states it could be"
+  );
+
+  // The state settles it, in both directions.
+  const [inKy] = await db.matchSchoolNames([{ name: ky.name, state: "KY" }]);
+  assert.ok(inKy.schoolId, "Kentucky asked for, Kentucky returned");
+  const [inTn] = await db.matchSchoolNames([{ name: ky.name, state: "TN" }]);
+  assert.ok(inTn.schoolId, "Tennessee asked for, Tennessee returned");
+  assert.notEqual(inKy.schoolId, inTn.schoolId, "and they are not the same school");
+
+  // The city settles it too, when two schools share a name within a state.
+  const [byCity] = await db.matchSchoolNames([
+    { name: ky.name, state: "TN", city: "Nowhere" },
+  ]);
+  assert.equal(byCity.schoolId, inTn.schoolId);
+
+  await sql`DELETE FROM school WHERE slug = 'zz-collision-tn'`;
+});
+
+test("a state that holds no such school does not silently fall back", opts, async () => {
+  const { db, sql } = await fixture();
+  const [ky] = await sql<{ name: string }[]>`
+    SELECT name FROM school WHERE state = 'KY' AND is_active ORDER BY id LIMIT 1`;
+  // Asking for an Ohio school of that name must not return the Kentucky one
+  // just because the name matches.
+  const [m] = await db.matchSchoolNames([{ name: ky.name, state: "OH" }]);
+  if (m.schoolId !== null) {
+    const [got] = await sql<{ state: string }[]>`
+      SELECT state FROM school WHERE id = ${m.schoolId}`;
+    assert.equal(got.state, "OH", "if it answered at all, it answered in Ohio");
+  }
+});
