@@ -1584,3 +1584,20 @@ last realignment's districts to this one's. Verified by inserting an expired
 **A sport we have not aligned yet says nothing**, rather than "0 classes".
 Baseball has a season open and no alignment, and that row is honest about it
 by being quiet.
+
+## 2026-09-10 — The about page explains the class split
+**Did:** a "By class, not only statewide" section, sitting under the RPI one,
+saying that the postseason is drawn inside a class and that every page here
+can be narrowed to one, with links into those views.
+**The numbers are read, not written.** "Football plays in 6 classes and
+basketball in 16 regions" comes from the alignment table. Six classes is a
+KHSAA decision, not a fact about this site, and it has changed before.
+**Three shapes, all rendered:** two aligned sports read "Football plays in 6
+classes and basketball in 16 regions", one reads "Football plays in 6 classes"
+with no dangling "and", and none at all hides the section rather than printing
+"0 classes". Production is the one-sport shape today, because basketball has
+no teams loaded yet.
+**Eight tests failed on the way and none of it was the code.** Deleting every
+team_season to render the no-alignment case is deleting the fixtures the
+database tests run on. Rebuilt the dev database, 171 pass again, twice. If a
+test breaks right after hand-editing dev data, suspect the data first.

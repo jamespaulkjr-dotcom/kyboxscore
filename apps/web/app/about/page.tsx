@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getHomeSummaries, listSports } from "@kyboxscore/db";
+import { getHomeSummaries, listAllSports, listSports } from "@kyboxscore/db";
 import { SiteHeader } from "../components/site-header";
 import { BottomNav } from "../components/bottom-nav";
 
@@ -22,9 +22,40 @@ export const metadata: Metadata = {
  * because the performance budget applies to this page too.
  */
 export default async function Page() {
-  const [sports, summaries] = await Promise.all([listSports(), getHomeSummaries()]);
+  const [sports, summaries, all] = await Promise.all([
+    listSports(),
+    getHomeSummaries(),
+    listAllSports(),
+  ]);
   const covered = summaries.filter((s) => s.teams > 0);
   const waiting = summaries.filter((s) => s.teams === 0);
+
+  // How each sport we cover is actually carved up, read from the alignment
+  // rather than written into the prose: six classes today is a KHSAA decision,
+  // not a fact about the site, and it has changed before.
+  const aligned = covered
+    .map((s) => {
+      const row = all.find((a) => a.slug === s.sportSlug);
+      if (!row) return null;
+      if (row.classes > 0)
+        return { ...s, count: row.classes, noun: "classes", one: "class" };
+      if (row.regions > 0)
+        return { ...s, count: row.regions, noun: "regions", one: "region" };
+      return null;
+    })
+    .filter((s) => s !== null);
+  const primary = aligned[0];
+  // "Football plays in 6 classes and basketball in 16 regions", rather than
+  // repeating the verb once per sport and comma-splicing the lot.
+  const alignedSentence = aligned
+    .map((s, i) =>
+      i === 0
+        ? `${s.sportName} plays in ${s.count} ${s.noun}`
+        : `${s.sportName.toLowerCase()} in ${s.count} ${s.noun}`
+    )
+    .reduce((acc, part, i, list) =>
+      i === 0 ? part : i === list.length - 1 ? `${acc} and ${part}` : `${acc}, ${part}`
+    , "");
 
   return (
     <>
@@ -131,6 +162,43 @@ export default async function Page() {
             inputs, so the arithmetic can be shown to anyone who disputes it.
           </p>
         </Section>
+
+        {primary && (
+          <Section title="By class, not only statewide">
+            <p>
+              The postseason is not drawn statewide. {alignedSentence}, and a
+              bracket is decided inside one of them. A statewide
+              ranking is worth reading; the one that decides anything is the
+              one inside your own {primary.one}.
+            </p>
+            <p>
+              So every page here can be narrowed to one. Scores, ratings,
+              standings, leaders and the team list all take the same switch,
+              and each of those views has its own address you can send to
+              somebody who was not there.
+            </p>
+            <p className="flex flex-wrap gap-x-4 gap-y-1">
+              <Link
+                href={`/${primary.sportSlug}/rpi?by=${primary.one}`}
+                className="text-link underline"
+              >
+                Top 10 in every {primary.one} →
+              </Link>
+              <Link
+                href={`/${primary.sportSlug}/standings`}
+                className="text-link underline"
+              >
+                District standings →
+              </Link>
+              <Link
+                href={`/${primary.sportSlug}/teams`}
+                className="text-link underline"
+              >
+                Every team by {primary.one} →
+              </Link>
+            </p>
+          </Section>
+        )}
 
         <Section title="About the players">
           <p>
