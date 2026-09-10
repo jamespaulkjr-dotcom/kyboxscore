@@ -1505,3 +1505,30 @@ moving a fixture team into Region 10: it now sorts after Region 5 rather than
 after Region 1.
 **Pills come from `listSeasonGroups`**, as on the stats page: which pills
 exist must not change as you step from one date to the next.
+
+## 2026-09-10 — Search labels rather than filters
+**The ask was the class pills again; search got labels instead**, and James
+picked that. Pills on search would need you to already know the class of the
+thing whose name you are typing, and browsing a whole class is what
+`/[sport]/teams?class=3a` does since this morning. The search page links to it
+in a line under the box rather than growing its own copy.
+**What search actually needed** was for its results to be distinguishable.
+Kentucky has a Central, a Central Hardin, a Knox Central, a Floyd Central, a
+Madison Central and a Warren Central, and the results listed them as six rows
+saying "Central-ish · School". Ten thousand players were a bare name and
+nothing else. Every result now carries its class, a player carries their
+school, and the city still follows.
+**A player result used to link to the search it just ran.** There is no player
+page yet, but there is a team page, so a player now links to the roster they
+were found on.
+**The label and the link have to agree.** A player is labelled from this
+sport's current season when they have one and from their most recent roster
+otherwise, which in September means a basketball player is labelled "Region
+1". The first cut linked all players to the football team page while labelling
+them from basketball. The row now carries the sport and year of the roster it
+was labelled from, and links there.
+**Verified by rendering:** "central" returns six Centrals now separated by
+class, "male" reads "Male · 3A · Louisville", a basketball player reads
+"Bowling Green · Region 1" and links to `/basketball/2027/teams/bowling-green`
+while a school still links into the primary sport. A school with no team in
+that sport is still found, just unlabelled. 171 tests pass, twice.

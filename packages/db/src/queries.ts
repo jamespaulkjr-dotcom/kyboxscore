@@ -543,18 +543,89 @@ export async function getLeaderboard(
     LIMIT ${limit}`;
 }
 
-export async function searchAll(query: string, limit = 20) {
+/**
+ * Name search over schools and players.
+ *
+ * `sportSlug` decides which season a school's classification is read from,
+ * and is preferred for a player too. A player who only appears on another
+ * sport's roster is labelled from that one and carries its sport and year, so
+ * the row links where its label says. Matching itself is unaffected: a school
+ * with no team in that sport is still found, just unlabelled.
+ *
+ * Two schools called Central and ten thousand players who are only a name are
+ * the reason these labels exist. A result you cannot tell apart from the next
+ * one is not a result.
+ */
+export async function searchAll(query: string, limit = 20, sportSlug?: string) {
   const q = query.trim();
   if (q.length < 2) return [];
   return sql<
-    { entityType: string; title: string; subtitle: string; slug: string; score: number }[]
+    {
+      entityType: string;
+      title: string;
+      subtitle: string;
+      slug: string;
+      score: number;
+      /** The classification, or the region for a sport aligned that way. */
+      groupName: string | null;
+      /** For a player: the school they are rostered at, and where to link it. */
+      schoolName: string | null;
+      schoolSlug: string | null;
+      sportSlug: string | null;
+      urlYear: number | null;
+    }[]
   >`
-    SELECT entity_type AS "entityType", title, subtitle, slug,
-           similarity(title, ${q})::float8 AS score
-    FROM search_document
-    WHERE title % ${q} OR title ILIKE ${"%" + q + "%"}
-    ORDER BY similarity(title, ${q}) DESC, title
-    LIMIT ${limit}`;
+    WITH ss AS (
+      SELECT ss.id FROM sport_season ss
+      JOIN sport sp ON sp.id = ss.sport_id
+      WHERE sp.slug = ${sportSlug ?? ""} AND ss.is_current
+      LIMIT 1
+    ),
+    hits AS (
+      SELECT entity_type, entity_id, title, subtitle, slug,
+             similarity(title, ${q}) AS score
+      FROM search_document
+      WHERE title % ${q} OR title ILIKE ${"%" + q + "%"}
+      ORDER BY similarity(title, ${q}) DESC, title
+      LIMIT ${limit}
+    )
+    SELECT h.entity_type AS "entityType", h.title, h.subtitle, h.slug,
+           h.score::float8 AS score,
+           coalesce(sg.group_name, pg.group_name) AS "groupName",
+           pg.school_name AS "schoolName", pg.school_slug AS "schoolSlug",
+           pg.sport_slug AS "sportSlug", pg.url_year AS "urlYear"
+    FROM hits h
+    LEFT JOIN LATERAL (
+      SELECT parent.name AS group_name
+      FROM team t
+      JOIN team_season ts ON ts.team_id = t.id
+                         AND ts.sport_season_id = (SELECT id FROM ss)
+      JOIN alignment a      ON a.id = ts.alignment_id
+      JOIN alignment parent ON parent.id = a.parent_id
+      WHERE h.entity_type = 'school' AND t.school_id = h.entity_id
+      LIMIT 1
+    ) sg ON true
+    LEFT JOIN LATERAL (
+      -- This sport's current season if the player has one, otherwise the most
+      -- recent roster they appear on: a graduated player still played
+      -- somewhere, and a bare name helps nobody.
+      SELECT coalesce(sc.short_name, sc.name) AS school_name,
+             sc.slug::text AS school_slug, parent.name AS group_name,
+             sp.slug::text AS sport_slug, pss.url_year::int AS url_year
+      FROM player_season ps
+      JOIN team_season ts   ON ts.id = ps.team_season_id
+      JOIN team t           ON t.id = ts.team_id
+      JOIN school sc        ON sc.id = t.school_id
+      JOIN sport_season pss ON pss.id = ts.sport_season_id
+      JOIN sport sp         ON sp.id = pss.sport_id
+      LEFT JOIN alignment a      ON a.id = ts.alignment_id
+      LEFT JOIN alignment parent ON parent.id = a.parent_id
+      WHERE h.entity_type = 'player' AND ps.player_id = h.entity_id
+      ORDER BY (ts.sport_season_id = (SELECT id FROM ss)) DESC,
+               ts.sport_season_id DESC
+      LIMIT 1
+    ) pg ON true
+    ORDER BY h.score DESC, h.title`;
 }
 
 /**

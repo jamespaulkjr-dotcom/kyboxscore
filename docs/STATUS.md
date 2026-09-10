@@ -276,7 +276,10 @@ That skips migrations, which the pipeline runs and this command does not.
   class rank to that class's RPI, its district placing to that class's
   standings. The scoreboard takes it too: `/[sport]/scores/2026-09-04?class=3a`,
   matching on **either** side so a 3A team playing up still appears on the 3A
-  page, and the date arrows carry the filter with them. `/[sport]/standings` is
+  page, and the date arrows carry the filter with them. Search has no pills on
+  purpose: browsing a whole class is what `/[sport]/teams?class=3a` is for, so
+  search instead **labels** every result with its class, and a player with
+  their school, which is what tells two schools called Central apart. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".
