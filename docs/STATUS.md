@@ -271,7 +271,10 @@ That skips migrations, which the pipeline runs and this command does not.
   nobody on the board must keep its pill, and which pills exist must not
   change as you click between statistics. `?stat=` and `?class=` compose, and
   a class board is ranked 1..25 inside the class rather than cut out of the
-  statewide one. `/[sport]/standings` is
+  statewide one. `/[sport]/teams` filters the same way, and a team's own page
+  links into all three: its class label goes to that class's team list, its
+  class rank to that class's RPI, its district placing to that class's
+  standings. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".

@@ -1460,3 +1460,27 @@ made the real failure visible.
 football by class after giving every fixture team a passer. A 3A board starts
 at 1 with the 3A leader, not at the statewide leader's rank, and the statewide
 runner-up is correctly absent from it. 171 tests pass, twice.
+
+## 2026-09-10 — Class filters on the team pages
+**Did:** the teams index takes `?class=3a` with the same pills, and in the
+unfiltered list each school now carries its class beside the name, so the
+statewide A-to-Z is still readable as six classes. The standings and RPI links
+at the top follow the filter rather than throwing you back to statewide.
+**A team's own page is where this pays off.** It now reads "State #17 · #2 in
+3A · 1st in 3A District 2", and each of those is a link into the matching
+view: the class rank to `/rpi?class=3a`, the district placing to
+`/standings?class=3a`, the class label to `/teams?class=3a`. Two taps from any
+team to every view of its class, which is the navigation rule in CLAUDE.md.
+**The class rank was already being computed and never shown.**
+`getTeamRankings` has returned `class_rank` since the engine was written and
+the team page ignored it. It now returns `coalesce(class_rank, region_rank)`
+as `groupRank`, so a basketball team page shows "#4 in Region 3" the same way
+a football one shows "#2 in 3A".
+**`regionName` is gone from both team queries**, replaced by the
+groupName/groupSlug/groupKind vocabulary the other queries use. It was never a
+region for football: it held the classification, under a name that said
+otherwise.
+**Verified by rendering:** football teams 144 rows, `?class=3a` 24, an unknown
+class a 404, both hand-typed forms of the parameter resolving, and both a
+football and a basketball team page showing the right rank and links. 171
+tests pass, twice.

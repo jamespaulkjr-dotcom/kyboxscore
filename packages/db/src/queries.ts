@@ -156,7 +156,10 @@ export async function getTeamSeason(
       county: string | null;
       timeZone: string;
       districtName: string | null;
-      regionName: string | null;
+      /** The classification in football, the region in basketball. */
+      groupName: string | null;
+      groupSlug: string | null;
+      groupKind: "classification" | "region" | null;
       wins: number;
       losses: number;
       ties: number;
@@ -169,7 +172,8 @@ export async function getTeamSeason(
     SELECT ts.id::int AS "teamSeasonId", t.id::int AS "teamId",
            coalesce(sc.short_name, sc.name) AS "schoolName", sc.slug AS "schoolSlug", sc.mascot,
            sc.city, sc.county, sc.time_zone AS "timeZone",
-           d.name AS "districtName", r.name AS "regionName",
+           d.name AS "districtName", r.name AS "groupName",
+           r.slug::text AS "groupSlug", r.kind::text AS "groupKind",
            coalesce(rec.wins, 0)::int AS wins,
            coalesce(rec.losses, 0)::int AS losses,
            coalesce(rec.ties, 0)::int AS ties,
@@ -371,7 +375,10 @@ export async function listTeams(sportSeasonId: number) {
       schoolName: string;
       mascot: string | null;
       city: string | null;
-      regionName: string | null;
+      groupName: string | null;
+      groupSlug: string | null;
+      groupKind: "classification" | "region" | null;
+      groupOrdinal: number | null;
       districtName: string | null;
       wins: number;
       losses: number;
@@ -381,7 +388,9 @@ export async function listTeams(sportSeasonId: number) {
   >`
     SELECT sc.slug AS "schoolSlug", coalesce(sc.short_name, sc.name) AS "schoolName",
            sc.mascot, sc.city,
-           r.name AS "regionName", d.name AS "districtName",
+           r.name AS "groupName", r.slug::text AS "groupSlug",
+           r.kind::text AS "groupKind", r.ordinal::int AS "groupOrdinal",
+           d.name AS "districtName",
            coalesce(rec.wins, 0)::int AS wins, coalesce(rec.losses, 0)::int AS losses,
            coalesce(rec.district_wins, 0)::int AS "districtWins",
            coalesce(rec.district_losses, 0)::int AS "districtLosses",
@@ -646,7 +655,13 @@ export async function getDistrictStandings(sportSeasonId: number) {
 /** One team's placement: statewide by RPI, and inside its district by record. */
 export async function getTeamRankings(sportSeasonId: number, schoolSlug: string) {
   const rows = await sql<
-    { stateRank: number | null; classRank: number | null; districtRank: number | null; rpi: number | null }[]
+    {
+      stateRank: number | null;
+      /** Rank inside the classification, or inside the region for a sport that has those. */
+      groupRank: number | null;
+      districtRank: number | null;
+      rpi: number | null;
+    }[]
   >`
     WITH latest_run AS (
       SELECT max(id) AS id FROM rpi_run
@@ -677,7 +692,8 @@ export async function getTeamRankings(sportSeasonId: number, schoolSlug: string)
       LEFT JOIN team_season_record rec ON rec.team_season_id = ts.id
       WHERE ts.sport_season_id = ${sportSeasonId}
     )
-    SELECT rr.state_rank::int AS "stateRank", rr.class_rank::int AS "classRank",
+    SELECT rr.state_rank::int AS "stateRank",
+           coalesce(rr.class_rank, rr.region_rank)::int AS "groupRank",
            d.rn::int AS "districtRank", rr.rpi::float8 AS rpi
     FROM school sc
     JOIN team t ON t.school_id = sc.id

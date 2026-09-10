@@ -10,6 +10,7 @@ import {
   getTeamSeasonStats,
   listSports,
 } from "@kyboxscore/db";
+import { groupParam } from "../../../../../lib/alignment-group";
 import { SiteHeader } from "../../../../components/site-header";
 import { BottomNav } from "../../../../components/bottom-nav";
 import { FollowButton } from "../../../../components/follow-button";
@@ -108,10 +109,28 @@ export default async function Page(
               </Link>
             </>
           )}
+          {/* The class rank is the one that decides a bracket, and it was
+              computed all along without ever being shown. */}
+          {ranks?.groupRank && team.groupName && (
+            <>
+              <span>·</span>
+              <Link
+                href={`/${sport}/rpi?class=${groupParam(team.groupSlug ?? "")}`}
+                className="text-link underline"
+              >
+                #{ranks.groupRank} in {team.groupName}
+              </Link>
+            </>
+          )}
           {ranks?.districtRank && team.districtName && (
             <>
               <span>·</span>
-              <Link href={`/${sport}/standings`} className="text-link underline">
+              <Link
+                href={`/${sport}/standings${
+                  team.groupSlug ? `?class=${groupParam(team.groupSlug)}` : ""
+                }`}
+                className="text-link underline"
+              >
                 {ordinal(ranks.districtRank)} in {team.districtName}
               </Link>
             </>
@@ -119,7 +138,17 @@ export default async function Page(
           <span>·</span>
           <span>{season.sportName} {season.seasonLabel}</span>
           {team.districtName && (<><span>·</span><span>{team.districtName}</span></>)}
-          {team.regionName && (<><span>·</span><span>{team.regionName}</span></>)}
+          {team.groupName && (
+            <>
+              <span>·</span>
+              <Link
+                href={`/${sport}/teams?class=${groupParam(team.groupSlug ?? "")}`}
+                className="text-link underline"
+              >
+                {team.groupName}
+              </Link>
+            </>
+          )}
           {team.city && (<><span>·</span><span>{team.city}</span></>)}
         </p>
 
