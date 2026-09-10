@@ -334,6 +334,12 @@ export async function getGameSides(gameId: number) {
       shortName: string | null;
       score: number | null;
       periods: number[];
+      /** The classification, or the region for a sport aligned that way. */
+      groupName: string | null;
+      groupSlug: string | null;
+      groupKind: "classification" | "region" | null;
+      /** Where this team stands inside it, from the latest official RPI run. */
+      groupRank: number | null;
     }[]
   >`
     SELECT gp.id::int AS "participantId", gp.role, gp.team_id::int AS "teamId",
@@ -347,10 +353,25 @@ export async function getGameSides(gameId: number) {
            coalesce(
              (SELECT array_agg(ps.score::int ORDER BY ps.period_number)
               FROM game_period_score ps WHERE ps.game_participant_id = gp.id),
-             '{}') AS periods
+             '{}') AS periods,
+           parent.name AS "groupName", parent.slug::text AS "groupSlug",
+           parent.kind::text AS "groupKind",
+           coalesce(rr.class_rank, rr.region_rank)::int AS "groupRank"
     FROM game_participant gp
-    JOIN team t ON t.id = gp.team_id
+    JOIN game g    ON g.id = gp.game_id
+    JOIN team t    ON t.id = gp.team_id
     JOIN school sc ON sc.id = t.school_id
+    -- The alignment as it stood in this game's own season, not today's: a
+    -- 2026 box score must not be relabelled by a 2028 realignment.
+    LEFT JOIN team_season ts ON ts.team_id = gp.team_id
+                            AND ts.sport_season_id = g.sport_season_id
+    LEFT JOIN alignment a      ON a.id = ts.alignment_id
+    LEFT JOIN alignment parent ON parent.id = a.parent_id
+    LEFT JOIN rpi_result rr
+           ON rr.team_id = gp.team_id
+          AND rr.rpi_run_id = (SELECT max(id) FROM rpi_run
+                                WHERE sport_season_id = g.sport_season_id
+                                  AND variant = 'official')
     WHERE gp.game_id = ${gameId}
     ORDER BY gp.role DESC`;
 }

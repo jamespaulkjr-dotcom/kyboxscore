@@ -8,6 +8,7 @@ import {
   getScoringSummary,
   listSports,
 } from "@kyboxscore/db";
+import { groupParam } from "../../../../../lib/alignment-group";
 import { SiteHeader } from "../../../../components/site-header";
 import { BottomNav } from "../../../../components/bottom-nav";
 import { StatusLabel } from "../../../../components/status";
@@ -122,6 +123,18 @@ export default async function Page(
                       >
                         {s.schoolName}
                       </Link>
+                      {/* Which class each side is in, and where it stands in
+                          it. On a cross-class game this is the difference
+                          between a good win and an expected one. */}
+                      {s.groupName && s.groupSlug && (
+                        <Link
+                          href={`/${sport}/rpi?class=${groupParam(s.groupSlug)}`}
+                          className="ml-2 whitespace-nowrap text-xs text-fg-muted hover:underline"
+                        >
+                          {s.groupName}
+                          {s.groupRank ? ` #${s.groupRank}` : ""}
+                        </Link>
+                      )}
                     </th>
                     {Array.from({ length: periods }, (_, i) => (
                       <td key={i} className="tabular px-1 py-2 text-center text-fg-muted">

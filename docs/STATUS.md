@@ -279,7 +279,9 @@ That skips migrations, which the pipeline runs and this command does not.
   page, and the date arrows carry the filter with them. Search has no pills on
   purpose: browsing a whole class is what `/[sport]/teams?class=3a` is for, so
   search instead **labels** every result with its class, and a player with
-  their school, which is what tells two schools called Central apart. `/[sport]/standings` is
+  their school, which is what tells two schools called Central apart. A game
+  page labels both sides the same way, from **that game's own season**, so an
+  old box score is never relabelled by a later realignment. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".

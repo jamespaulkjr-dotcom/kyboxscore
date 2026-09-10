@@ -1532,3 +1532,18 @@ class, "male" reads "Male · 3A · Louisville", a basketball player reads
 "Bowling Green · Region 1" and links to `/basketball/2027/teams/bowling-green`
 while a school still links into the primary sport. A school with no team in
 that sport is still found, just unlabelled. 171 tests pass, twice.
+
+## 2026-09-10 — Class on the game page
+**Did:** the line score names each side's class and where it stands in it,
+"St. X 6A #3" against "Beth Haven 3A #10", each linking to that class's RPI.
+On a cross-class game this is the difference between a good win and an
+expected one, and it was nowhere on the page before.
+**Read from the game's own season, not from today's alignment.** Alignments
+change every two years, and a 2026 box score relabelled by a 2028
+realignment would be quietly wrong forever. `getGameSides` joins
+`team_season` on the game's `sport_season_id` and takes the RPI rank from
+that season's latest official run.
+**Verified by rendering:** a same-class game, the cross-class fixture game
+showing 6A and 3A with two different links, a basketball game reading
+"Region 1 #1", and a baseball game whose teams have no alignment at all
+still rendering with no label and no crash. 171 tests pass, twice.
