@@ -16,5 +16,11 @@ export async function generateMetadata(
 
 export default async function Page(props: PageProps<"/[sport]/scores">) {
   const { sport } = await props.params;
-  return <ScoresView sportSlug={sport} />;
+  const { class: classParam } = await props.searchParams;
+  return (
+    <ScoresView
+      sportSlug={sport}
+      classParam={typeof classParam === "string" ? classParam : ""}
+    />
+  );
 }

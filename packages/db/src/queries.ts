@@ -83,17 +83,28 @@ export async function resolveSlateDate(
   return upcoming[0]?.d ?? null;
 }
 
+/**
+ * One date's games.
+ *
+ * `groupSlug` narrows to one classification or region and matches on *either*
+ * side, because a 3A team playing up is still a 3A team's score and dropping
+ * it from the 3A page would be a lie of omission.
+ */
 export async function getScoreboard(
   sportSeasonId: number,
   localDate: string,
-  groupBy: "district" | "region" | "classification" = "region"
+  groupBy: "district" | "region" | "classification" = "region",
+  groupSlug?: string
 ): Promise<ScoreboardGame[]> {
   const rows = await sql<ScoreboardGame[]>`
     WITH sides AS (
       SELECT gp.game_id, gp.role, gp.team_id::int, gp.score::int,
              sc.slug AS school_slug, coalesce(sc.short_name, sc.name) AS school_name,
              sc.short_name, sc.mascot, sc.time_zone,
-             CASE WHEN ${groupBy} = 'district' THEN grp.name ELSE parent.name END AS group_name
+             CASE WHEN ${groupBy} = 'district' THEN grp.name ELSE parent.name END AS group_name,
+             CASE WHEN ${groupBy} = 'district' THEN grp.slug ELSE parent.slug END::text AS group_slug,
+             CASE WHEN ${groupBy} = 'district' THEN grp.kind ELSE parent.kind END::text AS group_kind,
+             CASE WHEN ${groupBy} = 'district' THEN grp.ordinal ELSE parent.ordinal END::int AS group_ordinal
       FROM game_participant gp
       JOIN team t ON t.id = gp.team_id
       JOIN school sc ON sc.id = t.school_id
@@ -112,6 +123,9 @@ export async function getScoreboard(
            to_char(g.local_time, 'HH12:MI AM') AS "localTime",
            h.time_zone AS "timeZone",
            coalesce(h.group_name, a.group_name) AS "groupName",
+           coalesce(h.group_slug, a.group_slug) AS "groupSlug",
+           coalesce(h.group_kind, a.group_kind) AS "groupKind",
+           coalesce(h.group_ordinal, a.group_ordinal) AS "groupOrdinal",
            jsonb_build_object(
              'teamId', h.team_id, 'schoolSlug', h.school_slug,
              'schoolName', h.school_name, 'shortName', h.short_name,
@@ -125,6 +139,11 @@ export async function getScoreboard(
     JOIN sides a ON a.game_id = g.id AND a.role = 'away'
     WHERE g.sport_season_id = ${sportSeasonId}
       AND g.local_date = ${localDate}::date
+      ${
+        groupSlug
+          ? sql`AND ${groupSlug} IN (h.group_slug, a.group_slug)`
+          : sql``
+      }
     ORDER BY
       CASE g.status WHEN 'in_progress' THEN 0 WHEN 'final' THEN 1 ELSE 2 END,
       coalesce(h.group_name, a.group_name) NULLS LAST,

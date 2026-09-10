@@ -33,7 +33,11 @@ export type ScoreboardGame = {
   startsAt: string | null;
   /** Kick-off in the venue's local time, already formatted. */
   localTime: string | null;
+  /** The classification or region the game is listed under, from the home team. */
   groupName: string | null;
+  groupSlug: string | null;
+  groupKind: "classification" | "region" | null;
+  groupOrdinal: number | null;
   home: Side;
   away: Side;
 };

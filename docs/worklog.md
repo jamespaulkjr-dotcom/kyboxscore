@@ -1484,3 +1484,24 @@ otherwise.
 class a 404, both hand-typed forms of the parameter resolving, and both a
 football and a basketball team page showing the right rank and links. 171
 tests pass, twice.
+
+## 2026-09-10 — Class filters on the scoreboard
+**Did:** `?class=3a` on both scores routes, on the dateless one and on
+`/scores/2026-09-04`, with the date arrows carrying the filter so stepping
+back a Friday keeps you in your class.
+**It matches on either team, not on the section heading.** A 3A team playing
+up at a 6A school is still a 3A team's score, and leaving it off the 3A page
+would be a lie of omission. Verified with a 3A-hosts-6A fixture game: it
+appears under both classes and under neither 1A nor any other.
+**A filtered scoreboard drops the section headings.** Unfiltered, the page
+groups by class and always has. Filtered, the class is already stated at the
+top, and the cross-class game above would otherwise be filed under 6A on a
+page about 3A.
+**Fixed the section ordering while in there.** Sections came out in the SQL's
+alphabetical order by name, which reads 1A through 6A correctly and reads
+"Region 1, Region 10, Region 2" for basketball. They now sort by the
+alignment's ordinal, with ungrouped games ("Other") still last. Verified by
+moving a fixture team into Region 10: it now sorts after Region 5 rather than
+after Region 1.
+**Pills come from `listSeasonGroups`**, as on the stats page: which pills
+exist must not change as you step from one date to the next.
