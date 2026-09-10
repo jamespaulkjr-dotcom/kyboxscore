@@ -1617,3 +1617,27 @@ action and not worth driving with curl, so the session was minted directly.
 `user_session` row with that hash and sending the token as `kbs_session` is a
 real signed-in request. Script kept at scratchpad/session.ts for the next time
 a guarded page needs a look.
+
+## 2026-09-10 — The admin version of the class split is the gap list
+**Two pages, not thirteen.** Admin does not browse by class, it finds what is
+missing, so the treatment here is different from the public one.
+**`/admin/teams`** shows each team's district (with the class in front of it
+only when the district name does not already carry it: football's are named
+"1A District 1" and basketball's "District 11"), flags a team with a season
+and no district in red, and has a link that lists only those: `?gaps=1`. A
+team like that has no district record, no place in the standings and a
+baseline class factor, and nothing anywhere said so.
+**`/admin/alignments`** now says what is loaded before you replace it:
+"Football 6 classes · 48 districts · 141 placed · 3 without a district", the
+last of which links to the gap list. The page had always claimed it was built
+to be re-run every realignment cycle while showing nothing about what re-running
+it would overwrite.
+**The other eleven admin pages got nothing, on purpose.** Users and team access
+are about people; time zones are geography; out-of-state schools have no
+Kentucky class by definition; deleted games and missing results are triaged by
+date, not by class, and an admin chases every missing score regardless. Adding
+a class filter to those would be decoration.
+**Verified signed in as an admin** with the session-minting script from the
+coach dashboard work, including creating the gap: three football teams had
+their alignment nulled, the count read 3, the filter listed exactly those
+three, and the other eleven admin pages still render.

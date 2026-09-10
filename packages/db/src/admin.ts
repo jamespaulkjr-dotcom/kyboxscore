@@ -152,12 +152,22 @@ export type AdminTeamRow = {
   teamSeasonId: number | null;
   seasonLabel: string | null;
   rosterCount: number;
+  /** The district it is in this season, and the class or region above it. */
+  districtName: string | null;
+  groupName: string | null;
 };
 
+/**
+ * `unalignedOnly` is the gap list: a team in a season with no district set.
+ * It has no district record, no place in the standings and a baseline class
+ * factor in its RPI, and nothing on the public site says so out loud, because
+ * the rule is to leave it unassigned rather than guess.
+ */
 export async function listTeamsAdmin(
   query?: string,
   sportId?: number,
-  includeOutOfState = false
+  includeOutOfState = false,
+  unalignedOnly = false
 ) {
   const q = (query ?? "").trim();
   return sql<AdminTeamRow[]>`
@@ -165,15 +175,21 @@ export async function listTeamsAdmin(
            sp.name AS "sportName", sp.slug::text AS "sportSlug",
            t.gender::text AS gender, t.level::text AS level,
            ts.id::int AS "teamSeasonId", se.label AS "seasonLabel",
-           count(ps.id)::int AS "rosterCount"
+           count(ps.id)::int AS "rosterCount",
+           d.name AS "districtName", parent.name AS "groupName"
     FROM team t
     JOIN school sc ON sc.id = t.school_id
     JOIN sport sp  ON sp.id = t.sport_id
     LEFT JOIN sport_season ss ON ss.sport_id = t.sport_id AND ss.is_current
     LEFT JOIN team_season ts  ON ts.team_id = t.id AND ts.sport_season_id = ss.id
     LEFT JOIN season se       ON se.id = ss.season_id
+    LEFT JOIN alignment d      ON d.id = ts.alignment_id
+    LEFT JOIN alignment parent ON parent.id = d.parent_id
     LEFT JOIN player_season ps ON ps.team_season_id = ts.id
     WHERE TRUE
+      -- Only a team that has a season to be aligned in counts as a gap. One
+      -- whose sport is out of season is not missing anything.
+      ${unalignedOnly ? sql`AND ts.id IS NOT NULL AND ts.alignment_id IS NULL` : sql``}
       ${q ? sql`AND (sc.name ILIKE ${"%" + q + "%"} OR sp.name ILIKE ${"%" + q + "%"})` : sql``}
       ${sportId ? sql`AND sp.id = ${sportId}` : sql``}
       -- Kentucky by default. Out-of-state schools are opponents, not members;
@@ -181,7 +197,7 @@ export async function listTeamsAdmin(
       -- every count with teams nobody administers.
       ${includeOutOfState ? sql`` : sql`AND sc.state = 'KY'`}
     GROUP BY t.id, sc.name, sc.slug, sp.name, sp.slug, sp.display_order,
-             t.gender, t.level, ts.id, se.label
+             t.gender, t.level, ts.id, se.label, d.name, parent.name
     ORDER BY sc.name, sp.display_order
     LIMIT 300`;
 }
@@ -988,6 +1004,64 @@ export async function ensureTeamSeasonForSchool(
  * With two, it is a hazard: nothing distinguishes a basketball team from a
  * football one at a glance.
  */
+/**
+ * What alignment is actually loaded, per sport, for the season now open.
+ *
+ * The importer page says it is built to be re-run every realignment cycle and
+ * then showed nothing about what re-running it would replace. This is that.
+ */
+export async function listAlignmentSummary() {
+  return sql<
+    {
+      sportSlug: string;
+      sportName: string;
+      classes: number;
+      regions: number;
+      districts: number;
+      aligned: number;
+      unaligned: number;
+    }[]
+  >`
+    SELECT sp.slug::text AS "sportSlug", sp.name AS "sportName",
+           coalesce(al.classes, 0)::int AS classes,
+           coalesce(al.regions, 0)::int AS regions,
+           coalesce(al.districts, 0)::int AS districts,
+           count(ts.id) FILTER (WHERE ts.alignment_id IS NOT NULL)::int AS aligned,
+           count(ts.id) FILTER (WHERE ts.alignment_id IS NULL)::int AS unaligned
+    FROM sport sp
+    JOIN sport_season ss ON ss.sport_id = sp.id AND ss.is_current
+    LEFT JOIN team_season ts ON ts.sport_season_id = ss.id
+    LEFT JOIN LATERAL (
+      -- Distinct slug: every alignment exists once per gender. Effective
+      -- dates, because the previous cycle's rows stay in the table.
+      SELECT count(DISTINCT a.slug) FILTER (WHERE a.kind = 'classification') AS classes,
+             count(DISTINCT a.slug) FILTER (WHERE a.kind = 'region') AS regions,
+             count(DISTINCT a.slug) FILTER (WHERE a.kind = 'district') AS districts
+      FROM alignment a
+      WHERE a.sport_id = sp.id
+        AND a.effective_from <= CURRENT_DATE
+        AND (a.effective_to IS NULL OR a.effective_to > CURRENT_DATE)
+    ) al ON true
+    WHERE sp.is_active
+    GROUP BY sp.id, sp.slug, sp.name, sp.display_order,
+             al.classes, al.regions, al.districts
+    HAVING count(ts.id) > 0 OR coalesce(al.districts, 0) > 0
+    ORDER BY sp.display_order`;
+}
+
+/** How many teams have a season open and no district set. */
+export async function countUnalignedTeams(includeOutOfState = false) {
+  const rows = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n
+    FROM team t
+    JOIN school sc ON sc.id = t.school_id
+    JOIN sport_season ss ON ss.sport_id = t.sport_id AND ss.is_current
+    JOIN team_season ts  ON ts.team_id = t.id AND ts.sport_season_id = ss.id
+    WHERE ts.alignment_id IS NULL
+      ${includeOutOfState ? sql`` : sql`AND sc.state = 'KY'`}`;
+  return rows[0]?.n ?? 0;
+}
+
 export async function countTeamsBySport(includeOutOfState = false) {
   return sql<
     {

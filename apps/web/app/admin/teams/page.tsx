@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   countTeamsBySport,
+  countUnalignedTeams,
   listSchoolsForSelect,
   listSports,
   listSportsForSelect,
@@ -20,18 +21,21 @@ export const metadata: Metadata = {
 
 export default async function Page(props: PageProps<"/admin/teams">) {
   await requireAdmin("/admin/teams");
-  const { q, sport, all } = await props.searchParams;
+  const { q, sport, all, gaps } = await props.searchParams;
   const query = typeof q === "string" ? q : "";
   const sportFilter = Number(typeof sport === "string" ? sport : "") || undefined;
   const includeOutOfState = all === "1";
+  const unalignedOnly = gaps === "1";
 
-  const [teams, schools, sportOptions, navSports, bySport] = await Promise.all([
-    listTeamsAdmin(query, sportFilter, includeOutOfState),
-    listSchoolsForSelect(),
-    listSportsForSelect(),
-    listSports(),
-    countTeamsBySport(includeOutOfState),
-  ]);
+  const [teams, schools, sportOptions, navSports, bySport, unaligned] =
+    await Promise.all([
+      listTeamsAdmin(query, sportFilter, includeOutOfState, unalignedOnly),
+      listSchoolsForSelect(),
+      listSportsForSelect(),
+      listSports(),
+      countTeamsBySport(includeOutOfState),
+      countUnalignedTeams(includeOutOfState),
+    ]);
 
   const outOfState = bySport.reduce((n, s) => n + s.outOfState, 0);
   const withParams = (changes: Record<string, string | null>) => {
@@ -39,6 +43,7 @@ export default async function Page(props: PageProps<"/admin/teams">) {
     if (query) p.set("q", query);
     if (sportFilter) p.set("sport", String(sportFilter));
     if (includeOutOfState) p.set("all", "1");
+    if (unalignedOnly) p.set("gaps", "1");
     for (const [k, v] of Object.entries(changes)) {
       if (v === null) p.delete(k);
       else p.set(k, v);
@@ -118,6 +123,23 @@ export default async function Page(props: PageProps<"/admin/teams">) {
           })}
         </nav>
 
+        {/* The gap that matters here. A team with a season and no district has
+            no district record, no place in the standings and a baseline class
+            factor, and the public pages say none of that out loud because the
+            rule is to leave it unassigned rather than guess. */}
+        {(unaligned > 0 || unalignedOnly) && (
+          <p className="mt-2 text-sm">
+            <Link
+              href={withParams({ gaps: unalignedOnly ? null : "1" })}
+              className="text-link underline"
+            >
+              {unalignedOnly
+                ? "Show every team"
+                : `${unaligned} team${unaligned === 1 ? "" : "s"} with a season and no district →`}
+            </Link>
+          </p>
+        )}
+
         <form method="get" className="mt-2 flex gap-2">
           {sportFilter && <input type="hidden" name="sport" value={sportFilter} />}
           <input
@@ -138,7 +160,8 @@ export default async function Page(props: PageProps<"/admin/teams">) {
             {sportFilter
               ? ` in ${bySport.find((s) => s.sportId === sportFilter)?.sportName ?? "this sport"}`
               : " across every sport"}
-            {includeOutOfState ? ", including out-of-state opponents" : " in Kentucky"}.
+            {includeOutOfState ? ", including out-of-state opponents" : " in Kentucky"}
+            {unalignedOnly ? ", with a season open and no district set" : ""}.
           </span>
           {outOfState > 0 && (
             <Link
@@ -174,6 +197,22 @@ export default async function Page(props: PageProps<"/admin/teams">) {
                     <span className="text-sm font-normal text-fg-muted">
                       {t.gender} · {t.level}
                     </span>
+                    {t.teamSeasonId !== null &&
+                      (t.districtName ? (
+                        <span className="text-xs font-normal text-fg-muted">
+                          {/* Football's districts are named "1A District 1",
+                              so prefixing the class again reads as a stutter.
+                              Basketball's are named "District 9" and need it. */}
+                          {t.groupName && !t.districtName.startsWith(t.groupName)
+                            ? `${t.groupName} · `
+                            : ""}
+                          {t.districtName}
+                        </span>
+                      ) : (
+                        <span className="rounded bg-loss/15 px-1.5 py-0.5 text-xs font-semibold text-loss">
+                          no district
+                        </span>
+                      ))}
                   </span>
                   <span className="text-sm text-fg-muted">
                     {t.teamSeasonId === null

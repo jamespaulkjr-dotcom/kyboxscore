@@ -289,7 +289,10 @@ That skips migrations, which the pipeline runs and this command does not.
   counted by distinct slug (every alignment exists once per gender) and
   filtered to the cycle in force today. The coach dashboard shows each granted
   team's class rank and state rank beside its name, so a coach does not have to
-  go out to the public pages to find the number their season is judged on. `/[sport]/standings` is
+  go out to the public pages to find the number their season is judged on. On
+  the admin side, `/admin/teams` shows each team's district and flags the ones
+  with a season and no district (`?gaps=1` lists only those), and
+  `/admin/alignments` says what is loaded per sport before you replace it. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".
