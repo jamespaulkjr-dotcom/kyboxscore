@@ -402,6 +402,32 @@ export async function listTeams(sportSeasonId: number) {
     ORDER BY sc.name`;
 }
 
+/** The grouping shape both the RPI and standings queries return. */
+export type SeasonGroup = {
+  groupName: string;
+  groupSlug: string;
+  groupKind: "classification" | "region";
+  groupOrdinal: number;
+};
+
+/**
+ * The classifications (or regions) a season's teams are actually aligned into.
+ *
+ * The RPI and standings pages derive their pills from their own rows. A
+ * leaderboard cannot: a class with no qualifying player would lose its pill,
+ * and which pills exist would change as you clicked between statistics.
+ */
+export async function listSeasonGroups(sportSeasonId: number) {
+  return sql<SeasonGroup[]>`
+    SELECT DISTINCT parent.name AS "groupName", parent.slug::text AS "groupSlug",
+           parent.kind::text AS "groupKind", parent.ordinal::int AS "groupOrdinal"
+    FROM team_season ts
+    JOIN alignment a      ON a.id = ts.alignment_id
+    JOIN alignment parent ON parent.id = a.parent_id
+    WHERE ts.sport_season_id = ${sportSeasonId}
+    ORDER BY "groupOrdinal"`;
+}
+
 export async function listLeaderboardStats(sportSlug: string) {
   return sql<{ key: string; name: string; abbrev: string }[]>`
     SELECT sd.key, sd.name, sd.abbrev
@@ -412,15 +438,21 @@ export async function listLeaderboardStats(sportSlug: string) {
 }
 
 /**
- * Statewide leaderboard for one stat. `qualifier` on the definition gates
- * entry so a 1-for-1 shooter cannot top a percentage board; the minimum is
- * applied here rather than baked into the rollup, so changing it is a config
- * change and not a recompute.
+ * Leaderboard for one stat, statewide or inside one classification.
+ *
+ * `qualifier` on the definition gates entry so a 1-for-1 shooter cannot top a
+ * percentage board; the minimum is applied here rather than baked into the
+ * rollup, so changing it is a config change and not a recompute.
+ *
+ * `groupSlug` narrows to one classification or region, and the rank is then
+ * the rank inside it: a 1A board that started at #14 would be a statewide
+ * board with most of it deleted, which is not what anybody asked for.
  */
 export async function getLeaderboard(
   sportSeasonId: number,
   statKey: string,
-  limit = 25
+  limit = 25,
+  groupSlug?: string
 ) {
   return sql<
     {
@@ -472,6 +504,13 @@ export async function getLeaderboard(
     JOIN team_season ts ON ts.id = ps.team_season_id
     JOIN team t ON t.id = ts.team_id
     JOIN school sc ON sc.id = t.school_id
+    ${
+      groupSlug
+        ? sql`JOIN alignment a ON a.id = ts.alignment_id
+              JOIN alignment parent ON parent.id = a.parent_id
+                                   AND parent.slug = ${groupSlug}`
+        : sql``
+    }
     ORDER BY e.value DESC
     LIMIT ${limit}`;
 }

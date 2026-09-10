@@ -266,7 +266,12 @@ That skips migrations, which the pipeline runs and this command does not.
   the sport has. `/[sport]/standings` carries the same pills: all classes
   (default) or one class's districts on their own, `?class=3a`, sharing the
   grouping helper in `apps/web/lib/alignment-group.ts` so the two pages cannot
-  drift apart on labels or URLs. `/[sport]/standings` is
+  drift apart on labels or URLs. `/[sport]/stats` carries them too, where the
+  pills come from `listSeasonGroups` rather than from the rows: a class with
+  nobody on the board must keep its pill, and which pills exist must not
+  change as you click between statistics. `?stat=` and `?class=` compose, and
+  a class board is ranked 1..25 inside the class rather than cut out of the
+  statewide one. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".

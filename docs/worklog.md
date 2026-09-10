@@ -1433,3 +1433,30 @@ not have two names.
 standings 144 teams over 48 districts, `?class=3a` down to 4 districts and 12
 teams, `?class=9z` a 404, and basketball reading "All regions" with Region 3
 showing its four districts. 171 tests pass, twice.
+
+## 2026-09-10 — Class filters on the stats page, and a bug it exposed
+**Did:** the same pills on `/[sport]/stats`, `?class=3a`, ranked 1..25 inside
+the class. The two filters compose: picking a statistic keeps your class and
+picking a class keeps your statistic, both in the URL. The pills come from a
+new `listSeasonGroups` rather than from the leaderboard rows, because a class
+with no qualifying player would otherwise lose its pill, and which pills
+existed would change as you clicked between statistics.
+**The bug: no default leaderboard has ever rendered.**
+
+    const active = (typeof stat === "string" && categories.find(...)?.key)
+      ?? categories[0]?.key;
+
+With no `?stat=` the left side is `false`, and `??` only falls through for
+null and undefined, so `active` was `false`, the board was empty and no
+statistic pill was marked current. Every visit to `/football/stats` or
+`/basketball/stats` without a query string has been showing "No qualifying
+players yet this season" regardless of the data. It was invisible because
+there are no football stats in production yet and basketball has not started.
+**Found by rendering with data**, which took two goes: the dev fixtures gate
+out at `min_games: 8` with 2 games played, so the boards were empty for a
+legitimate reason first and a bug second. Bumping the fixture games played
+made the real failure visible.
+**Verified both paths:** basketball by region off the seeded box scores, and
+football by class after giving every fixture team a passer. A 3A board starts
+at 1 with the 3A leader, not at the statewide leader's rank, and the statewide
+runner-up is correctly absent from it. 171 tests pass, twice.
