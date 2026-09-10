@@ -263,7 +263,10 @@ That skips migrations, which the pipeline runs and this command does not.
   regions rather than classifications, so the same controls read "region" and
   answer to `?by=region` and `?class=region-3`; `getRpiStandings` returns the
   grouping as `groupName`/`groupSlug`/`groupKind`/`groupRank` for whichever
-  the sport has. `/[sport]/standings` is
+  the sport has. `/[sport]/standings` carries the same pills: all classes
+  (default) or one class's districts on their own, `?class=3a`, sharing the
+  grouping helper in `apps/web/lib/alignment-group.ts` so the two pages cannot
+  drift apart on labels or URLs. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".

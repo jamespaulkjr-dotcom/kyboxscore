@@ -514,8 +514,15 @@ export type DistrictStanding = {
   teamId: number;
   schoolName: string;
   schoolSlug: string;
-  className: string;
-  classOrdinal: number;
+  /**
+   * The alignment above the district: the classification in football, the
+   * region in basketball. Named for the level rather than for football's word
+   * for it, because the standings page groups both the same way.
+   */
+  groupName: string;
+  groupSlug: string;
+  groupKind: "classification" | "region";
+  groupOrdinal: number;
   districtName: string;
   districtOrdinal: number;
   wins: number;
@@ -551,6 +558,7 @@ export async function getDistrictStandings(sportSeasonId: number) {
              coalesce(sc.short_name, sc.name) AS school_name,
              sc.slug::text AS school_slug,
              parent.name AS class_name, parent.ordinal AS class_ordinal,
+             parent.slug AS class_slug, parent.kind AS class_kind,
              a.id AS alignment_id, a.name AS district_name, a.ordinal AS district_ordinal,
              coalesce(rec.wins, 0) AS wins,
              coalesce(rec.losses, 0) AS losses,
@@ -571,7 +579,8 @@ export async function getDistrictStandings(sportSeasonId: number) {
     )
     SELECT team_id::int AS "teamId", school_name AS "schoolName",
            school_slug AS "schoolSlug",
-           class_name AS "className", class_ordinal::int AS "classOrdinal",
+           class_name AS "groupName", class_slug::text AS "groupSlug",
+           class_kind::text AS "groupKind", class_ordinal::int AS "groupOrdinal",
            district_name AS "districtName", district_ordinal::int AS "districtOrdinal",
            wins::int, losses::int, ties::int,
            dw::int AS "districtWins", dl::int AS "districtLosses",

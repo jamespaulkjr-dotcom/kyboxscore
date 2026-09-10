@@ -7,6 +7,12 @@ import {
   listSports,
   type DistrictStanding,
 } from "@kyboxscore/db";
+import {
+  findGroup,
+  groupNoun,
+  groupRows,
+  type AlignmentGroup,
+} from "../../../lib/alignment-group";
 import { SiteHeader } from "../../components/site-header";
 import { BottomNav } from "../../components/bottom-nav";
 
@@ -18,28 +24,40 @@ export async function generateMetadata(
   const { sport } = await props.params;
   return {
     title: "Standings",
-    description: `District standings for Kentucky high school ${sport}, by district record, the order that decides postseason placement.`,
+    description: `District standings for Kentucky high school ${sport}, by classification and by district record, the order that decides postseason placement.`,
   };
 }
 
 const pct = (w: number, l: number) =>
   w + l === 0 ? "—" : (w / (w + l)).toFixed(3).replace(/^0/, "");
 
+/** Districts inside one class, in the order the query already put them. */
+function districtsOf(group: AlignmentGroup<DistrictStanding>) {
+  const districts = new Map<string, DistrictStanding[]>();
+  for (const row of group.rows) {
+    if (!districts.has(row.districtName)) districts.set(row.districtName, []);
+    districts.get(row.districtName)!.push(row);
+  }
+  return [...districts];
+}
+
 export default async function Page(props: PageProps<"/[sport]/standings">) {
   const { sport } = await props.params;
+  const params = await props.searchParams;
+  const classParam = typeof params.class === "string" ? params.class : "";
+
   const [season, sports] = await Promise.all([getSportSeason(sport), listSports()]);
   if (!season) notFound();
 
   const standings = await getDistrictStandings(season.id);
 
-  // Group into class -> district, preserving the query's ordering.
-  const classes = new Map<string, Map<string, DistrictStanding[]>>();
-  for (const row of standings) {
-    if (!classes.has(row.className)) classes.set(row.className, new Map());
-    const districts = classes.get(row.className)!;
-    if (!districts.has(row.districtName)) districts.set(row.districtName, []);
-    districts.get(row.districtName)!.push(row);
-  }
+  const groups = groupRows(standings);
+  const selected = classParam ? findGroup(groups, classParam) : undefined;
+  // A ?class= nobody can be in is a wrong URL, not a page of empty tables.
+  if (classParam && !selected) notFound();
+
+  const noun = groupNoun(groups);
+  const shown = selected ? [selected] : groups;
 
   return (
     <>
@@ -56,24 +74,74 @@ export default async function Page(props: PageProps<"/[sport]/standings">) {
           <strong>district record</strong>, not overall record and not RPI. Both
           are shown because they are what people argue about, but neither moves a
           team up this table.{" "}
-          <Link href={`/${sport}/rpi`} className="text-link underline">
-            Statewide RPI ranking →
+          <Link
+            href={
+              selected
+                ? `/${sport}/rpi?class=${selected.param}`
+                : `/${sport}/rpi`
+            }
+            className="text-link underline"
+          >
+            {selected ? `${selected.label} RPI ranking →` : "Statewide RPI ranking →"}
           </Link>
         </p>
 
-        {classes.size === 0 && (
+        {groups.length > 1 && (
+          <nav
+            aria-label={`Filter by ${noun}`}
+            className="mt-4 flex flex-wrap gap-2"
+          >
+            {[
+              {
+                label: `All ${noun === "region" ? "regions" : "classes"}`,
+                href: `/${sport}/standings`,
+                active: !selected,
+              },
+              ...groups.map((g) => ({
+                label: g.name,
+                href: `/${sport}/standings?class=${g.param}`,
+                active: selected?.slug === g.slug,
+              })),
+            ].map((t) => (
+              <Link
+                key={t.href}
+                href={t.href}
+                aria-current={t.active ? "page" : undefined}
+                className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                  t.active
+                    ? "border-accent bg-accent-fill text-on-accent"
+                    : "border-border bg-surface text-fg hover:bg-surface-raised"
+                }`}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </nav>
+        )}
+
+        {groups.length === 0 && (
           <p className="mt-6 rounded-lg border border-border bg-surface px-4 py-6 text-sm text-fg-muted">
             No teams have been assigned to a district for this season yet.
           </p>
         )}
 
-        {[...classes].map(([className, districts]) => (
-          <section key={className} className="mt-8">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
-              Class {className}
+        {shown.map((group) => (
+          <section key={group.slug} className="mt-8">
+            <h2 className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+                {group.label}
+              </span>
+              {!selected && (
+                <Link
+                  href={`/${sport}/standings?class=${group.param}`}
+                  className="text-xs text-link underline"
+                >
+                  {group.label} on its own →
+                </Link>
+              )}
             </h2>
             <div className="mt-2 grid gap-4 sm:grid-cols-2">
-              {[...districts].map(([districtName, teams]) => (
+              {districtsOf(group).map(([districtName, teams]) => (
                 <div key={districtName} className="overflow-hidden rounded-lg border border-border bg-surface">
                   <h3 className="border-b border-border px-3 py-2 text-sm font-semibold">
                     {districtName}

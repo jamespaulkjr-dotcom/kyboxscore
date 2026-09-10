@@ -1411,3 +1411,25 @@ same three views with "region" throughout.
 **Near miss worth recording:** `pkill -f "next dev"` on this box matches the
 production container's `next-server` too. It survived only because that process
 is root-owned and the session runs as deploy. Kill dev servers by PID here.
+
+## 2026-09-10 — The same split on the standings page
+**Why:** James asked for the class treatment on standings too. It already
+grouped by class, but all six were on one page, so finding 4A meant scrolling
+past 1A through 3A on a phone.
+**Did:** the same pills, `?class=3a`, showing one class's districts on their
+own. Default is unchanged, every class still on one page. In a class view the
+RPI cross-link follows you into that class rather than dumping you back on the
+statewide table, and in the all-classes view each class heading links to its
+own page.
+**The grouping is now one helper**, `apps/web/lib/alignment-group.ts`, used by
+both pages: label, noun, URL parameter and ordering in one place. Two pages
+deriving "Class 3A" and "3a" independently is how one of them ends up saying
+"Class Region 5". There is a unit test for exactly that.
+**`getDistrictStandings` speaks the same vocabulary now**, groupName/groupSlug/
+groupKind/groupOrdinal rather than className/classOrdinal, matching what
+`getRpiStandings` returns. It is the same idea in both queries and it should
+not have two names.
+**Verified by rendering both sports again** on a rebuilt dev database: football
+standings 144 teams over 48 districts, `?class=3a` down to 4 districts and 12
+teams, `?class=9z` a 404, and basketball reading "All regions" with Region 3
+showing its four districts. 171 tests pass, twice.

@@ -8,6 +8,11 @@ import {
   listSports,
   type RpiStanding,
 } from "@kyboxscore/db";
+import {
+  findGroup,
+  groupNoun as nounFor,
+  groupRows,
+} from "../../../lib/alignment-group";
 import { SiteHeader } from "../../components/site-header";
 import { BottomNav } from "../../components/bottom-nav";
 
@@ -34,50 +39,6 @@ const signed = (n: number) => `${n > 0 ? "+" : ""}${fmt(n)}`;
 /** How many teams each classification shows before you have to ask for the rest. */
 const TOP_N = 10;
 
-type Group = {
-  slug: string;
-  /** What ?class= carries: "3a" rather than the alignment's "class-3a". */
-  param: string;
-  /** "1A", or "Region 5". */
-  name: string;
-  /** "Class 1A", but "Region 5" - the region's name already carries its noun. */
-  label: string;
-  /** "class" or "region", for prose that has to name the thing. */
-  noun: string;
-  ordinal: number;
-  teams: RpiStanding[];
-};
-
-/**
- * Football ranks inside a classification, basketball inside a region. Both
- * live one level above the district, so one grouping covers both - only the
- * word for it changes.
- */
-function groupStandings(standings: RpiStanding[]): Group[] {
-  const groups = new Map<string, Group>();
-  for (const s of standings) {
-    if (!s.groupSlug || !s.groupName) continue;
-    let g = groups.get(s.groupSlug);
-    if (!g) {
-      const region = s.groupKind === "region";
-      g = {
-        slug: s.groupSlug,
-        param: s.groupSlug.replace(/^class-/, ""),
-        name: s.groupName,
-        label: region ? s.groupName : `Class ${s.groupName}`,
-        noun: region ? "region" : "class",
-        ordinal: s.groupOrdinal ?? 999,
-        teams: [],
-      };
-      groups.set(s.groupSlug, g);
-    }
-    g.teams.push(s);
-  }
-  // The standings arrive in state-rank order and both ranks break ties the
-  // same way, so each group's teams are already in group-rank order.
-  return [...groups.values()].sort((a, b) => a.ordinal - b.ordinal);
-}
-
 export default async function Page(props: PageProps<"/[sport]/rpi">) {
   const { sport } = await props.params;
   const params = await props.searchParams;
@@ -100,14 +61,12 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
     getLatestRpiRun(sport),
   ]);
 
-  const groups = groupStandings(standings);
-  const selected = classParam
-    ? groups.find((g) => g.param === classParam || g.slug === classParam)
-    : undefined;
+  const groups = groupRows(standings);
+  const selected = classParam ? findGroup(groups, classParam) : undefined;
   // A ?class= nobody can be in is a wrong URL, not a page with an empty table.
   if (classParam && !selected) notFound();
 
-  const groupNoun = groups[0]?.noun ?? "class";
+  const groupNoun = nounFor(groups);
 
   const withDelta = standings.filter(showsDelta);
 
@@ -116,7 +75,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
   // - and for that the teams it does not move are noise, so they come out.
   // Helped at the top, hurt at the bottom, nothing in between.
   const rows = selected
-    ? selected.teams
+    ? selected.rows
     : sortByDelta
       ? [...withDelta].sort((a, b) => (b.delta ?? 0) - (a.delta ?? 0))
       : standings;
@@ -126,7 +85,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
   // not need one.
   const showSortNav = !selected && !byClass && withDelta.length > 0;
   const visible = byClass
-    ? groups.flatMap((g) => g.teams.slice(0, TOP_N))
+    ? groups.flatMap((g) => g.rows.slice(0, TOP_N))
     : rows;
   const visibleWithDelta = visible.filter(showsDelta);
 
@@ -217,7 +176,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
             {selected && (
               <p className="mt-3 max-w-prose text-sm text-fg-muted">
                 <span className="font-semibold text-fg">{selected.label}</span>,
-                all {selected.teams.length} ranked teams. The{" "}
+                all {selected.rows.length} ranked teams. The{" "}
                 <span className="font-semibold">#</span> column is the rank
                 within the {selected.noun};{" "}
                 <span className="font-semibold">State</span> is the same team&rsquo;s
@@ -247,7 +206,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                         href={`/${sport}/rpi?class=${g.param}`}
                         className="text-xs font-normal text-link underline"
                       >
-                        All {g.teams.length} →
+                        All {g.rows.length} →
                       </Link>
                     </h2>
                     <table className="w-full border-collapse text-sm">
@@ -263,7 +222,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                         </tr>
                       </thead>
                       <tbody>
-                        {g.teams.slice(0, TOP_N).map((s, i) => (
+                        {g.rows.slice(0, TOP_N).map((s, i) => (
                           <tr
                             key={s.teamId}
                             className="border-b border-border last:border-0"
