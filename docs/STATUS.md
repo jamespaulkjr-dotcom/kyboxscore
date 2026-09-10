@@ -284,7 +284,10 @@ That skips migrations, which the pipeline runs and this command does not.
   old box score is never relabelled by a later realignment. The front page
   carries the class on each of its top five and a "leading each class" strip
   under them, shown only when there are eight groups or fewer: six classes fit,
-  thirty-two basketball regions do not. `/[sport]/standings` is
+  thirty-two basketball regions do not. `/sports` says how each sport is
+  aligned, "6 classes · 48 districts" against "16 regions · 64 districts",
+  counted by distinct slug (every alignment exists once per gender) and
+  filtered to the cycle in force today. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".

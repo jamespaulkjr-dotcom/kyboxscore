@@ -1567,3 +1567,20 @@ made basketball the active sport, and the strip correctly disappeared while
 the labels and the link stayed. That render also showed the link still said
 "Top 10 by class" on a region sport, which is now read from the grouping like
 everywhere else.
+
+## 2026-09-10 — /sports says how each sport is aligned
+**Did:** each sport with an alignment now carries it under its name, "6
+classes · 48 districts" for football and "16 regions · 64 districts" for
+basketball. It is the first thing a coach checks about a sport and it differs
+from one to the next, which is the whole reason today's class views read
+"region" half the time.
+**Counted by distinct slug.** Every alignment exists once per gender, so the
+raw row count says basketball has 32 regions and 128 districts. It has 16 and
+64.
+**Filtered to the cycle in force today.** Alignments carry effective dates and
+the superseded ones stay in the table, so an unfiltered count would add the
+last realignment's districts to this one's. Verified by inserting an expired
+"7A" from a previous cycle: football still reads 6 classes.
+**A sport we have not aligned yet says nothing**, rather than "0 classes".
+Baseball has a season open and no alignment, and that row is honest about it
+by being quiet.

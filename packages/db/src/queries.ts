@@ -23,6 +23,15 @@ export type SportListing = {
   name: string;
   category: "team" | "individual" | "activity";
   urlYear: number | null;
+  /**
+   * How the sport is aligned right now: football into classifications,
+   * basketball into regions, and both into districts under those. Counted by
+   * distinct slug, because every alignment exists once per gender and
+   * "32 regions" would be an invention.
+   */
+  classes: number;
+  regions: number;
+  districts: number;
 };
 
 /**
@@ -36,9 +45,22 @@ export type SportListing = {
 export async function listAllSports() {
   return sql<SportListing[]>`
     SELECT sp.slug, sp.name, sp.category::text AS category,
-           ss.url_year::int AS "urlYear"
+           ss.url_year::int AS "urlYear",
+           al.classes::int, al.regions::int, al.districts::int
     FROM sport sp
     LEFT JOIN sport_season ss ON ss.sport_id = sp.id AND ss.is_current
+    LEFT JOIN LATERAL (
+      -- The alignment in force today. They change every two years and the
+      -- old ones stay in the table, so an unfiltered count would add the
+      -- last cycle's districts to this one's.
+      SELECT count(DISTINCT a.slug) FILTER (WHERE a.kind = 'classification') AS classes,
+             count(DISTINCT a.slug) FILTER (WHERE a.kind = 'region') AS regions,
+             count(DISTINCT a.slug) FILTER (WHERE a.kind = 'district') AS districts
+      FROM alignment a
+      WHERE a.sport_id = sp.id
+        AND a.effective_from <= CURRENT_DATE
+        AND (a.effective_to IS NULL OR a.effective_to > CURRENT_DATE)
+    ) al ON true
     WHERE sp.is_active
     ORDER BY sp.display_order`;
 }

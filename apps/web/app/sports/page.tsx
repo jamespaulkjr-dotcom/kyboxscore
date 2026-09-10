@@ -33,6 +33,20 @@ const GROUPS = [
   },
 ] as const;
 
+/**
+ * How a sport is carved up, in the words the KHSAA uses for it. Football has
+ * classes and basketball has regions; a sport we have not aligned yet says
+ * nothing rather than "0 classes".
+ */
+function alignment(s: { classes: number; regions: number; districts: number }) {
+  const parts = [
+    s.classes > 0 ? `${s.classes} classes` : null,
+    s.regions > 0 ? `${s.regions} regions` : null,
+    s.districts > 0 ? `${s.districts} districts` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export default async function Page() {
   const [all, navSports] = await Promise.all([listAllSports(), listSports()]);
 
@@ -70,10 +84,20 @@ export default async function Page() {
                     ) : (
                       <Link
                         href={`/${s.slug}/scores`}
-                        className="flex min-h-11 items-center justify-between rounded-lg border border-border bg-surface px-4 font-medium hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-link"
+                        className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-2 font-medium hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-link"
                       >
-                        {s.name}
-                        <span className="text-sm text-link">Scores →</span>
+                        <span className="min-w-0">
+                          <span className="block truncate">{s.name}</span>
+                          {/* What the postseason is drawn on, which is the
+                              first thing a coach checks about a sport and
+                              differs from one to the next. */}
+                          {alignment(s) && (
+                            <span className="block truncate text-xs font-normal text-fg-muted">
+                              {alignment(s)}
+                            </span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-sm text-link">Scores →</span>
                       </Link>
                     )}
                   </li>
