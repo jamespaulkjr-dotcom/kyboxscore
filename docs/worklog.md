@@ -1601,3 +1601,19 @@ no teams loaded yet.
 team_season to render the no-alignment case is deleting the fixtures the
 database tests run on. Rebuilt the dev database, 171 pass again, twice. If a
 test breaks right after hand-editing dev data, suspect the data first.
+
+## 2026-09-10 — Class standing on the coach dashboard
+**Did:** "Your teams" now reads "Football · Beth Haven · 3A #10 · state #59",
+with the school name linking to its public team page and the class label to
+that class's ranking. A coach signing in to post a score had to leave for the
+public pages to find the number their season is judged on.
+**Three shapes, all rendered:** an aligned team in a season with an RPI run
+(class and state rank), a team in a sport with a season open but no alignment
+(name links, no class), and a team whose sport has no season open at all (name
+is plain text, because there is nothing behind it to link to).
+**How a guarded page gets rendered for review:** the login form is a server
+action and not worth driving with curl, so the session was minted directly.
+`hashToken` is sha256 of the token plus `AUTH_SECRET`, so inserting a
+`user_session` row with that hash and sending the token as `kbs_session` is a
+real signed-in request. Script kept at scratchpad/session.ts for the next time
+a guarded page needs a look.

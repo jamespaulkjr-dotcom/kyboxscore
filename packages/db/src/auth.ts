@@ -120,25 +120,53 @@ export async function setPassword(userId: number, passwordHash: string) {
 }
 
 /** The teams this user may enter statistics for. Empty for a new account. */
+/**
+ * The teams this account may enter results for.
+ *
+ * Carries where each one stands as well as what it is called: a coach opening
+ * this page wants their class rank, which is the number their season is judged
+ * on, and it was only ever visible on the public pages.
+ */
 export async function listGrantedTeams(userId: number) {
   return sql<
     {
       teamId: number;
       schoolName: string;
+      schoolSlug: string;
       sportSlug: string;
       sportName: string;
       gender: string;
       level: string;
+      /** Null when the sport has no season open, so nothing to link into. */
+      urlYear: number | null;
+      groupName: string | null;
+      groupSlug: string | null;
+      groupRank: number | null;
+      stateRank: number | null;
     }[]
   >`
     SELECT t.id::int AS "teamId",
            coalesce(sc.short_name, sc.name) AS "schoolName",
+           sc.slug::text AS "schoolSlug",
            sp.slug AS "sportSlug", sp.name AS "sportName",
-           t.gender::text AS gender, t.level::text AS level
+           t.gender::text AS gender, t.level::text AS level,
+           ss.url_year::int AS "urlYear",
+           parent.name AS "groupName", parent.slug::text AS "groupSlug",
+           coalesce(rr.class_rank, rr.region_rank)::int AS "groupRank",
+           rr.state_rank::int AS "stateRank"
     FROM user_team_grant g
     JOIN team t   ON t.id = g.team_id
     JOIN school sc ON sc.id = t.school_id
     JOIN sport sp  ON sp.id = t.sport_id
+    LEFT JOIN sport_season ss ON ss.sport_id = sp.id AND ss.is_current
+    LEFT JOIN team_season ts  ON ts.team_id = t.id AND ts.sport_season_id = ss.id
+    LEFT JOIN alignment a      ON a.id = ts.alignment_id
+    LEFT JOIN alignment parent ON parent.id = a.parent_id
+    LEFT JOIN rpi_result rr
+           ON rr.team_id = t.id
+          AND rr.rpi_run_id = (SELECT max(id) FROM rpi_run
+                                WHERE sport_season_id = ss.id
+                                  AND variant = 'official')
     WHERE g.user_id = ${userId}
     ORDER BY sp.display_order, sc.name`;
 }

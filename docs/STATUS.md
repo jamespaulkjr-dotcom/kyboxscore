@@ -287,7 +287,9 @@ That skips migrations, which the pipeline runs and this command does not.
   thirty-two basketball regions do not. `/sports` says how each sport is
   aligned, "6 classes · 48 districts" against "16 regions · 64 districts",
   counted by distinct slug (every alignment exists once per gender) and
-  filtered to the cycle in force today. `/[sport]/standings` is
+  filtered to the cycle in force today. The coach dashboard shows each granted
+  team's class rank and state rank beside its name, so a coach does not have to
+  go out to the public pages to find the number their season is judged on. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".

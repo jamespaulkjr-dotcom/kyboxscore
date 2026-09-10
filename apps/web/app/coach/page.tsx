@@ -6,6 +6,7 @@ import {
   listGrantedTeams,
   listSports,
 } from "@kyboxscore/db";
+import { groupParam } from "../../lib/alignment-group";
 import { SiteHeader } from "../components/site-header";
 import { isAdmin, requireUser } from "../../lib/auth";
 import { logout } from "../login/actions";
@@ -82,7 +83,28 @@ export default async function Page() {
                   <span className="rounded bg-surface-raised px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
                     {t.sportName}
                   </span>
-                  <span className="font-medium">{t.schoolName}</span>
+                  {t.urlYear ? (
+                    <Link
+                      href={`/${t.sportSlug}/${t.urlYear}/teams/${t.schoolSlug}`}
+                      className="font-medium text-link underline"
+                    >
+                      {t.schoolName}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{t.schoolName}</span>
+                  )}
+                  {/* Where the season is actually judged. A coach had to go
+                      to the public pages to find this. */}
+                  {t.groupName && t.groupSlug && (
+                    <Link
+                      href={`/${t.sportSlug}/rpi?class=${groupParam(t.groupSlug)}`}
+                      className="text-xs text-fg-muted underline"
+                    >
+                      {t.groupName}
+                      {t.groupRank ? ` #${t.groupRank}` : ""}
+                      {t.stateRank ? ` · state #${t.stateRank}` : ""}
+                    </Link>
+                  )}
                 </span>
                 <span className="text-sm text-fg-muted">
                   {t.gender} · {t.level}
