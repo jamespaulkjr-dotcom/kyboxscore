@@ -1547,3 +1547,23 @@ that season's latest official run.
 showing 6A and 3A with two different links, a basketball game reading
 "Region 1 #1", and a baseball game whose teams have no alignment at all
 still rendering with no label and no crash. 171 tests pass, twice.
+
+## 2026-09-10 — The front page finally admits classes exist
+**Why:** everything built today was reachable only by already being on the
+page that had the pills. The front page is where a parent lands, and it showed
+one statewide top five, which in Kentucky is whoever plays the hardest
+schedule. A 1A parent could read it every week and never see a 1A team.
+**Did:** each of the top five carries its class, linked to that class's
+ranking, and a "Leading each class" strip under them names the top team in
+every class. It costs no query: `getRpiStandings` already returns the whole
+table sorted by rank, so the first row of each group is that group's leader.
+**The strip is capped at eight groups.** Six classifications fit under a top
+five. Thirty-two basketball regions would be a page of their own, so above
+eight the strip is dropped and the "Top 10 by ..." link carries the weight.
+**Caught by creating the condition rather than trusting it:** with the dev
+fixtures basketball has six regions, so the cap never fired. Spreading the
+fixture teams over twelve regions and dating a basketball game into the past
+made basketball the active sport, and the strip correctly disappeared while
+the labels and the link stayed. That render also showed the link still said
+"Top 10 by class" on a region sport, which is now read from the grouping like
+everywhere else.

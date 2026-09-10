@@ -8,6 +8,7 @@ import {
   getSportSeason,
   listSports,
 } from "@kyboxscore/db";
+import { groupParam, groupRows } from "../lib/alignment-group";
 import { SiteHeader } from "./components/site-header";
 import { BottomNav } from "./components/bottom-nav";
 import { GameRow } from "./components/game-row";
@@ -59,6 +60,13 @@ export default async function Home() {
 
   const shown = games.slice(0, 8);
   const more = games.length - shown.length;
+
+  // The standings are already sorted by rank, so the first row of each group
+  // is that class's leader. No second query for it.
+  const classLeaders = groupRows(rpi).filter((g) => g.rows.length > 0);
+  // Football has classes, basketball has regions, and the label has to match
+  // the page it links to.
+  const groupNoun = classLeaders[0]?.noun ?? "class";
 
   return (
     <>
@@ -141,9 +149,17 @@ export default async function Home() {
               <h2 id="rpi" className="text-lg font-bold tracking-tight">
                 Statewide RPI
               </h2>
-              <Link href={`/${active.sportSlug}/rpi`} className="text-sm text-link underline">
-                Full ranking →
-              </Link>
+              <span className="flex flex-wrap gap-x-4 text-sm">
+                <Link
+                  href={`/${active.sportSlug}/rpi?by=${groupNoun}`}
+                  className="text-link underline"
+                >
+                  Top 10 by {groupNoun} →
+                </Link>
+                <Link href={`/${active.sportSlug}/rpi`} className="text-link underline">
+                  Full ranking →
+                </Link>
+              </span>
             </div>
             <p className="mt-1 max-w-prose text-sm text-fg-muted">
               The KHSAA formula: 35% your own record, 35% your opponents&rsquo;,
@@ -164,6 +180,14 @@ export default async function Home() {
                   >
                     {t.schoolName}
                   </Link>
+                  {t.groupName && t.groupSlug && (
+                    <Link
+                      href={`/${active.sportSlug}/rpi?class=${groupParam(t.groupSlug)}`}
+                      className="shrink-0 text-xs text-fg-muted hover:underline"
+                    >
+                      {t.groupName}
+                    </Link>
+                  )}
                   <span className="tabular shrink-0 text-sm text-fg-muted">
                     {t.wins}-{t.losses}
                   </span>
@@ -173,6 +197,44 @@ export default async function Home() {
                 </li>
               ))}
             </ol>
+
+            {/* The statewide five are whoever plays the hardest schedule, and
+                in Kentucky that is rarely a small school. A 1A parent can read
+                the top five every week and never see a 1A team. */}
+            {classLeaders.length > 1 && classLeaders.length <= 8 && (
+              <>
+                <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+                  Leading each {classLeaders[0].noun}
+                </h3>
+                <ol className="mt-2 overflow-hidden rounded-lg border border-border bg-surface">
+                  {classLeaders.map((g) => (
+                    <li
+                      key={g.slug}
+                      className="flex items-baseline gap-3 border-b border-border px-4 py-2.5 last:border-0"
+                    >
+                      <Link
+                        href={`/${active.sportSlug}/rpi?class=${g.param}`}
+                        className="w-14 shrink-0 text-sm font-semibold text-link hover:underline"
+                      >
+                        {g.name}
+                      </Link>
+                      <Link
+                        href={`/${active.sportSlug}/${active.urlYear}/teams/${g.rows[0].schoolSlug}`}
+                        className="min-w-0 flex-1 truncate font-medium hover:underline"
+                      >
+                        {g.rows[0].schoolName}
+                      </Link>
+                      <span className="tabular shrink-0 text-sm text-fg-muted">
+                        {g.rows[0].wins}-{g.rows[0].losses}
+                      </span>
+                      <span className="tabular w-14 shrink-0 text-right font-semibold">
+                        {g.rows[0].rpi.toFixed(3)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
           </section>
         )}
 

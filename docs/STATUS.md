@@ -281,7 +281,10 @@ That skips migrations, which the pipeline runs and this command does not.
   search instead **labels** every result with its class, and a player with
   their school, which is what tells two schools called Central apart. A game
   page labels both sides the same way, from **that game's own season**, so an
-  old box score is never relabelled by a later realignment. `/[sport]/standings` is
+  old box score is never relabelled by a later realignment. The front page
+  carries the class on each of its top five and a "leading each class" strip
+  under them, shown only when there are eight groups or fewer: six classes fit,
+  thirty-two basketball regions do not. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".
