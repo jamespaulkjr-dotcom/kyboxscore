@@ -7,7 +7,7 @@ person) can pick up without reconstructing it from shell history.
 the state: what is true right now.** Update it whenever infrastructure changes
 or a phase completes.
 
-Last updated: 2026-09-01
+Last updated: 2026-09-10
 
 ## Resume here
 
@@ -257,7 +257,13 @@ That skips migrations, which the pipeline runs and this command does not.
   districts that exist for its sport and gender. Drives district records and
   the RPI class factor. Left unassigned rather than guessed.
 - **Rankings** — two of them, answering different questions.
-  `/[sport]/rpi` is the statewide order by RPI. `/[sport]/standings` is
+  `/[sport]/rpi` is the statewide order by RPI, and it splits three ways:
+  statewide (default), `?by=class` for the top 10 in every classification side
+  by side, and `?class=3a` for one classification in full. Basketball has
+  regions rather than classifications, so the same controls read "region" and
+  answer to `?by=region` and `?class=region-3`; `getRpiStandings` returns the
+  grouping as `groupName`/`groupSlug`/`groupKind`/`groupRank` for whichever
+  the sport has. `/[sport]/standings` is
   district placement **by district record**, which is what decides the
   postseason — RPI and overall record are shown there but do not move a team
   up the table. Team pages carry both: "State #1 · 1st in 4A District 2".

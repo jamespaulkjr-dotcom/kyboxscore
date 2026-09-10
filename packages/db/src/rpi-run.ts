@@ -384,8 +384,16 @@ export type RpiStanding = {
   classFactor: number;
   rpi: number;
   stateRank: number | null;
-  classRank: number | null;
-  className: string | null;
+  /**
+   * The alignment a team is ranked inside, one level above its district: the
+   * classification in football, the region in basketball. Sports carry one or
+   * the other, never both, so they share these fields.
+   */
+  groupName: string | null;
+  groupSlug: string | null;
+  groupKind: "classification" | "region" | null;
+  groupOrdinal: number | null;
+  groupRank: number | null;
   shadowRpi: number | null;
   delta: number | null;
 };
@@ -414,8 +422,11 @@ export async function getRpiStandings(sportSlug: string, urlYear?: number) {
            r.wp::float8, r.owp::float8, r.oowp::float8,
            r.class_factor::float8 AS "classFactor",
            r.rpi::float8, r.state_rank::int AS "stateRank",
-           r.class_rank::int AS "classRank",
-           parent.name AS "className",
+           coalesce(r.class_rank, r.region_rank)::int AS "groupRank",
+           parent.name AS "groupName",
+           parent.slug::text AS "groupSlug",
+           parent.kind::text AS "groupKind",
+           parent.ordinal::int AS "groupOrdinal",
            sh.rpi::float8 AS "shadowRpi",
            (sh.rpi - r.rpi)::float8 AS delta
     FROM rpi_result r

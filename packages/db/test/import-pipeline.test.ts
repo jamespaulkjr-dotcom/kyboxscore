@@ -347,6 +347,14 @@ test("RPI runs against real games, reproduces its own arithmetic, and ranks only
   const standings = await db.getRpiStandings("football");
   assert.ok(standings.length > 0, "there must be a published table");
 
+  // The RPI page splits this table by classification, and it draws both the
+  // heading and the rank inside it from these two fields. One without the
+  // other renders a group nobody can be ranked in, or a rank with no group.
+  assert.ok(
+    standings.every((s) => (s.groupName === null) === (s.groupRank === null)),
+    "a team's grouping and its rank inside that grouping must arrive together"
+  );
+
   // Out-of-state teams are computed - their record feeds everyone's OWP - but
   // ranking them in Kentucky standings would be a category error.
   assert.ok(

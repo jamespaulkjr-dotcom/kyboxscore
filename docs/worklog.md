@@ -1384,3 +1384,30 @@ dates: by rank 20 rows, by delta 3 rows, chips in both views, the explainer
 only in the delta view.
 **The lesson worth keeping:** a Python string-replace that misses is silent.
 Anchor on something checked, or assert the replacement happened.
+
+## 2026-09-10 — Splitting the RPI page by classification
+**Why:** James asked to see the top 10 of each class separately. A statewide
+list of 222 teams answers "who is best in Kentucky", which is not the question
+a 1A coach has. The postseason bracket is drawn inside a class, so that is the
+only comparison that decides anything.
+**Did:** three views on `/[sport]/rpi`, all with URLs. Default is unchanged.
+`?by=class` puts the top 10 of every class side by side, each card linking to
+`?class=3a`, which is that class in full with its own rank column and the
+statewide rank beside it. The class label in every statewide row is now a link
+into its class. An unknown `?class=` is a 404, not an empty table.
+**One grouping covers both sports.** Football ranks inside a classification,
+basketball inside a region, and both sit one level above the district, so
+`getRpiStandings` returns `groupName`/`groupSlug`/`groupKind`/`groupRank`
+instead of the old `className`/`classRank` and the page picks the noun. Region
+rank had been computed since the engine was written and never displayed.
+**URLs are the hand-typed ones**, `?class=3a` rather than the alignment slug
+`class-3a`, though both resolve.
+**Verified by rendering, not by typecheck**, which is the lesson from
+2026-09-08: 8 football teams in the dev fixtures across two classes is not
+enough to see the layout, so the dev database got 144 teams across all 48
+districts and 446 finished games. Statewide 146 rows, `?by=class` 60 rows in
+six cards, `?class=3a` 24 rows, `?class=9z` 404, and basketball rendered the
+same three views with "region" throughout.
+**Near miss worth recording:** `pkill -f "next dev"` on this box matches the
+production container's `next-server` too. It survived only because that process
+is root-owned and the session runs as deploy. Kill dev servers by PID here.
