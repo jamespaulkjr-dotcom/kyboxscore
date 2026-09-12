@@ -771,7 +771,16 @@ Reinstall after a droplet rebuild:
 cp docker/recompute-rpi.sh /home/deploy/kyboxscore/
 crontab -l | grep -q recompute-rpi || \
   (crontab -l 2>/dev/null; echo '7 * * * * /home/deploy/kyboxscore/recompute-rpi.sh') | crontab -
+
+cp docker/harbin-import.sh /home/deploy/kyboxscore/
+crontab -l | grep -q harbin-import || \
+  (crontab -l 2>/dev/null; echo '20 21 * * * /home/deploy/kyboxscore/harbin-import.sh') | crontab -
 ```
+
+Installed 12 September 2026. Daily at 21:20 UTC, which is after OHSAA's
+Tuesday posting in Ohio time; daily rather than Tuesday-only so a late
+posting costs a day instead of a week. Logs to
+`/home/deploy/kyboxscore/logs/harbin.log`, trimmed to 2000 lines.
 
 ## Ohio records: the Harbin importer
 
