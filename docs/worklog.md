@@ -1641,3 +1641,37 @@ a class filter to those would be decoration.
 coach dashboard work, including creating the gap: three football teams had
 their alignment nulled, the count read 3, the filter listed exactly those
 three, and the other eleven admin pages still render.
+
+## 2026-09-12 — Munford's record, and the bug it exposed
+**The job:** James asked for Munford's record so Shadow RPI could show what
+the .500 assumption costs Woodford County. TSSAA is the one source the
+out-of-state doc rates as both permitted and holding the data; its robots.txt
+was re-checked first and still reads `User-agent: *` with `Crawl-delay: 10`,
+which was honoured.
+**TSSAA publishes Munford 2-0** and has not posted Friday's game: the Sept 11
+row against Woodford County is there with a blank result cell. **Stored 3-0**,
+because the hand-entered record is the OVERALL record including the Kentucky
+game, which `out_of_state_adjusted` subtracts back out. Storing TSSAA's 2-0
+would have been subtracted again and left them 1-0. The adjusted record the
+formula uses came out 2-0, which is right.
+**Then the official rating moved, and it must not.** Woodford County went from
+0.6086 to 0.5683 and from state #69 to #91 purely because an opponent's record
+was typed in. The RPI page promises the opposite in as many words.
+**The bug, in the OOWP term:** an opponent pinned to .500 with no typed record
+is absent from the team set and contributes a flat .500. Typing a record put
+Munford in the set, `owpFor` excluded the head-to-head as the formula
+requires, found the only game we hold for them was the one just removed, and
+returned 0. Half a point of OOWP per such game, which is 0.0375 of RPI for a
+four-game team.
+**Twenty-seven Kentucky teams were affected**, not one, and have been since the
+34 out-of-state records were typed on 8 September. It only surfaced now
+because this is the first time anyone watched a single team's official number
+across the act of entering a record.
+**Fixed** by returning .500 for any `opponentAssumedFiveHundred` opponent in
+the OOWP term whether or not their record is held, which is what the page has
+always said happens. Two tests pin it, and both were confirmed to fail with
+the fix removed before being kept.
+**The lesson:** the delta between official and shadow is the feature, so
+anything that moves official when only shadow should move is a correctness
+bug, not a rounding difference. Watch official across a data entry, not just
+shadow.

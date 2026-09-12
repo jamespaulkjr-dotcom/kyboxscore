@@ -98,6 +98,59 @@ test("shadow RPI lets the out of state opponent carry its real record", () => {
   assert.ok(Math.abs(delta.get(1)! - (s.rpi - o.rpi)) < 1e-12);
 });
 
+test("knowing an out of state opponent's record cannot move the official rating", () => {
+  // The bug: an opponent with no typed record is absent from the team set and
+  // contributes a flat .500 to OOWP. Typing their record put them in the set,
+  // the head-to-head was then excluded as the formula requires, nothing was
+  // left, and they contributed 0. Twenty-seven Kentucky teams had an official
+  // rating pulled down by the act of entering an opponent's record.
+  const ky = (): TeamInput => ({
+    teamId: 1, teamClass: null, games: [
+      g({ gameId: 1, opponentId: 99, outcome: "win", opponentAssumedFiveHundred: true }),
+      g({ gameId: 2, opponentId: 2, outcome: "win" }),
+    ],
+  });
+  const other: TeamInput = { teamId: 2, teamClass: null, games: [
+    g({ gameId: 2, opponentId: 1, outcome: "loss" }),
+  ]};
+  // Exactly the shape the database produces: the opponent is only in the set
+  // at all because a record was typed for them.
+  const unknown = [ky(), other];
+  const known = [
+    ky(),
+    other,
+    { teamId: 99, teamClass: null, externalWinPct: 1.0, games: [
+      g({ gameId: 1, opponentId: 1, outcome: "loss" }),
+    ]},
+  ];
+
+  const [before] = computeRpi(unknown);
+  const [after] = computeRpi(known);
+  assert.equal(after.oowp, before.oowp, "OOWP must not move");
+  assert.equal(after.rpi, before.rpi, "nor the official rating");
+
+  // And the shadow rating still does move, which is the whole point of it.
+  const s = computeBoth(known).shadow.find((r) => r.teamId === 1)!;
+  assert.ok(s.rpi > after.rpi, "shadow must still carry the real record");
+});
+
+test("an out of state opponent's schedule stays .500 in shadow too", () => {
+  // "Shadow RPI is the official rating with one input corrected." The one
+  // input is OWP. Their opponents' opponents remain unknown to us.
+  const teams: TeamInput[] = [
+    { teamId: 1, teamClass: null, games: [
+      g({ gameId: 1, opponentId: 99, outcome: "win", opponentAssumedFiveHundred: true }),
+    ]},
+    { teamId: 99, teamClass: null, externalWinPct: 0.9, games: [
+      g({ gameId: 1, opponentId: 1, outcome: "loss" }),
+      g({ gameId: 2, opponentId: 98, outcome: "win" }),
+    ]},
+  ];
+  const { official, shadow } = computeBoth(teams);
+  assert.equal(official.find((r) => r.teamId === 1)!.oowp, 0.5);
+  assert.equal(shadow.find((r) => r.teamId === 1)!.oowp, 0.5);
+});
+
 test("a missing score suppresses publication but still computes", () => {
   const teams: TeamInput[] = [
     { teamId: 1, teamClass: null, games: [

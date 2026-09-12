@@ -194,6 +194,18 @@ export function computeRpi(
       : 0;
     const oowp = t.games.length
       ? t.games.reduce((s, g) => {
+          // An opponent pinned to .500 has no schedule we can see. We hold
+          // some of their overall records, for the shadow rating, and holding
+          // one must not change this term: an opponent's opponents are still
+          // unknown either way.
+          //
+          // This was the bug. Typing a record put the opponent into the team
+          // set, `owpFor` then removed the head-to-head, found that the only
+          // game we hold for them was the one just removed, and returned 0
+          // instead of the .500 an untyped opponent got. Entering a record
+          // therefore moved the OFFICIAL rating of 27 Kentucky teams, which
+          // is precisely what the page promises it cannot do.
+          if (g.opponentAssumedFiveHundred) return s + 0.5;
           const opp = byId.get(g.opponentId);
           return s + (opp ? owpFor(opp, t.teamId) : 0.5);
         }, 0) / t.games.length

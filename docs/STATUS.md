@@ -582,6 +582,17 @@ right whether or not the Kentucky games appear in the schedule.
 fallback is a separate, neutral number and the two are never printed as the
 same thing.
 
+**Typing an out-of-state opponent's record must never move the official
+rating.** It moved it until 12 September 2026. An opponent with no typed
+record is absent from the team set and contributes a flat .500 to OOWP;
+typing a record put them in the set, the head-to-head was excluded as the
+formula requires, nothing was left of their schedule, and they contributed 0
+instead. Twenty-seven Kentucky teams had an official rating pulled down by the
+act of recording an opponent's record. `computeRpi` now returns .500 for any
+`opponentAssumedFiveHundred` opponent in the OOWP term regardless of whether
+we hold their record, and two tests in `packages/rpi/test/rpi.test.ts` fail if
+that stops being true.
+
 **Shadow RPI is the official rating with one input corrected**, not an
 independent calculation. We hold out-of-state records but not their opponents'
 opponents, so the OOWP third of the formula still assumes .500 for them. The
