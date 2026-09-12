@@ -1704,3 +1704,28 @@ week of 22 September is a fetch and a parse rather than a fresh investigation.
 **What is left is exactly what policy blocks:** Indiana names ClaudeBot in
 robots.txt and Virginia allows only two named crawlers, so their nine
 opponents need a person reading a page. Ohio's fifteen need a date.
+
+## 2026-09-12 — The Ohio importer, and three parsers before a working one
+**Scheduled, not waiting on a human.** `harbin-import.ts` plus a daily cron
+wrapper. The report lands on a Tuesday in late September and the job has been
+a no-op until then, which it says out loud rather than failing.
+**The first parser silently dropped a third of the rows.** Reading the PDF
+with zlib and a regex over the text-showing operators looked fine and returned
+282 rows out of 666. It was caught only because rank numbers skipped: 6, 8, 9.
+The report is drawn rotated, one word per operator, with column gaps expressed
+as kerning, so sequence-based extraction cannot work.
+**The second guessed at the format.** `pdftotext -layout` fixed the extraction
+and then a single regex parsed 194 of 666 rows, because Ohio numbers football
+regions 1 to 28 across the whole state rather than 1 to 4 inside a division,
+and the pattern demanded one digit. Two digits: 666 of 666.
+**So the rail is completeness, not plausibility.** Any line shaped like data
+that fails to parse aborts the run. A row count threshold would have accepted
+all three broken parsers; only "every data row parsed" rejects them.
+**Two schools matched nothing, and neither was OHSAA's fault.** "Aiken High
+School & Junior" normalised to "aiken &", because `\b&\b` never matches: & is
+not a word character. "Portsmouth Jr.-Sr. High School-Portsmouth" is an import
+artefact. Both already carry a clean `short_name`, which the site displays and
+the matcher was not reading. 19 of 19 after that.
+**Validated against a report that exists**, 2023 week 10, rather than waiting
+to find out on the 22nd with nobody watching: 666 rows, 28 regions, 0 unread,
+19 of 19 opponents matched, Ironton 9-1 and Badin 10-0 among them.

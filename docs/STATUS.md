@@ -773,6 +773,30 @@ crontab -l | grep -q recompute-rpi || \
   (crontab -l 2>/dev/null; echo '7 * * * * /home/deploy/kyboxscore/recompute-rpi.sh') | crontab -
 ```
 
+## Ohio records: the Harbin importer
+
+`packages/db/scripts/harbin-import.ts`, run daily by
+`/home/deploy/kyboxscore/harbin-import.sh` from deploy's crontab, imports
+Ohio opponents' records from OHSAA's weekly Harbin computer ratings report.
+Ohio publishes them nowhere else: see `docs/out-of-state-sources.md`.
+
+- The report appears **Tuesdays from the fifth week of the season**, so most
+  runs print "nothing to do". Running daily rather than weekly means a missed
+  Tuesday costs a day, not a week.
+- It needs **`pdftotext`**, which is why the image installs `poppler-utils`.
+  Reading the PDF by hand with zlib and a regex dropped 472 of 666 rows and
+  was only caught because rank numbers skipped. Do not go back to that.
+- **Rails:** any data-shaped line that fails to parse aborts the whole run,
+  as does a row count under 400, a region count outside 20-40, or a record of
+  more than 20 games. A report we cannot read whole must not become records we
+  cannot defend.
+- Matching uses name, `short_name` and `school_alias`, prefers an exact name
+  match, and **refuses ambiguity**: unresolved schools are logged with their
+  candidates for a human to fix with an alias, never guessed.
+- `--dry-run` prints the match table and writes nothing. `--url <pdf>` runs a
+  specific report, which is how it was validated against 2023's: 666 of 666
+  rows, 28 regions, 19 of 19 opponents matched.
+
 ## Running the tests
 
 `npm test` **skips the database tests unless `DATABASE_URL` is set**, and CI

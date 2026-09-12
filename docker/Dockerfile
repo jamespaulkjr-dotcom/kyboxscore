@@ -32,6 +32,11 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup -g 1001 nodejs && adduser -S -u 1001 nextjs
 
+# pdftotext, for the OHSAA Harbin report: Ohio publishes its opponents'
+# records only as a PDF, and reading that PDF by hand silently dropped a third
+# of its rows. Two megabytes to not have to maintain a PDF text extractor.
+RUN apk add --no-cache poppler-utils
+
 # `output: standalone` with outputFileTracingRoot at the repo root emits
 # .next/standalone/{node_modules,apps/web/server.js}. It does NOT copy public
 # or .next/static, so those are copied explicitly below.
