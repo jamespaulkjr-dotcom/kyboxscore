@@ -1,6 +1,6 @@
 # Out-of-state records: where they can come from
 
-Checked 8 September 2026. **Re-check before relying on any of it**: a robots
+Checked 8 September 2026; Tennessee and Ohio re-checked 12 September 2026. **Re-check before relying on any of it**: a robots
 file or a terms page can change without telling anybody, and the answer below
 is only as good as the day it was read.
 
@@ -66,11 +66,34 @@ User-agent: Googlebot
 Allow: /
 ```
 
-**Ohio — OHSAA.** Permitted but probably pointless. `robots.txt` blocks only
-administrative directories, and no terms-of-use page was found. But OHSAA's own
-football pages send readers to MaxPreps for polls, and no clean listing of
-regular-season win-loss records was found on their site. Their weekly computer
-ratings exist; whether they carry usable records was not established.
+**Ohio — OHSAA.** Permitted, and the data exists, but not until the fifth week
+of the season. Re-checked 12 September 2026: `robots.txt` still blocks only
+administrative directories, names no AI crawler, and sets no delay for `*`.
+
+The records are in the **weekly Harbin computer ratings report**, which is a
+PDF with explicit `Wins` and `Losses` columns, a `City`, a `High School Name`
+and an `OHSAA School ID` that would make matching stable. It is published at
+
+```
+https://ohsaaweb.blob.core.windows.net/files/Sports/Football/<year>/<YYYYMMDD>HarbinReport.pdf
+```
+
+(verified against 2024-10-01, which returns 200; 2023 and earlier used
+`<year>HarbinReportWeek<N>.pdf`, so the naming changed and a probe of the old
+pattern proves nothing about a new season). The PDF needs no library: its page
+streams are zlib-compressed text and the table reads out with `zlib` and a
+regex, one word per cell.
+
+**It is released every Tuesday beginning in the fifth week of the season.** As
+of 12 September 2026 no 2026 report exists, which was confirmed with a 2024
+date as a control so a 404 could be told apart from a changed URL. Week five
+of 2026 falls around 22 September, so that is when Ohio becomes possible.
+
+Everything else Ohio that carries records is a third party rather than the
+publishing association: OHSAA's own football hub links **MaxPreps** for polls
+and schedules, which `CLAUDE.md` bans outright, and searches surface Joe
+Eitel, Bruce Monnin and Fantastic50, none of which is a state association. So
+Ohio is the Harbin report or it is manual entry.
 
 **West Virginia — WVSSAC.** Unknown. No `robots.txt` (404), no terms page
 found. Silence is not permission; it is silence.

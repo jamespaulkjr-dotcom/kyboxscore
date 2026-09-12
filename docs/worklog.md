@@ -1675,3 +1675,32 @@ the fix removed before being kept.
 anything that moves official when only shadow should move is a correctness
 bug, not a rounding difference. Watch official across a data entry, not just
 shadow.
+
+## 2026-09-12 — Tennessee done, Ohio blocked until the 22nd
+**Tennessee: all 25 records in**, from TSSAA's published schedules, one request
+per 10 seconds as their robots.txt asks. Fifteen were stale from 7 September
+and every one had moved: Westmoreland 1-1 to 3-1, Gleason 0-1 to 0-4, Jackson
+County 2-0 to 4-0. Ten were new, two of them for games already played (Baylor
+School 4-0, King's Academy 2-2) and eight for Kentucky games still to come.
+**Nothing had to be hand-assembled this time.** TSSAA had posted every
+Kentucky result since Munford's was checked two hours earlier, including
+Munford's own, which came back 3-0 and matched the number assembled by hand
+from a 2-0 page. That is the reconciliation validating itself.
+**One disagreement surfaced, in a Kentucky score of ours:** South Fulton vs
+Fulton County on 28 August reads 36-6 on TSSAA and 36-8 here. Margin does not
+affect RPI so no rating is wrong, but one of the two has Fulton County's score
+wrong and it is on a Kentucky box score.
+**76 teams now carry a shadow delta, 38 helped and 38 hurt.** Trinity
+(Louisville) +0.1313 and Beechwood +0.1302 lead it. That symmetry is the
+argument for the feature: it is not a way to make Kentucky teams look better,
+it is the .500 assumption measured.
+**Ohio is permitted and has the data, and still cannot be done today.** The
+records live in OHSAA's weekly Harbin report, which is released Tuesdays from
+the fifth week of the season and does not exist for 2026 yet. That was
+established with a control URL rather than inferred from a 404. The URL
+pattern, the release schedule and the fact that the PDF parses with the
+standard library are now written down in `out-of-state-sources.md`, so the
+week of 22 September is a fetch and a parse rather than a fresh investigation.
+**What is left is exactly what policy blocks:** Indiana names ClaudeBot in
+robots.txt and Virginia allows only two named crawlers, so their nine
+opponents need a person reading a page. Ohio's fifteen need a date.
