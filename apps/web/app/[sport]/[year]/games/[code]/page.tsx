@@ -72,7 +72,13 @@ export default async function Page(
       ? `OT${n - game.regulationPeriods}`
       : `${game.periodNoun.charAt(0).toUpperCase()}${n}`;
   const detail =
-    game.status === "final"
+    // A forfeit is finished. Without this it fell through to the kick-off
+    // time, so the first real forfeit on the site read "07:30 PM" under a
+    // 1-0 line score. The scoreboard and the team page both say "Forfeit";
+    // only this page did not.
+    game.status === "forfeit"
+      ? "Forfeit"
+      : game.status === "final"
       ? game.periodsPlayed && game.periodsPlayed > game.regulationPeriods
         ? `Final/${game.periodsPlayed - game.regulationPeriods}OT`
         : "Final"

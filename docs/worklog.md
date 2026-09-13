@@ -1729,3 +1729,27 @@ the matcher was not reading. 19 of 19 after that.
 **Validated against a report that exists**, 2023 week 10, rather than waiting
 to find out on the 22nd with nobody watching: 666 rows, 28 regions, 0 unread,
 19 of 19 opponents matched, Ironton 9-1 and Badin 10-0 among them.
+
+## 2026-09-13 — Friday closed out, and the first forfeit found a bug
+**All 108 regular-season games from 11 September are now final**, off James's
+second compilation: 32 gaps filled, 69 rows agreeing with what was stored, and
+three where his two lists disagreed with each other. He ruled for the second
+list on all three, the one that mattered being Washington County at Western
+Hills, where a 20-20 tie became a 33-12 win and changed both records.
+**Four games were not on either of his lists** and were found by asking the
+schedule rather than the list: Butler at Valley, Hancock County at Apollo, and
+two Saturday games. Worth remembering that a compiled list answers "what did I
+see", and the schedule answers "what was played".
+**The first forfeit in the system exposed a display bug.** Lewis County won by
+forfeit over Berea Community. `setGameStatus` correctly refuses a forfeit with
+no score, so it is stored 1-0 with `status = 'forfeit'`. The scoreboard and the
+team page both print "Forfeit"; the game page had no branch for it and fell
+through to the kick-off time, so a finished game read "07:30 PM" over a 1-0
+line score. One line.
+**A correction I had to make to James:** I had told him the unreported games
+were suppressing teams from the rankings. They were not. All 222 Kentucky
+teams were published throughout; the suppressed rows were out-of-state
+opponents with too few games, which are never ranked anyway. The engine counts
+a score as missing only when a game is marked final with no score on it, and a
+game still sitting as scheduled does not trip that. What the gaps actually cost
+was 71 incomplete records, which is real but is not what I said.
