@@ -34,28 +34,45 @@ finished, both on main):
    `follow-button.tsx` on the team page, `following.tsx` on the front page,
    `/api/following` for the live next/last game.
 
-**In flight right now, on branch `rpi-khsaa-conformance`, nothing deployed.**
-The football class factor we shipped was not KHSAA's. Theirs weights a win by
-the opponent's class, per game, inside WP; ours multiplied the finished rating
-by a team level number and never penalised playing down. The engine is
-rewritten and tested against KHSAA's own 21 page worked example, which it
-reproduces. See the 2026-09-17 worklog entry for the full account.
+**Shipped 17 September: football RPI now matches KHSAA's published method.**
+The class factor we had was not theirs. Theirs weights a win by the opponent's
+class, per game, inside WP, as the ratio of two published class weights; ours
+multiplied the finished rating by a team level number, counted losses, and
+never penalised playing down. Four other parameters were wrong with it. The
+2026-09-17 worklog entry has the full account.
 
-What is done: `packages/rpi/src/index.ts` rewritten, 26 engine tests passing
-including the Ashland Blazer fixture, `loadTeamInputs` and `persistRun`
-updated, migration `0017_khsaa_class_weights.sql` written, `FORMULA_VERSION`
-bumped to `khsaa-2026.2`, CLAUDE.md's RPI section corrected.
+Live as of run 849, `khsaa-2026.2`: 222 published teams, 28 of them with a
+winning percentage above 1.000, which the old formula could not produce at all.
+Mean rank movement on cutover was 14 places, median 9, with 60 teams moving 20
+or more. Christian Academy-Louisville went from 7th to 1st, Mayfield from 1st
+to 3rd.
 
-What is not: the migration has not been applied, nothing is deployed, and no
-stored run has been touched. The live table is still khsaa-2026.1. The RPI page
-copy still describes Shadow RPI as measured against a flat .500, which stopped
-being the baseline when the non-member value moved to .51060. Two questions are
-out to KHSAA: whether a tie takes the class weight, and which two contests the
-play-down exemptions land on.
+The engine is validated against KHSAA's own 21 page Ashland Blazer worked
+example, transcribed into `packages/rpi/test/ashland-2018.fixture.ts`. It
+reproduces their WP and OWP exactly, all ten per game values, and 37 of 39
+opponent winning percentages; the two misses are teams whose schedules the PDF
+prints only in part, which is why the OOWP assertion carries 3e-3 of slack.
+If you change anything in the engine, that fixture is what tells you whether
+you broke it.
 
-To see what cutover would publish, without publishing it:
+Migration 0017 was applied by hand ahead of the deploy, at 16:11 on the 17th,
+with a dump at `backups/kyboxscore-pre-0017-*.sql.gz` on the droplet. The
+recorded checksum matches the repo file, so the deploy's own migrate step
+skipped it rather than erroring.
+
+**Still open with KHSAA**, both isolated behind config rather than guessed:
+whether a tie takes the class weight (we leave it unweighted, `weightedTies`),
+and whether the two play-down exemptions go to the first two play-downs or to
+the first two contests only if those happen to be play-downs (we take the
+former).
+
+**Worth re-checking in late October.** The play-down penalty barely bit at
+cutover: of 341 play-down contests, 264 were covered by exemptions because at
+four games in almost every team was still inside its two. By week 10 that
+reverses and the penalty starts doing real work. Re-run the dry run then before
+drawing any conclusion about its effect:
 `node --experimental-strip-types packages/db/scripts/rpi-dry-run.ts --rows ... --live ... --members ...`
-It writes nothing. The dump queries it expects are in the same worklog entry.
+It writes nothing. The dump queries it expects are in the worklog entry.
 
 **The obvious next things**, in the order they are probably worth doing:
 

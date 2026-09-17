@@ -1822,3 +1822,39 @@ which is no longer the baseline. Two questions are still open for KHSAA: whether
 a tie takes the class weight (we leave it unweighted, behind `weightedTies`),
 and whether the two exemptions go to the first two play-downs or merely to the
 first two contests if those happen to be play-downs.
+
+## 2026-09-17, later — cutover
+Shipped. Migration 0017 applied by hand at 16:11 ahead of the code, with a
+verified dump at `backups/kyboxscore-pre-0017-20260917T161053Z.sql.gz`. The
+recorded checksum matched the repo file, so the deploy's own migrate step
+skipped it instead of refusing it as changed. That is the thing to get right
+when applying a migration outside the deploy: the file must go in byte for
+byte, which meant mounting it into a throwaway container running the current
+image rather than pasting the SQL into psql.
+
+**The CI checks had never run.** No `gh` and no API token on the droplet, so
+the PR could not be opened from there and `main` was fast-forwarded and pushed
+directly. Before that, the check job was reproduced locally against a throwaway
+Postgres on 55432: migrate, seed, typecheck, and the full suite at 187 passed
+and 0 skipped. Those 44 normally-skipped tests are the ones that matter here,
+because `import-pipeline.test.ts` is the only thing that executes the insert
+path, and `game_value` and `play_down_exempt` had never had a write run against
+them anywhere.
+
+**One gap the suite does not cover.** The seed fixture has no cross-class
+games, so nothing in the tests ever stores a winning percentage above 1.000,
+which is the headline behaviour of the whole change. Checked separately against
+the column types and constraints: WP 1.4232, RPI 1.2045 and game_value 2.011
+all round trip, and there is no CHECK that would reject them. Worth adding a
+cross-class game to the seed so the suite covers it on its own.
+
+**Cutover matched the dry run exactly**: mean rank movement 14.0 places, 60
+teams moving 20 or more, 28 above 1.000. Median 9, largest climb 51, largest
+fall 75, ten teams unmoved. Run 849 official, 850 shadow.
+
+**A half-state worth knowing about for next time.** Between the container swap
+at 16:25 and the recompute at 16:27 the new code served the old run, and the
+RPI page read "counts as a fixed team" with no number, because run 847's config
+has no `nonMemberValue` key for the copy to read. It resolved as soon as a
+2026.2 run existed. If a future change makes the page read a value out of the
+run's config, expect the same gap between deploy and the next cron tick.
