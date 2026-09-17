@@ -364,7 +364,7 @@ test("RPI runs against real games, reproduces its own arithmetic, and ranks only
 
   // "Every stored RPI value must be reproducible."
   for (const s of standings) {
-    const recomputed = (s.wp * 0.35 + s.owp * 0.35 + s.oowp * 0.3) * s.classFactor;
+    const recomputed = s.wp * 0.35 + s.owp * 0.35 + s.oowp * 0.3;
     assert.ok(
       Math.abs(recomputed - s.rpi) < 1e-6,
       `${s.schoolName}: stored ${s.rpi} does not reproduce from its own components`

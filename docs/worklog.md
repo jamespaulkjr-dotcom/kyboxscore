@@ -1753,3 +1753,72 @@ opponents with too few games, which are never ranked anyway. The engine counts
 a score as missing only when a game is marked final with no score on it, and a
 game still sitting as scheduled does not trip that. What the gaps actually cost
 was 71 incomplete records, which is real but is not what I said.
+
+## 2026-09-17 — The football class factor was never KHSAA's
+**A question from a reader turned out to be right and our formula wrong.**
+Someone asked whether we included class multipliers, having noticed that an
+undefeated team shows a winning percentage of exactly 1.0, and suggested that
+beating a team above its class ought to push it higher. The answer given at
+first was that WP is bounded at 1.0 by definition and that opponent strength
+is what OWP and OOWP are for. That was wrong.
+
+**KHSAA's published method puts the class weight inside WP, per game, on wins
+only**, as the ratio of two published class weights. Their calculation steps
+page states outright that "it is possible to get OWP, OOWP, and even RPI that
+is greater than 1.000 due to class weights". What we had instead was a team
+level multiplier on the finished rating, `1 + avg(classesUp) * 0.15`, applied
+to every game including losses, with no penalty for playing down. It had no
+counterpart in their formula at all.
+
+**Five things were wrong, three of them flagged in the engine header as
+unconfirmed and two that were never flagged:** the class factor's placement and
+form, that it applied to losses, the missing play-down penalty and its two
+exemptions, `excludeHeadToHead` defaulting to false when KHSAA requires it, and
+the non-member value sitting at .500 when it has been .51060 for football and
+.53 for everything else since 2023-24.
+
+**The fixture is KHSAA's own worked example.** They publish 21 pages of Ashland
+Blazer's 2018 season with every intermediate value printed to five decimals.
+Transcribed into `packages/rpi/test/ashland-2018.fixture.ts` (37 teams, 102
+classifications) it reproduces their WP of 0.86778 and OWP of 0.58728 exactly,
+all ten per game values, and 37 of the 39 opponent winning percentages. The two
+that miss are teams whose schedules the PDF only prints in part, which is why
+the OOWP assertion carries 3e-3 of slack and says so.
+
+**Two things the example settled that the prose did not.** First, the class
+weights are published rounded and KHSAA divides the rounded figures, so
+`1.15 ** delta` is close but wrong: Raceland over Lawrence County is 1.32200 in
+their table, not the 1.3225 the exponential gives. Divide the table. Second,
+the head to head exclusion belongs to the pair being averaged and not to the
+team being rated. Removing the rated team from its opponent's OWP is the
+intuitive reading and it moved every OOWP in the example by about .02. Their
+page prints "Raceland OWP Calculation, Ashland Blazer 0.89110", which settles
+it: Ashland stays in.
+
+**Turning on head to head exclusion made the old out-of-state bug reachable
+again.** An opponent whose only game in our set is the one being excluded
+leaves an empty list, and the old `owpFor` returned 0 for that. It was
+unreachable before because of the `opponentAssumedFiveHundred` short circuit;
+with exclusion on it becomes reachable for thinly played in state teams in
+September. An empty set now contributes the non-member value, with a test.
+
+**The dry run, read only, against the live season through 17 September.** 222
+published teams. 28 now carry a WP above 1.000, which the old formula could not
+produce at all. Mean absolute rank movement is 14 places and 60 teams move 20
+or more. Mayfield, currently first in the state at 3-1 on a 1.4875 multiplier,
+lands third. The structural skew against big schools mostly clears: the best 6A
+rank goes 18 to 5 and mean 6A rank 134 to 119, best 5A 24 to 15.
+
+**The play-down penalty barely bites yet and will bite hard later.** Of 341
+play-down contests only 40 wins are discounted, because with four games played
+almost every team is still inside its two exemptions. By week 10 that reverses.
+Worth re-running the dry run in late October before drawing conclusions.
+
+**Not done, and deliberately.** Nothing is deployed and no stored run was
+touched. `FORMULA_VERSION` is bumped to `khsaa-2026.2` and migration 0017 adds
+`rpi_input.game_value` and `play_down_exempt`, but neither has been applied.
+The RPI page copy still describes Shadow RPI as measured against a flat .500,
+which is no longer the baseline. Two questions are still open for KHSAA: whether
+a tie takes the class weight (we leave it unweighted, behind `weightedTies`),
+and whether the two exemptions go to the first two play-downs or merely to the
+first two contests if those happen to be play-downs.

@@ -1,5 +1,6 @@
 import {
   DEFAULT_CONFIG,
+  FOOTBALL_NON_MEMBER_VALUE,
   computeBoth,
   type Game,
   type RpiConfig,
@@ -17,12 +18,13 @@ import { sql } from "./client.ts";
  * the numbers rather than asserting a ranking at them.
  */
 
-export const FORMULA_VERSION = "khsaa-2026.1";
+export const FORMULA_VERSION = "khsaa-2026.2";
 
 type GameRow = {
   teamId: number;
   teamClass: number | null;
   gameId: number;
+  localDate: string;
   opponentId: number;
   homeScore: number | null;
   awayScore: number | null;
@@ -55,6 +57,7 @@ export async function loadTeamInputs(
     SELECT s.team_id::int   AS "teamId",
            s.team_class::int AS "teamClass",
            g.id::int        AS "gameId",
+           g.local_date::text AS "localDate",
            opp.team_id::int AS "opponentId",
            mine.score::int  AS "homeScore",
            opp.score::int   AS "awayScore",
@@ -146,6 +149,9 @@ export async function loadTeamInputs(
       opponentId: r.opponentId,
       outcome,
       isHome: r.isHome,
+      // Play-down exemptions go to the first two such contests of the season,
+      // so the engine needs to know when a game was played.
+      localDate: r.localDate,
       opponentAssumedFiveHundred: r.opponentAssumedFiveHundred,
       opponentClass: r.opponentClass,
       missingScore,
@@ -184,22 +190,20 @@ async function persistRun(
       await tx`
         INSERT INTO rpi_result ${tx(
           results.map((r) => {
-            // The columns store wp/owp/oowp at 6 decimals and the class factor
-            // at 4. If the rating were stored as the engine computed it, from
-            // unrounded values, it would not reproduce from the numbers a coach
-            // is shown - off by ~3e-5, which is enough to make the arithmetic
-            // look wrong on a page. So the published rating is computed FROM
-            // the published components. "Every stored RPI value must be
-            // reproducible" is only true if it is derived this way.
+            // The columns store wp/owp/oowp at 6 decimals. If the rating were
+            // stored as the engine computed it, from unrounded values, it
+            // would not reproduce from the numbers a coach is shown - off by
+            // ~3e-5, which is enough to make the arithmetic look wrong on a
+            // page. So the published rating is computed FROM the published
+            // components. "Every stored RPI value must be reproducible" is
+            // only true if it is derived this way.
             const wp = Number(r.wp.toFixed(6));
             const owp = Number(r.owp.toFixed(6));
             const oowp = Number(r.oowp.toFixed(6));
-            const cf = Number(r.classFactor.toFixed(4));
             const rpi =
-              (wp * config.weights.wp +
-                owp * config.weights.owp +
-                oowp * config.weights.oowp) *
-              cf;
+              wp * config.weights.wp +
+              owp * config.weights.owp +
+              oowp * config.weights.oowp;
             return {
             rpi_run_id: run.id,
             team_id: r.teamId,
@@ -209,7 +213,11 @@ async function persistRun(
             wp: wp.toFixed(6),
             owp: owp.toFixed(6),
             oowp: oowp.toFixed(6),
-            class_factor: cf.toFixed(4),
+            // Retained NOT NULL from the superseded formula, where a team
+            // level multiplier scaled the whole rating. KHSAA has no such
+            // term: the class weight is per game, inside WP. Old runs keep
+            // their values as the audit trail; new ones write the identity.
+            class_factor: "1.0000",
             rpi: rpi.toFixed(6),
             is_published: r.published,
             suppressed_reason: r.published
@@ -229,13 +237,18 @@ async function persistRun(
           team_id: r.teamId,
           game_id: i.gameId,
           opponent_team_id: i.opponentId,
-          opponent_is_in_state: i.appliedWpReason !== "flat_500_assumed",
+          opponent_is_in_state: i.appliedWpReason !== "flat_non_member",
           opponent_actual_wp:
             i.opponentActualWp === null ? null : i.opponentActualWp.toFixed(6),
           opponent_applied_wp: i.opponentAppliedWp.toFixed(6),
           applied_wp_reason: i.appliedWpReason,
           result_value: i.resultValue.toFixed(3),
+          // What actually entered WP. In football this is the class weighted
+          // number and result_value is only the raw win; a coach shown the
+          // arithmetic needs both or the column will not add up.
+          game_value: i.gameValue.toFixed(6),
           class_delta: i.classDelta,
+          play_down_exempt: i.playDownExempt,
         }))
       );
       // Chunked: a full season across 200 teams is tens of thousands of rows
@@ -247,7 +260,8 @@ async function persistRun(
             chunk,
             "rpi_run_id", "team_id", "game_id", "opponent_team_id",
             "opponent_is_in_state", "opponent_actual_wp", "opponent_applied_wp",
-            "applied_wp_reason", "result_value", "class_delta"
+            "applied_wp_reason", "result_value", "game_value", "class_delta",
+            "play_down_exempt"
           )}`;
       }
     }
@@ -328,9 +342,13 @@ export async function runRpi(
   if (!season) throw new Error(`no sport_season ${sportSeasonId}`);
 
   const throughDate = options.throughDate ?? season.endsOn;
+  const isFootball = season.profile === "football";
   const config: RpiConfig = {
     ...DEFAULT_CONFIG,
-    sportProfile: season.profile === "football" ? "football" : "standard",
+    sportProfile: isFootball ? "football" : "standard",
+    // KHSAA sets this per sport and reviews it every two years: .51060 in
+    // football, .53 everywhere else.
+    nonMemberValue: isFootball ? FOOTBALL_NON_MEMBER_VALUE : DEFAULT_CONFIG.nonMemberValue,
     ...options.config,
   };
 
@@ -381,7 +399,6 @@ export type RpiStanding = {
   wp: number;
   owp: number;
   oowp: number;
-  classFactor: number;
   rpi: number;
   stateRank: number | null;
   /**
@@ -420,7 +437,6 @@ export async function getRpiStandings(sportSlug: string, urlYear?: number) {
            sc.slug::text AS "schoolSlug",
            r.wins::int, r.losses::int, r.ties::int,
            r.wp::float8, r.owp::float8, r.oowp::float8,
-           r.class_factor::float8 AS "classFactor",
            r.rpi::float8, r.state_rank::int AS "stateRank",
            coalesce(r.class_rank, r.region_rank)::int AS "groupRank",
            parent.name AS "groupName",

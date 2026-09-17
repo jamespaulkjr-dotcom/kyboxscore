@@ -7,7 +7,7 @@ person) can pick up without reconstructing it from shell history.
 the state: what is true right now.** Update it whenever infrastructure changes
 or a phase completes.
 
-Last updated: 2026-09-10
+Last updated: 2026-09-17
 
 ## Resume here
 
@@ -33,6 +33,29 @@ finished, both on main):
 2. Following a team — `apps/web/lib/favorites.ts` (localStorage),
    `follow-button.tsx` on the team page, `following.tsx` on the front page,
    `/api/following` for the live next/last game.
+
+**In flight right now, on branch `rpi-khsaa-conformance`, nothing deployed.**
+The football class factor we shipped was not KHSAA's. Theirs weights a win by
+the opponent's class, per game, inside WP; ours multiplied the finished rating
+by a team level number and never penalised playing down. The engine is
+rewritten and tested against KHSAA's own 21 page worked example, which it
+reproduces. See the 2026-09-17 worklog entry for the full account.
+
+What is done: `packages/rpi/src/index.ts` rewritten, 26 engine tests passing
+including the Ashland Blazer fixture, `loadTeamInputs` and `persistRun`
+updated, migration `0017_khsaa_class_weights.sql` written, `FORMULA_VERSION`
+bumped to `khsaa-2026.2`, CLAUDE.md's RPI section corrected.
+
+What is not: the migration has not been applied, nothing is deployed, and no
+stored run has been touched. The live table is still khsaa-2026.1. The RPI page
+copy still describes Shadow RPI as measured against a flat .500, which stopped
+being the baseline when the non-member value moved to .51060. Two questions are
+out to KHSAA: whether a tie takes the class weight, and which two contests the
+play-down exemptions land on.
+
+To see what cutover would publish, without publishing it:
+`node --experimental-strip-types packages/db/scripts/rpi-dry-run.ts --rows ... --live ... --members ...`
+It writes nothing. The dump queries it expects are in the same worklog entry.
 
 **The obvious next things**, in the order they are probably worth doing:
 

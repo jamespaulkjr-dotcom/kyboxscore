@@ -72,17 +72,43 @@ The official KHSAA formula:
 RPI = (WP * 0.35) + (OWP * 0.35) + (OOWP * 0.30)
 ```
 
-Rules:
+Rules, checked against KHSAA's published method on 17 September 2026. Their
+calculation steps page and the 21 page Ashland Blazer worked example at
+https://ly.khsaa.org/uynq are the authority, not this summary:
 
 - margin of victory is never a factor
-- all out of state teams get a flat .500 WP, as do in state home school teams playing a member school
-- regular season games only
-- a class factor rewards playing up, roughly 15% between classes, baseline 1.0
-- football uses a different WP value assignment than other sports
+- regular season games only, and forfeits count as a normal result
+- head to head is excluded when computing an opponent's WP, and that exclusion
+  carries through OOWP. It does **not** remove the team being rated from its
+  own opponent's OWP: KHSAA's example prints Ashland Blazer inside Raceland's
+  OWP at 0.89110
+- non-KHSAA opponents take a fixed value, reviewed every two years: **.51060**
+  in football, **.53** in every other sport. In state home school teams take
+  the same .53. It is not .500, and has not been since 2023-24
 - no RPI published for a team with missing scores
 - recalculate hourly
 
-Also compute **Shadow RPI**: identical except out of state opponents carry their real winning percentage. Display both side by side with the delta and a plain English explanation. Coaches near the state line have complained for years that the .500 assumption distorts their ranking. Nobody has ever shown them the number.
+Football, and only football, weights a **win** by the class of the opponent.
+The weight is the opponent's published class weight divided by the team's own:
+
+```text
+1A 1.323   2A 1.521   3A 1.749   4A 2.011   5A 2.313   6A 2.660
+```
+
+- a loss is 0.0 whoever it was against, so playing up earns nothing without a win
+- playing down is penalised: 4A over 3A is 1.749/2.011 = 0.86972
+- since 2023 the first two contests against a smaller class are exempt and
+  treated as same class, in date order. A play-down loss still spends one.
+  There are no exemptions when computing OWP or OOWP
+- an out of state or unaligned opponent counts as the team's own class, a
+  weight of exactly 1.0
+- divide the published table, do not raise 1.15 to a power. The weights are a
+  15% step but KHSAA publishes them rounded and divides the rounded figures
+
+**A football WP can and does exceed 1.000**, and so can OWP, OOWP and the
+rating itself. KHSAA says so explicitly. Anything that clamps at 1.0 is wrong.
+
+Also compute **Shadow RPI**: identical except out of state opponents carry their real winning percentage instead of the fixed non-member value. Display both side by side with the delta and a plain English explanation. Coaches near the state line have complained for years that the fixed assumption distorts their ranking. Nobody has ever shown them the number. Note the baseline it is measured against is .51060 in football, not .500, so the page copy needs to say that rather than "a flat .500".
 
 Out of state records come from the publishing state associations or manual entry, stored in OutOfStateTeams with W, L, source, and date. Only teams Kentucky schools actually played matter, a few hundred across seven bordering states.
 
