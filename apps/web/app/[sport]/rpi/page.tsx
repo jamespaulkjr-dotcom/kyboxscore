@@ -24,12 +24,22 @@ export async function generateMetadata(
   const { sport } = await props.params;
   return {
     title: "RPI",
-    description: `KHSAA RPI ratings for Kentucky high school ${sport}, statewide and by classification, with a shadow rating that replaces the flat .500 assumption with an adjusted out-of-state opponent winning percentage.`,
+    description: `KHSAA RPI ratings for Kentucky high school ${sport}, statewide and by classification, with a shadow rating that replaces KHSAA's fixed out-of-state value with each opponent's real winning percentage.`,
   };
 }
 
 /** 3 decimal places is how RPI is quoted; more implies precision we do not have. */
 const fmt = (n: number) => n.toFixed(3);
+
+/**
+ * KHSAA's fixed non-member value: .51060 in football, .53 in every other
+ * sport, reviewed every two years. Shown at its own precision rather than
+ * rounded to the three decimals RPI is quoted at, because it is a published
+ * constant and a coach checking our arithmetic needs the digits, not a
+ * rounding of them. Trailing zeros go so .53 does not read as .53000.
+ */
+const fmtFixed = (n: number) =>
+  n.toFixed(5).replace(/0+$/, "").replace(/\.$/, "").replace(/^0/, "");
 
 const showsDelta = (s: RpiStanding) =>
   s.delta !== null && Math.abs(s.delta) > 0.0005;
@@ -61,6 +71,12 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
     getLatestRpiRun(sport),
   ]);
 
+  // Null for a run written before the value was stored in its config. The copy
+  // then reads "a fixed value" without a number, which is true and vague,
+  // rather than a number we would be guessing at.
+  const fixedValue =
+    run?.nonMemberValue != null ? fmtFixed(run.nonMemberValue) : null;
+
   const groups = groupRows(standings);
   const selected = classParam ? findGroup(groups, classParam) : undefined;
   // A ?class= nobody can be in is a wrong URL, not a page with an empty table.
@@ -71,7 +87,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
   const withDelta = standings.filter(showsDelta);
 
   // Sorted by rank the table answers "where do we stand". Sorted by delta it
-  // answers a different question - who does the .500 assumption actually move
+  // answers a different question - who does the fixed value actually move
   // - and for that the teams it does not move are noise, so they come out.
   // Helped at the top, hurt at the bottom, nothing in between.
   const rows = selected
@@ -156,7 +172,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
               <nav aria-label="Sort" className="mt-2 flex flex-wrap gap-2">
                 {tab("By rank", `/${sport}/rpi`, !sortByDelta)}
                 {tab(
-                  `Most affected by the .500 assumption (${withDelta.length})`,
+                  `Most affected by the fixed value (${withDelta.length})`,
                   `/${sport}/rpi?sort=delta`,
                   sortByDelta
                 )}
@@ -166,8 +182,8 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
             {sortByDelta && !selected && !byClass && (
               <p className="mt-3 max-w-prose text-sm text-fg-muted">
                 Only the {withDelta.length} teams whose rating moves, ordered by
-                how much. The ones at the top are held down by the .500
-                assumption; the ones at the bottom are held up by it. The{" "}
+                how much. The ones at the top are held down by the fixed
+                value; the ones at the bottom are held up by it. The{" "}
                 <span className="font-semibold">#</span> column is still their
                 official statewide rank.
               </p>
@@ -358,12 +374,15 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                 actually measured against in the postseason.
               </p>
               <p className="mt-2">
-                Under the official formula every out-of-state opponent is
-                treated as a .500 team, however good or bad they actually are.{" "}
+                Under the official formula every out-of-state opponent counts
+                as a fixed{fixedValue ? ` ${fixedValue}` : ""} team, however
+                good or bad they actually are. KHSAA sets that figure from how
+                Kentucky schools have really done against outside opposition and
+                reviews it every two years.{" "}
                 <strong>Shadow RPI replaces that one assumption with an
                 adjusted out-of-state opponent winning percentage</strong>, and
-                Δ is the difference. A positive delta means the .500 assumption
-                is costing that team; a negative one means it is helping.
+                Δ is the difference. A positive delta means the fixed value is
+                costing that team; a negative one means it is helping.
               </p>
               <p className="mt-2">
                 That adjusted percentage is the opponent&rsquo;s record with
@@ -378,7 +397,8 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                 Everything else in Shadow RPI is the official calculation
                 unchanged. We hold out-of-state opponents&rsquo; records but not
                 their opponents&rsquo; opponents, so the last 30% of the formula
-                still treats an out-of-state opponent&rsquo;s schedule as .500.
+                still holds an out-of-state opponent&rsquo;s schedule at the
+                fixed value.
                 Shadow RPI is the official rating with one input corrected, not
                 an independently calculated rating.
               </p>

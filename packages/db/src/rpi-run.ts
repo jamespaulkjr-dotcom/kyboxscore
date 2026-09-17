@@ -467,8 +467,16 @@ export async function getRpiStandings(sportSlug: string, urlYear?: number) {
 }
 
 export async function getLatestRpiRun(sportSlug: string) {
-  const rows = await sql<{ computedAt: string; throughDate: string }[]>`
-    SELECT rr.computed_at::text AS "computedAt", rr.through_date::text AS "throughDate"
+  // The non-member value comes out of the run's own stored config rather than
+  // a constant the page imports. KHSAA reviews it every two years, and a page
+  // that quotes a number the published run did not actually use is worse than
+  // a page that quotes none: this way the copy cannot drift from the table
+  // above it, and a past run explains itself in its own terms.
+  const rows = await sql<
+    { computedAt: string; throughDate: string; nonMemberValue: number | null }[]
+  >`
+    SELECT rr.computed_at::text AS "computedAt", rr.through_date::text AS "throughDate",
+           (rr.config ->> 'nonMemberValue')::float8 AS "nonMemberValue"
     FROM rpi_run rr
     JOIN sport_season ss ON ss.id = rr.sport_season_id AND ss.is_current
     JOIN sport sp ON sp.id = ss.sport_id
