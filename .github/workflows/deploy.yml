@@ -58,8 +58,13 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+          # A build cache is an optimisation. GitHub's cache service returns
+          # a transient "error writing layer blob: not_found" often enough that
+          # letting it fail the build means a deploy blocked by something that
+          # has nothing to do with the code. ignore-error keeps the cache when
+          # it works and shrugs when it does not.
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 
   deploy:
     needs: build
