@@ -275,13 +275,18 @@ export async function previewResults(
       const homeScore = reversed ? r.outcome.awayScore : r.outcome.homeScore;
       const same = g.awayScore === awayScore && g.homeScore === homeScore;
       const settled = g.status === "final" || g.status === "forfeit";
+      // What setFinalScore will leave the status as. It never reopens a game
+      // that has already finished, so a settled game keeps the status it has.
+      const willBe = r.outcome.final ? "final" : settled ? g.status : "in_progress";
 
       if (settled && !same) {
         plan.warnings.push(
           `Already ${g.status} at ${g.awayName} ${g.awayScore}, ${g.homeName} ${g.homeScore}. This would change it.`
         );
       }
-      if (!same || (r.outcome.final && !settled)) {
+      // The status matters as much as the score: a game carrying the right
+      // score under the wrong status still reads wrong on the scoreboard.
+      if (!same || willBe !== g.status) {
         plan.changes.push(
           `${r.outcome.final ? "Final" : "In progress"} ${g.awayName} ${awayScore}, ${g.homeName} ${homeScore}`
         );
@@ -294,6 +299,15 @@ export async function previewResults(
         ) {
           plan.warnings.push(
             `Already ${g.status} at ${g.awayName} ${g.awayScore}, ${g.homeName} ${g.homeScore}. This would undo that result.`
+          );
+        } else if (
+          g.status === "in_progress" &&
+          (g.awayScore !== null || g.homeScore !== null) &&
+          r.outcome.status === "scheduled"
+        ) {
+          // Usually an older document being pasted after a newer one.
+          plan.warnings.push(
+            `This game is live at ${g.awayName} ${g.awayScore}, ${g.homeName} ${g.homeScore}. Putting it back to scheduled would drop that. Paste the newest document last.`
           );
         }
         plan.changes.push(`Status ${g.status} to ${r.outcome.status}`);
