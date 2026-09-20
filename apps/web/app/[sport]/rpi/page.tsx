@@ -24,7 +24,7 @@ export async function generateMetadata(
   const { sport } = await props.params;
   return {
     title: "RPI",
-    description: `KHSAA RPI ratings for Kentucky high school ${sport}, statewide and by classification, with a shadow rating that replaces KHSAA's fixed out-of-state value with each opponent's real winning percentage.`,
+    description: `KHSAA RPI ratings for Kentucky high school ${sport}, statewide and by classification, alongside a True RPI that replaces KHSAA's fixed out-of-state value with each opponent's real winning percentage.`,
   };
 }
 
@@ -147,6 +147,20 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
 
         {standings.length > 0 && (
           <>
+            {/* Two names before two columns. A reader who scrolls no further
+                than the table still has to know which number is whose. */}
+            <p className="mt-4 max-w-prose text-sm">
+              <strong>Two ratings, the same formula.</strong>{" "}
+              <span className="font-semibold">KHSAA RPI</span> is the official
+              one, and it counts every out-of-state opponent as a fixed
+              {fixedValue ? ` ${fixedValue}` : ""} team however good or bad they
+              really are.{" "}
+              <span className="font-semibold">True RPI</span> uses that
+              opponent&rsquo;s real winning percentage instead.{" "}
+              <span className="font-semibold">&Delta;</span> is the gap between
+              them, and it is zero for any team that has not left the state.
+            </p>
+
             {groups.length > 0 && (
               <nav
                 aria-label={`Filter by ${groupNoun}`}
@@ -172,7 +186,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
               <nav aria-label="Sort" className="mt-2 flex flex-wrap gap-2">
                 {tab("By rank", `/${sport}/rpi`, !sortByDelta)}
                 {tab(
-                  `Most affected by the fixed value (${withDelta.length})`,
+                  `Where the two differ most (${withDelta.length})`,
                   `/${sport}/rpi?sort=delta`,
                   sortByDelta
                 )}
@@ -185,7 +199,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                 how much. The ones at the top are held down by the fixed
                 value; the ones at the bottom are held up by it. The{" "}
                 <span className="font-semibold">#</span> column is still their
-                official statewide rank.
+                KHSAA statewide rank.
               </p>
             )}
 
@@ -234,7 +248,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                           <th scope="col">Rank in {g.noun}</th>
                           <th scope="col">Team</th>
                           <th scope="col">Record</th>
-                          <th scope="col">RPI</th>
+                          <th scope="col">KHSAA RPI</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -278,7 +292,7 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                 <table className="w-full min-w-[40rem] border-collapse bg-surface text-sm">
                   <caption className="sr-only">
                     {selected ? `${selected.label} ` : ""}
-                    {season.sportName} RPI standings, official and shadow
+                    {season.sportName} RPI standings, KHSAA and True
                   </caption>
                   <thead>
                     <tr className="border-b border-border text-left">
@@ -293,8 +307,8 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                       <th scope="col" className="px-2 py-2 text-right font-semibold">WP</th>
                       <th scope="col" className="px-2 py-2 text-right font-semibold">OWP</th>
                       <th scope="col" className="px-2 py-2 text-right font-semibold">OOWP</th>
-                      <th scope="col" className="px-2 py-2 text-right font-semibold">RPI</th>
-                      <th scope="col" className="px-2 py-2 text-right font-semibold">Shadow</th>
+                      <th scope="col" className="px-2 py-2 text-right font-semibold">KHSAA RPI</th>
+                      <th scope="col" className="px-2 py-2 text-right font-semibold">True RPI</th>
                       <th scope="col" className="px-2 py-2 text-right font-semibold">Δ</th>
                     </tr>
                   </thead>
@@ -374,12 +388,12 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                 actually measured against in the postseason.
               </p>
               <p className="mt-2">
-                Under the official formula every out-of-state opponent counts
+                Under the KHSAA formula every out-of-state opponent counts
                 as a fixed{fixedValue ? ` ${fixedValue}` : ""} team, however
                 good or bad they actually are. KHSAA sets that figure from how
                 Kentucky schools have really done against outside opposition and
                 reviews it every two years.{" "}
-                <strong>Shadow RPI replaces that one assumption with an
+                <strong>True RPI replaces that one assumption with an
                 adjusted out-of-state opponent winning percentage</strong>, and
                 Δ is the difference. A positive delta means the fixed value is
                 costing that team; a negative one means it is helping.
@@ -394,13 +408,13 @@ export default async function Page(props: PageProps<"/[sport]/rpi">) {
                   computed from scratch and calling it one would be a claim we
                   cannot support. */}
               <p className="mt-2">
-                Everything else in Shadow RPI is the official calculation
-                unchanged. We hold out-of-state opponents&rsquo; records but not
-                their opponents&rsquo; opponents, so the last 30% of the formula
-                still holds an out-of-state opponent&rsquo;s schedule at the
-                fixed value.
-                Shadow RPI is the official rating with one input corrected, not
-                an independently calculated rating.
+                Everything else in True RPI is the KHSAA calculation
+                unchanged, and the name is about that one input, not a claim to
+                be a better rating system. We hold out-of-state opponents&rsquo;
+                records but not their opponents&rsquo; opponents, so the last
+                30% of the formula still holds an out-of-state opponent&rsquo;s
+                schedule at the fixed value. True RPI is the KHSAA rating with
+                one input corrected, not an independently calculated rating.
               </p>
               {visibleWithDelta.length > 0 ? (
                 <p className="mt-2">

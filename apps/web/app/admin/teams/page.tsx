@@ -78,8 +78,8 @@ export default async function Page(props: PageProps<"/admin/teams">) {
         <p className="mt-1 max-w-prose text-sm text-fg-muted">
           For a school outside Kentucky that one of our teams is playing. It
           becomes selectable as an opponent straight away. We do not track its
-          record: the official RPI gives every out-of-state opponent a flat
-          .500, and Shadow RPI uses a real record only if one is entered on the
+          record: KHSAA RPI gives every out-of-state opponent the same fixed
+          value, and True RPI uses a real record only if one is entered on the
           out-of-state page.
         </p>
         <OpponentForm sports={sportOptions} states={OPPONENT_STATES} />

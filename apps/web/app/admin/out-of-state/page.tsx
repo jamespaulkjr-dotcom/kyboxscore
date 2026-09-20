@@ -45,9 +45,9 @@ export default async function Page() {
           Out-of-state records
         </h1>
         <p className="mt-2 max-w-prose text-sm text-fg-muted">
-          The official KHSAA formula treats every out-of-state opponent as a
-          .500 team, however good or bad they really are.{" "}
-          <strong>Shadow RPI is the same arithmetic with their real record
+          The KHSAA formula treats every out-of-state opponent as the same
+          fixed team, however good or bad they really are.{" "}
+          <strong>True RPI is the same arithmetic with their real record
           instead</strong>, and until a record is entered here, the two are
           identical and every delta reads zero.
         </p>

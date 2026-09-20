@@ -154,11 +154,11 @@ export default async function Page() {
             factor for playing up. Margin of victory never counts.
           </p>
           <p>
-            We also publish a second number nobody else does. The official
-            formula gives every out-of-state opponent a flat .500 record, which
-            coaches near the state line have complained about for years. Shadow
-            RPI runs the same arithmetic with those opponents&rsquo; real
-            records, and shows the difference. Every stored rating keeps its
+            We also publish a second number nobody else does. The KHSAA
+            formula gives every out-of-state opponent the same fixed record
+            whoever they are, which coaches near the state line have complained
+            about for years. True RPI runs the same arithmetic with those
+            opponents&rsquo; real records, and shows the difference. Every stored rating keeps its
             inputs, so the arithmetic can be shown to anyone who disputes it.
           </p>
         </Section>

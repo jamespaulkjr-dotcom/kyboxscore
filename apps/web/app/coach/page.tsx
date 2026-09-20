@@ -183,7 +183,7 @@ export default async function Page() {
               Import an alignment
             </Link>
             <Link href="/admin/out-of-state" className="mt-1 block text-link underline">
-              Out-of-state records (switches on Shadow RPI)
+              Out-of-state records (switches on True RPI)
             </Link>
             <Link href="/admin/time-zones" className="mt-1 block text-link underline">
               School time zones

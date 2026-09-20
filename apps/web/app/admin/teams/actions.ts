@@ -231,7 +231,7 @@ export type OpponentState = { error?: string; added?: string };
 /**
  * Add a school from outside Kentucky so a game can be scheduled against it.
  * Its record is not tracked by us; the official RPI gives it a flat .500 and
- * Shadow RPI uses a real record only if one is entered on the out-of-state
+ * True RPI uses a real record only if one is entered on the out-of-state
  * page.
  */
 export async function createOpponentAction(

@@ -87,7 +87,7 @@ export async function saveOutOfStateAction(
 
   const written = await setOutOfStateRecords(sportSeasonId, entries, sourceName, sourceUrl, asOf);
 
-  // Shadow RPI reads these, so leaving the ratings stale would mean the page
+  // True RPI reads these, so leaving the ratings stale would mean the page
   // still shows a zero delta against records we now have.
   await refreshSportSeasonRollups(sportSeasonId);
   await runRpi(sportSeasonId);
