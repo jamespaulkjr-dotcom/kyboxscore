@@ -1858,3 +1858,61 @@ RPI page read "counts as a fixed team" with no number, because run 847's config
 has no `nonMemberValue` key for the copy to read. It resolved as soon as a
 2026.2 run existed. If a future change makes the page read a value out of the
 run's config, expect the same gap between deploy and the next cron tick.
+
+## 2026-09-20 — Results paste, and a night that moved
+**Did:** `/admin/results`, which takes James's nightly scores document as
+written and settles the games already on the schedule. Parser in
+`packages/parsers/src/results.ts` with his real 18 and 19 September documents
+as fixtures; resolution and writing in `packages/db/src/results-import.ts`;
+preview-then-commit screen in the same shape as the schedule paste. Then used
+it to apply the 19th and the 18th's revisions, and cleaned up three games the
+first pass of the 18th had got wrong.
+
+**Why:** 89 finals on a Friday is not a clicking job, and a script on the
+droplet means he cannot do it himself. Three decisions inside it are not
+obvious from the code:
+
+A results document is an assertion about one date. A game it reports is moved
+onto the document's date even when the row says nothing about moving, because
+that is what "these are Friday's scores" means. Without it, a game finished on
+Saturday morning sits on Friday's scoreboard forever.
+
+A bare school name means a Kentucky school. "Franklin County" is otherwise
+ambiguous against Franklin County, Winchester, Tennessee, and `matchSchoolNames`
+rightly refuses it. A two-letter parenthesis is a state, as in `Elder (OH)`;
+any other parenthesis is part of the stored name, as in `Trinity (Louisville)`.
+
+It never creates a fixture. A results paste arrives the morning after a
+schedule that already exists, so a game that is not there is reported rather
+than invented.
+
+**Learned:** The parser is AWAY first and the schedule paste is HOME first.
+That is not an accident and it is not worth "fixing": the scores document is
+written away-first and rewriting the document to suit the parser is the wrong
+way round. It is commented in both files.
+
+Pasting the 18th's revisions after the 19th's scores walked a live game back to
+scheduled without saying so. Two gaps: the preview only proposed a write when
+the numbers differed, so a game already carrying 6-0 under the wrong status
+read as nothing to do; and nothing warned that an older document was undoing a
+newer one. Both fixed, and the second is a warning rather than a refusal
+because sometimes walking a game back is what is wanted.
+
+The 18th needed three corrections that only showed up once the revised sheet
+arrived. Dixie Heights at Henry Clay was entered 7-0 on the 18th and was
+actually played on the 19th, 28-19. Powell County at Bath County was entered
+16-7 and never happened: the fixture moved to the 21st, where game 133 already
+sat at the stated 6:30 kick-off, so 132 is now postponed and looks like a
+duplicate somebody should decide about. Corbin at Frederick Douglass was
+carried as a forfeit and was a no contest, which is an RPI difference and not
+a labelling one — Douglass went 4-0 to 3-0 and 8th to 9th.
+
+The counts line at the top of his document is worth trusting. 89 finals became
+87 on the revised sheet, and that arithmetic is what identified both games that
+had not been played.
+
+**Next:** Unmatched schools are reported but cannot be resolved from the
+screen. `school_alias` exists and the matcher honours it, so the obvious next
+move is letting him bind a name to a school from the preview, which is the
+"fuzzy matching that learns from corrections" CLAUDE.md asks for. Until then a
+name like `Vienna/Goreville (IL)` has to be fixed in the document.
