@@ -189,3 +189,63 @@ test("long dates and clock times", () => {
   assert.equal(findClockTime("12:15 p.m."), "12:15:00");
   assert.equal(findClockTime("nope"), null);
 });
+
+test("reads a table whose first column is the date", () => {
+  const { date, rows, issues } = parseResultsText(
+    fixture("results-2026-09-25-dated.md")
+  );
+  assert.deepEqual(issues, []);
+  // No heading, so no document date. Every row carries its own instead.
+  assert.equal(date, null);
+  assert.equal(rows.length, 6);
+
+  const north = find(rows, "North Oldham");
+  assert.equal(north.date, "2026-09-24");
+  assert.equal(north.homeName, "Doss");
+  assert.deepEqual(north.outcome, {
+    kind: "score",
+    awayScore: 49,
+    homeScore: 0,
+    final: true,
+  });
+
+  assert.equal(find(rows, "LaRue County").date, "2026-09-25");
+  // A row missing its closing pipe still reads.
+  assert.deepEqual(find(rows, "Spencer County").outcome, {
+    kind: "score",
+    awayScore: 55,
+    homeScore: 21,
+    final: true,
+  });
+  // An out-of-state suffix survives the date column.
+  assert.equal(find(rows, "Lake County (TN)").homeName, "Fulton County");
+});
+
+test("the date column's own header is not a game", () => {
+  const { rows } = parseResultsText(fixture("results-2026-09-25-dated.md"));
+  assert.ok(!rows.some((r) => r.awayName.toLowerCase() === "away team"));
+});
+
+test("an unreadable date column blames the date, not the scores", () => {
+  const { rows, issues } = parseResultsText(
+    "| Date | Away Team | Away | Home Team | Home |\n| lastefriday | Doss | 0 | Male | 7 |"
+  );
+  assert.equal(rows.length, 0);
+  assert.equal(issues.length, 1);
+  assert.match(issues[0].message, /is not a date I can read/);
+});
+
+test("dates in other styles work in the first column", () => {
+  const { rows } = parseResultsText(
+    "| 9/25/2026 | Doss | 0 | Male | 7 |\n| September 25, 2026 | Butler | 3 | Ballard | 9 |"
+  );
+  assert.equal(rows.length, 2);
+  assert.equal(find(rows, "Doss").date, "2026-09-25");
+  assert.equal(find(rows, "Butler").date, "2026-09-25");
+});
+
+test("a heading date still applies when rows have no date column", () => {
+  const { date, rows } = parseResultsText(fixture("results-2026-09-19.md"));
+  assert.equal(date, "2026-09-19");
+  assert.ok(rows.every((r) => r.date === null));
+});

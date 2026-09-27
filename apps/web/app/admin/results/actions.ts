@@ -32,10 +32,13 @@ async function plan(text: string, sportId: number): Promise<ResultsState> {
   }
 
   const parsed = parseResultsText(text);
-  if (!parsed.date) {
+  // A date has to come from somewhere: either the heading, or a date column on
+  // every row. A table spanning several nights has no single heading date.
+  const undated = parsed.rows.filter((r) => !r.date);
+  if (!parsed.date && undated.length > 0) {
     return {
       error:
-        "I cannot find the date. Keep the heading line, like “# Kentucky High School Football Scores — September 19, 2026”.",
+        "I cannot find the date. Either keep the heading line, like “# Kentucky High School Football Scores — September 19, 2026”, or give every row a date in its first column.",
       text,
       sportId,
     };

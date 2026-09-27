@@ -191,8 +191,12 @@ export async function previewResults(
       continue;
     }
 
-    // Nearest to the date the document is about, then to any date it moves to.
-    const anchor = documentDate ?? r.moveTo;
+    // A row's own date column beats the document heading, because a table
+    // that spans several nights is the only thing that knows which is which.
+    const rowDate = r.date ?? documentDate;
+
+    // Nearest to the date the row is about, then to any date it moves to.
+    const anchor = rowDate ?? r.moveTo;
     const sorted = anchor
       ? [...candidates].sort(
           (a, b) => dayGap(a.localDate, anchor) - dayGap(b.localDate, anchor)
@@ -239,8 +243,7 @@ export async function previewResults(
     // says nothing about moving: that is what "these are Friday's scores"
     // means. An explicit "rescheduled for" in the row still wins over it.
     const target =
-      r.moveTo ??
-      (documentDate && documentDate !== g.localDate ? documentDate : null);
+      r.moveTo ?? (rowDate && rowDate !== g.localDate ? rowDate : null);
 
     if (target && target !== g.localDate) {
       const clash = await sql<{ id: number }[]>`

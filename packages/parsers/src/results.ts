@@ -28,6 +28,8 @@
  * never guesses a score, a date or a winner.
  */
 
+import { parseScheduleDate } from "./schedule.ts";
+
 export type ResultOutcome =
   | { kind: "score"; awayScore: number; homeScore: number; final: boolean }
   | { kind: "status"; status: "postponed" | "canceled" | "forfeit" | "scheduled" }
@@ -37,6 +39,12 @@ export type ResultRow = {
   lineNumber: number;
   awayName: string;
   homeName: string;
+  /**
+   * The date in the row's own first column, when the table carries one. A
+   * document that spans more than one night has to say which is which, and
+   * then there is no single heading date to fall back on.
+   */
+  date: string | null;
   /** An ISO date the row says the game moved to, or null to leave it alone. */
   moveTo: string | null;
   /** A kick-off time as HH:MM:SS, or null. */
@@ -54,7 +62,10 @@ export type ResultIssue = {
 };
 
 export type ResultParseResult = {
-  /** The date in the document heading. Rows use it unless they move. */
+  /**
+   * The date in the document heading, if it has one. Rows use it unless they
+   * carry their own date or say they moved.
+   */
   date: string | null;
   rows: ResultRow[];
   issues: ResultIssue[];
@@ -107,11 +118,29 @@ export function findClockTime(raw: string): string | null {
 const norm = (s: string) =>
   s.toLowerCase().replace(/[.\u2019']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
+/**
+ * Reads a date out of a table cell, in any style either parser accepts:
+ * 2026-09-25, 9/25/2026 or September 25, 2026.
+ *
+ * Returns null for a team name, which is the point: the first column is only
+ * treated as a date when it unambiguously is one.
+ */
+function readDateCell(raw: string, fallbackYear: number | null): string | null {
+  const t = (raw ?? "").trim();
+  if (t === "") return null;
+  return parseScheduleDate(t) ?? parseLongDate(t, fallbackYear);
+}
+
 /** Is this the table's own header or its |---| rule? */
 function isTableFurniture(cells: string[]): boolean {
   if (cells.every((c) => /^:?-{2,}:?$/.test(c))) return true;
   const first = norm(cells[0] ?? "");
-  return first === "away team" || first === "away" || first === "team";
+  return (
+    first === "away team" ||
+    first === "away" ||
+    first === "team" ||
+    first === "date"
+  );
 }
 
 /**
@@ -237,13 +266,37 @@ export function parseResultsText(
     // Only pipe tables carry games. Prose, counts and bylines are ignored.
     if (!line.startsWith("|")) return;
 
-    const cells = line
+    let cells = line
       .replace(/^\|/, "")
       .replace(/\|$/, "")
       .split("|")
       .map((c) => c.trim());
 
     if (isTableFurniture(cells)) return;
+
+    // A table that spans several nights puts the date in the first column.
+    // Strip it and carry it on the row; everything downstream is unchanged.
+    let rowDate: string | null = null;
+    if (cells.length >= 5) {
+      const read = readDateCell(cells[0], year);
+      if (read) {
+        rowDate = read;
+        cells = cells.slice(1);
+      } else if (
+        parseScore(cells[2]) !== null &&
+        parseScore(cells[4]) !== null &&
+        parseScore(cells[1]) === null
+      ) {
+        // Scores in the third and fifth columns mean the first one was meant
+        // to be a date. Say so, rather than blaming the scores.
+        issues.push({
+          lineNumber,
+          raw: line,
+          message: `"${cells[0]}" is not a date I can read. Use 2026-09-25, 9/25/2026 or September 25, 2026.`,
+        });
+        return;
+      }
+    }
 
     const push = (
       awayName: string,
@@ -261,7 +314,17 @@ export function parseResultsText(
         issues.push({ lineNumber, raw: line, message: "A team cannot play itself." });
         return;
       }
-      rows.push({ lineNumber, awayName, homeName, moveTo, time, outcome, note, raw: line });
+      rows.push({
+        lineNumber,
+        awayName,
+        homeName,
+        date: rowDate,
+        moveTo,
+        time,
+        outcome,
+        note,
+        raw: line,
+      });
     };
 
     // | Away | 7 | Home | 0 | and | Away | 7 | Home | 0 | status |
