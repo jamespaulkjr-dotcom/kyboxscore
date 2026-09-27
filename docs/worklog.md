@@ -1916,3 +1916,53 @@ screen. `school_alias` exists and the matcher honours it, so the obvious next
 move is letting him bind a name to a school from the preview, which is the
 "fuzzy matching that learns from corrections" CLAUDE.md asks for. Until then a
 name like `Vienna/Goreville (IL)` has to be fixed in the document.
+
+## 2026-09-27 — Date columns, aliases, and a forfeit that would have unmade itself
+**Did:** Imported the 25 September document, 103 games across two nights, which
+needed three changes to the results importer first. Created Frankfort at
+Caverna, which was not on the schedule. Set Todd County Central at Mayfield to
+forfeit. RPI run 1351.
+
+**Why:** The document put the date in the first column and had no heading date,
+because it spans two nights. The parser read that column as the away team and
+rejected all 103 rows. A row's own date now beats the heading, which is the only
+thing that can be right for a table covering more than one day.
+
+The seven school names the matcher could not settle are now `school_alias` rows
+rather than a lookup table inside the importer: Berea, Ryle, Blazer, W.E.B.
+DuBois Academy, Expression Prep Academy, Vienna/Goreville, Tell City. Each note
+records the game that confirmed it. This is CLAUDE.md's "matching that learns
+from corrections", one correction at a time, and it kept the importer's promise
+that it never guesses.
+
+**Learned:** Building the 1-0 forfeit flag uncovered a bug that would have
+undone real work. A forfeit is a kind of final, but the preview compared the
+status it would produce against the stored one, read "final" against "forfeit"
+as a difference, and so proposed writing every forfeit back to a played 1-0 the
+next time anybody re-pasted an old document. Worse, `setFinalScore` rewrites the
+status as a side effect of writing a score, so a row that only moved date could
+have done it silently. A document saying "final" about a game we hold as a
+forfeit is now read as agreeing rather than correcting, and the plan carries an
+explicit `writeScore` flag so a date-only change no longer drags a score write
+with it. Anything that writes through `setFinalScore` needs to know that it
+owns the status too.
+
+The 1-0 flag is football only and lives in the parser package with the sport's
+slug, not as a hardcoded scoreline. 1-0 is an ordinary result in soccer,
+baseball, softball and hockey. It is also suppressed on a game already held as
+a forfeit; the first version fired there and telling somebody to do what they
+have already done is how a warning gets ignored.
+
+Two deploy notes worth keeping. A build cache failure used to fail the whole
+deploy: GitHub's cache service returns "error writing layer blob: not_found"
+often enough to matter, and `cache-to` now carries `ignore-error=true`. And when
+checking whether a deploy landed, check the published image, not the running
+container: files copied in with `docker cp` for testing sit in that container's
+filesystem and will happily answer a grep, which produced two confident and
+wrong "it is live" calls in one session.
+
+**Next:** Unmatched names are still fixed by editing the document or adding a
+seed alias by hand. Binding a name to a school from the preview screen is the
+remaining piece. Fort Campbell / Caldwell County and Hart County / Glasgow are
+carried with the schedule's home and away rather than the document's; James has
+not said which is right.
