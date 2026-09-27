@@ -1,6 +1,11 @@
 "use server";
 
-import { previewResults, commitResults, type ResultPlan } from "@kyboxscore/db";
+import {
+  previewResults,
+  commitResults,
+  bindSchoolAlias,
+  type ResultPlan,
+} from "@kyboxscore/db";
 import { parseResultsText, type ResultIssue } from "@kyboxscore/parsers";
 import { requireAdmin } from "../../../lib/auth";
 
@@ -16,6 +21,8 @@ export type ResultsState = {
     skipped: number;
     failed: { lineNumber: number; reason: string }[];
   };
+  /** What the last name binding did, so the screen can say so. */
+  bound?: { alias: string; schoolName: string } | { alias: string; error: string };
 };
 
 function read(formData: FormData) {
@@ -79,4 +86,35 @@ export async function commitResultsAction(
 
   const committed = await commitResults(state.plans);
   return { ...state, committed };
+}
+
+/**
+ * Bind an unmatched name to a school, then re-plan so the row it was blocking
+ * appears resolved without the human pasting anything again.
+ *
+ * The alias is the name the matcher looked for, not the name the document
+ * printed: those differ when the document carries a state, and an alias
+ * recorded under the printed form would never be found.
+ */
+export async function bindNameAction(
+  _prev: ResultsState,
+  formData: FormData
+): Promise<ResultsState> {
+  const user = await requireAdmin("/admin/results");
+  const { text, sportId } = read(formData);
+  const alias = String(formData.get("alias") ?? "").trim();
+  const schoolId = Number(formData.get("schoolId"));
+
+  if (!alias || !Number.isInteger(schoolId) || schoolId <= 0) {
+    return { ...(await plan(text, sportId)), bound: { alias, error: "Choose a school." } };
+  }
+
+  const res = await bindSchoolAlias({ alias, schoolId, boundBy: user.name });
+  const replanned = await plan(text, sportId);
+  return {
+    ...replanned,
+    bound: res.ok
+      ? { alias, schoolName: res.schoolName! }
+      : { alias, error: res.reason ?? "That did not work." },
+  };
 }

@@ -30,7 +30,13 @@ export type ResultPlan = {
   gameId: number | null;
   /** Why there is no game, when there is none. */
   miss: "unmatched_school" | "not_on_schedule" | "ambiguous" | null;
-  unmatched: string[];
+  /**
+   * The names that did not resolve. `input` is what the document wrote and
+   * `query` is what the matcher actually looked for, which is the string an
+   * alias has to be recorded under. They differ when the document carries a
+   * state, as in "Elder (OH)".
+   */
+  unmatched: UnmatchedName[];
 
   currentDate: string | null;
   currentTime: string | null;
@@ -54,6 +60,13 @@ export type ResultPlan = {
    * in that case, because it would rewrite the status as a side effect.
    */
   writeScore: boolean;
+};
+
+export type UnmatchedName = {
+  input: string;
+  query: string;
+  state: string | null;
+  candidates: { schoolId: number; name: string }[];
 };
 
 export type ResultPreview = {
@@ -188,9 +201,20 @@ export async function previewResults(
       writeScore: false,
     };
 
-    const unmatched = [
-      ...(away?.schoolId ? [] : [r.awayName]),
-      ...(home?.schoolId ? [] : [r.homeName]),
+    const asUnmatched = (raw: string, m: SchoolMatch | undefined): UnmatchedName => {
+      const q = schoolQueryFromName(raw);
+      return {
+        input: raw,
+        query: q.name,
+        state: q.state ?? null,
+        candidates: (m?.candidates ?? [])
+          .slice(0, 5)
+          .map((c) => ({ schoolId: c.schoolId, name: c.name })),
+      };
+    };
+    const unmatched: UnmatchedName[] = [
+      ...(away?.schoolId ? [] : [asUnmatched(r.awayName, away)]),
+      ...(home?.schoolId ? [] : [asUnmatched(r.homeName, home)]),
     ];
     if (unmatched.length) {
       plans.push({ ...base, gameId: null, miss: "unmatched_school", unmatched });
@@ -419,4 +443,55 @@ export async function commitResults(
   }
 
   return { applied, skipped, failed };
+}
+
+/**
+ * Schools an alias can be bound to, out-of-state ones included.
+ *
+ * Deliberately not listSchoolsForSelect, which is Kentucky only: the names a
+ * results document cannot match are disproportionately the out-of-state ones,
+ * because those are the schools nobody has typed before.
+ */
+export async function listSchoolsForBinding() {
+  return await sql<{ id: number; name: string; state: string }[]>`
+    SELECT id::int, name, state
+      FROM school
+     WHERE is_active
+     ORDER BY (state = 'KY') DESC, state, name`;
+}
+
+/**
+ * Record that a name means a school.
+ *
+ * An alias beats every other matching rule because a person made it, so this
+ * writes down who and when. Re-binding an existing alias repoints it rather
+ * than failing: correcting yesterday's mistake is the same gesture as making
+ * today's decision.
+ */
+export async function bindSchoolAlias(input: {
+  alias: string;
+  schoolId: number;
+  boundBy: string;
+}): Promise<{ ok: boolean; reason?: string; schoolName?: string }> {
+  const alias = input.alias.trim();
+  if (!alias) return { ok: false, reason: "That name is empty." };
+
+  const [school] = await sql<{ name: string }[]>`
+    SELECT name FROM school WHERE id = ${input.schoolId} AND is_active`;
+  if (!school) return { ok: false, reason: "That school no longer exists." };
+
+  // A name that already resolves on its own does not need an alias, and one
+  // that equals the school's own name would be a no-op row.
+  if (alias.toLowerCase() === school.name.toLowerCase()) {
+    return { ok: false, reason: "That is already the school's name." };
+  }
+
+  const note = `Bound from the results preview by ${input.boundBy} on ${new Date().toISOString().slice(0, 10)}.`;
+  await sql`
+    INSERT INTO school_alias (school_id, alias, note)
+    VALUES (${input.schoolId}, ${alias}, ${note})
+    ON CONFLICT (alias)
+      DO UPDATE SET school_id = EXCLUDED.school_id, note = EXCLUDED.note`;
+
+  return { ok: true, schoolName: school.name };
 }

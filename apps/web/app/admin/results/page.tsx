@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listSports, listSportsForSelect } from "@kyboxscore/db";
+import {
+  listSports,
+  listSportsForSelect,
+  listSchoolsForBinding,
+} from "@kyboxscore/db";
 import { SiteHeader } from "../../components/site-header";
 import { requireAdmin } from "../../../lib/auth";
 import { ResultsImport } from "./results-import";
@@ -14,9 +18,10 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   await requireAdmin("/admin/results");
-  const [sportOptions, navSports] = await Promise.all([
+  const [sportOptions, navSports, schools] = await Promise.all([
     listSportsForSelect(),
     listSports(),
+    listSchoolsForBinding(),
   ]);
 
   return (
@@ -39,7 +44,7 @@ export default async function Page() {
           school, so read the preview before applying it.
         </p>
 
-        <ResultsImport sports={sportOptions} />
+        <ResultsImport sports={sportOptions} schools={schools} />
       </main>
     </>
   );

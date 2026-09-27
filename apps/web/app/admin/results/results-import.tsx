@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import {
+  bindNameAction,
   commitResultsAction,
   previewResultsAction,
   type ResultsState,
@@ -34,8 +35,10 @@ const MISS_REASON: Record<string, string> = {
 
 export function ResultsImport({
   sports,
+  schools,
 }: {
   sports: { id: number; name: string; hasSeason: boolean }[];
+  schools: { id: number; name: string; state: string }[];
 }) {
   const [state, formAction, pending] = useActionState<ResultsState, FormData>(
     previewResultsAction,
@@ -45,9 +48,18 @@ export function ResultsImport({
     ResultsState,
     FormData
   >(commitResultsAction, {});
+  const [bindState, bindAction, binding] = useActionState<ResultsState, FormData>(
+    bindNameAction,
+    {}
+  );
 
-  // Once something has been written, that run is what matters on screen.
-  const shown = commitState.plans ? commitState : state;
+  // Whichever ran last is what the screen should show: a binding re-plans, so
+  // its result is fresher than the preview that revealed the unmatched name.
+  const shown = commitState.plans
+    ? commitState
+    : bindState.plans
+      ? bindState
+      : state;
   const plans = shown.plans ?? [];
   const result = commitState.committed;
 
@@ -156,6 +168,20 @@ export function ResultsImport({
             {missing.length > 0 && ` · ${missing.length} not found`}
           </h2>
 
+          {shown.bound && (
+            <p
+              className={`mt-2 rounded-md border px-3 py-2 text-sm ${
+                "error" in shown.bound
+                  ? "border-loss/40 bg-loss/10 text-loss"
+                  : "border-win/40 bg-win/10 text-win"
+              }`}
+            >
+              {"error" in shown.bound
+                ? `Could not bind \u201c${shown.bound.alias}\u201d: ${shown.bound.error}`
+                : `\u201c${shown.bound.alias}\u201d now means ${shown.bound.schoolName}, here and in every future paste.`}
+            </p>
+          )}
+
           <ul className="mt-2 space-y-2">
             {plans.map((p) => {
               const away = p.dbAwayName ?? p.awayName;
@@ -176,7 +202,8 @@ export function ResultsImport({
                     ) : (
                       <span className="text-xs text-loss">
                         {MISS_REASON[p.miss ?? ""] ?? "not found"}
-                        {p.unmatched.length > 0 && `: ${p.unmatched.join(", ")}`}
+                        {p.unmatched.length > 0 &&
+                          `: ${p.unmatched.map((u) => u.input).join(", ")}`}
                       </span>
                     )}
                   </div>
@@ -200,6 +227,65 @@ export function ResultsImport({
                       {w}
                     </p>
                   ))}
+
+                  {p.unmatched.map((u) => (
+                    <form
+                      key={u.query}
+                      action={bindAction}
+                      className="mt-2 flex flex-wrap items-end gap-2 rounded-md border border-border bg-bg px-2 py-2"
+                    >
+                      <input type="hidden" name="text" value={shown.text ?? ""} />
+                      <input
+                        type="hidden"
+                        name="sportId"
+                        value={String(shown.sportId ?? "")}
+                      />
+                      {/* The name the matcher looked for, not the one printed. */}
+                      <input type="hidden" name="alias" value={u.query} />
+                      <div className="min-w-0 flex-1">
+                        <label
+                          htmlFor={`bind-${p.lineNumber}-${u.query}`}
+                          className="block text-xs text-fg-muted"
+                        >
+                          &ldquo;{u.query}&rdquo;
+                          {u.state ? ` (${u.state})` : ""} is which school?
+                        </label>
+                        <select
+                          id={`bind-${p.lineNumber}-${u.query}`}
+                          name="schoolId"
+                          required
+                          defaultValue=""
+                          className="mt-1 min-h-11 w-full rounded-md border border-border bg-surface px-2 text-sm text-fg"
+                        >
+                          <option value="">Choose…</option>
+                          {u.candidates.length > 0 && (
+                            <optgroup label="Close to that name">
+                              {u.candidates.map((c) => (
+                                <option key={`c-${c.schoolId}`} value={c.schoolId}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                          <optgroup label="Every school">
+                            {schools.map((sc) => (
+                              <option key={sc.id} value={sc.id}>
+                                {sc.name}
+                                {sc.state === "KY" ? "" : ` (${sc.state})`}
+                              </option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={binding}
+                        className="min-h-11 shrink-0 rounded-md border border-border px-3 text-sm font-medium text-fg disabled:opacity-60"
+                      >
+                        {binding ? "Binding…" : "Bind this name"}
+                      </button>
+                    </form>
+                  ))}
                 </li>
               );
             })}
@@ -208,8 +294,9 @@ export function ResultsImport({
           {missing.length > 0 && (
             <p className="mt-3 rounded-md border border-border bg-surface px-3 py-2 text-sm text-fg-muted">
               A game that is not on the schedule is never created here, and an
-              unmatched school is never guessed. Add the fixture on the schedule
-              screen first, or fix the spelling above and preview again.
+              unmatched school is never guessed. Bind the name to a school and it
+              is remembered for every future paste; a game that is genuinely not
+              on the schedule has to be added on the schedule screen first.
             </p>
           )}
 
