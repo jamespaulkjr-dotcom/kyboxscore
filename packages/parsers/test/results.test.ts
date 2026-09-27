@@ -6,6 +6,7 @@ import {
   parseResultsText,
   parseLongDate,
   findClockTime,
+  looksLikeForfeitScore,
   type ResultRow,
 } from "../src/results.ts";
 
@@ -248,4 +249,23 @@ test("a heading date still applies when rows have no date column", () => {
   const { date, rows } = parseResultsText(fixture("results-2026-09-19.md"));
   assert.equal(date, "2026-09-19");
   assert.ok(rows.every((r) => r.date === null));
+});
+
+test("1-0 in football is the forfeit convention, either way round", () => {
+  assert.equal(looksLikeForfeitScore("football", 0, 1), true);
+  assert.equal(looksLikeForfeitScore("football", 1, 0), true);
+  assert.equal(looksLikeForfeitScore("FOOTBALL", 1, 0), true);
+});
+
+test("1-0 is an ordinary score in other sports", () => {
+  for (const sport of ["soccer", "baseball", "softball", "hockey"]) {
+    assert.equal(looksLikeForfeitScore(sport, 1, 0), false, sport);
+  }
+});
+
+test("only 1-0 is the convention, not every low football score", () => {
+  assert.equal(looksLikeForfeitScore("football", 0, 0), false);
+  assert.equal(looksLikeForfeitScore("football", 2, 0), false);
+  assert.equal(looksLikeForfeitScore("football", 1, 1), false);
+  assert.equal(looksLikeForfeitScore("football", 7, 0), false);
 });

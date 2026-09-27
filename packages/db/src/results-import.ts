@@ -17,6 +17,7 @@ import {
   type SchoolQuery,
 } from "./schedule-import.ts";
 import { setFinalScore, setGameStatus } from "./scoring.ts";
+import { looksLikeForfeitScore } from "@kyboxscore/parsers";
 import type { ResultRow, ResultOutcome } from "@kyboxscore/parsers";
 
 export type ResultPlan = {
@@ -47,6 +48,12 @@ export type ResultPlan = {
   warnings: string[];
   /** What this row would do, in words. Empty means nothing to do. */
   changes: string[];
+  /**
+   * Whether the score itself needs writing. A row can have changes without
+   * this - a game that only moves date - and setFinalScore must not be called
+   * in that case, because it would rewrite the status as a side effect.
+   */
+  writeScore: boolean;
 };
 
 export type ResultPreview = {
@@ -136,9 +143,13 @@ export async function previewResults(
   sportId: number,
   documentDate: string | null
 ): Promise<ResultPreview | { error: string }> {
-  const [ss] = await sql<{ id: number }[]>`
-    SELECT id::int FROM sport_season
-     WHERE sport_id = ${sportId} AND is_current`;
+  // The slug comes along because what counts as an impossible scoreline is a
+  // property of the sport, not of the document.
+  const [ss] = await sql<{ id: number; slug: string }[]>`
+    SELECT ss.id::int, sp.slug::text
+      FROM sport_season ss
+      JOIN sport sp ON sp.id = ss.sport_id
+     WHERE ss.sport_id = ${sportId} AND ss.is_current`;
   if (!ss) return { error: "That sport has no season open." };
 
   const matches = await matchSchoolNames(
@@ -174,6 +185,7 @@ export async function previewResults(
       dbHomeName: null,
       warnings: [] as string[],
       changes: [] as string[],
+      writeScore: false,
     };
 
     const unmatched = [
@@ -278,9 +290,18 @@ export async function previewResults(
       const homeScore = reversed ? r.outcome.awayScore : r.outcome.homeScore;
       const same = g.awayScore === awayScore && g.homeScore === homeScore;
       const settled = g.status === "final" || g.status === "forfeit";
-      // What setFinalScore will leave the status as. It never reopens a game
-      // that has already finished, so a settled game keeps the status it has.
-      const willBe = r.outcome.final ? "final" : settled ? g.status : "in_progress";
+      // What setFinalScore would leave the status as, except that a forfeit is
+      // already a kind of final: a document saying "final" about a game we hold
+      // as a forfeit is agreeing with us, not correcting us. Without this,
+      // re-pasting last week's scores quietly turns every forfeit back into a
+      // played 1-0.
+      const willBe = r.outcome.final
+        ? g.status === "forfeit"
+          ? "forfeit"
+          : "final"
+        : settled
+          ? g.status
+          : "in_progress";
 
       if (settled && !same) {
         plan.warnings.push(
@@ -290,8 +311,21 @@ export async function previewResults(
       // The status matters as much as the score: a game carrying the right
       // score under the wrong status still reads wrong on the scoreboard.
       if (!same || willBe !== g.status) {
+        plan.writeScore = true;
         plan.changes.push(
           `${r.outcome.final ? "Final" : "In progress"} ${g.awayName} ${awayScore}, ${g.homeName} ${homeScore}`
+        );
+      }
+      // Written as pasted, then flagged. Three of these have turned up in a
+      // fortnight and each one was a forfeit, but a scorekeeper is entitled to
+      // mean a number they typed, so this stays a question.
+      if (
+        g.status !== "forfeit" &&
+        looksLikeForfeitScore(ss.slug, awayScore, homeScore)
+      ) {
+        const loser = awayScore < homeScore ? g.awayName : g.homeName;
+        plan.warnings.push(
+          `1-0 is the forfeit convention, not a score anybody played for. Probably a ${loser} forfeit: apply this, then set the game to Forfeit on its own page.`
         );
       }
     } else if (r.outcome.kind === "status") {
@@ -354,7 +388,7 @@ export async function commitResults(
         p.dbHomeName !== null &&
         p.warnings.some((w) => w.startsWith("The schedule has this at"));
 
-      if (p.outcome.kind === "score") {
+      if (p.outcome.kind === "score" && p.writeScore) {
         const awayScore = reversed ? p.outcome.homeScore : p.outcome.awayScore;
         const homeScore = reversed ? p.outcome.awayScore : p.outcome.homeScore;
         const res = await setFinalScore({

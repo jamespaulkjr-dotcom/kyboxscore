@@ -398,3 +398,30 @@ export function parseResultsText(
 
   return { date: docDate, rows, issues };
 }
+
+/**
+ * Sports in which 1-0 cannot be a played score, so a 1-0 in a results document
+ * is the forfeit convention rather than a scoreline.
+ *
+ * Football only, deliberately. A team can reach 2, 3 or 6 but not 1, short of a
+ * one-point safety nobody sees in a career. 1-0 is an ordinary Friday result in
+ * soccer, baseball, softball and hockey, and flagging those would teach the
+ * reader to ignore the warning, which is worse than not having it.
+ */
+const NO_ONE_NIL_SPORTS = new Set(["football"]);
+
+/**
+ * Whether this scoreline, in this sport, is the forfeit convention rather than
+ * a score somebody played for. Reported, never acted on: a scorekeeper is
+ * entitled to mean it, and the whole importer refuses to guess.
+ */
+export function looksLikeForfeitScore(
+  sportSlug: string,
+  awayScore: number,
+  homeScore: number
+): boolean {
+  if (!NO_ONE_NIL_SPORTS.has(sportSlug.trim().toLowerCase())) return false;
+  const low = Math.min(awayScore, homeScore);
+  const high = Math.max(awayScore, homeScore);
+  return low === 0 && high === 1;
+}
