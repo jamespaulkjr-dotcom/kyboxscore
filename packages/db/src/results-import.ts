@@ -113,6 +113,19 @@ export function schoolQueryFromName(raw: string): SchoolQuery {
   return { name, state: "KY" };
 }
 
+/**
+ * Whether the document actually said which state, as "Elder (OH)" does.
+ *
+ * The difference matters because the Kentucky default is an assumption, and an
+ * assumption must not outrank an alias somebody recorded by hand. Without
+ * this, binding "St. Xavier (Cincinnati, OH)" to the Ohio school silently
+ * fails: the alias is found and then thrown away for being in the wrong state.
+ */
+export function statesItsOwnState(raw: string): boolean {
+  const m = /^(.*?)\s*\(([^)]+)\)$/.exec(raw.trim());
+  return Boolean(m && /^[A-Za-z]{2}$/.test(m[2].trim()));
+}
+
 const dayGap = (a: string, b: string) =>
   Math.abs(Date.parse(a + "T00:00:00Z") - Date.parse(b + "T00:00:00Z")) / 86400000;
 
@@ -165,13 +178,33 @@ export async function previewResults(
      WHERE ss.sport_id = ${sportId} AND ss.is_current`;
   if (!ss) return { error: "That sport has no season open." };
 
-  const matches = await matchSchoolNames(
-    rows.flatMap((r) => [
-      schoolQueryFromName(r.awayName),
-      schoolQueryFromName(r.homeName),
-    ])
-  );
+  const names = rows.flatMap((r) => [r.awayName, r.homeName]);
+
+  // First pass assumes Kentucky, which is what settles "Franklin County"
+  // against the Tennessee school of the same name.
+  const matches = await matchSchoolNames(names.map(schoolQueryFromName));
   const byInput = new Map(matches.map((m) => [m.input.trim().toLowerCase(), m]));
+
+  // Second pass, for names the assumption just cost us: anything still
+  // unresolved whose document did not say a state is retried with no state at
+  // all, so an alias pointing out of state is found. A name that is genuinely
+  // ambiguous without the hint stays unmatched, which is the right answer.
+  const stranded = names.filter((n) => {
+    if (statesItsOwnState(n)) return false;
+    const m = byInput.get(schoolQueryFromName(n).name.toLowerCase());
+    return !m?.schoolId;
+  });
+  if (stranded.length > 0) {
+    const retried = await matchSchoolNames(
+      stranded.map((n) => ({ name: schoolQueryFromName(n).name }))
+    );
+    for (const m of retried) {
+      const key = m.input.trim().toLowerCase();
+      // Only ever fills a gap; never overrides a first-pass match.
+      if (m.schoolId && !byInput.get(key)?.schoolId) byInput.set(key, m);
+    }
+  }
+
   const school = (name: string): SchoolMatch | undefined =>
     byInput.get(schoolQueryFromName(name).name.toLowerCase());
 
