@@ -114,8 +114,16 @@ export function schoolQueryFromName(raw: string): SchoolQuery {
   return { name, state: "KY", stateIsAssumed: true };
 }
 
-/** The key a match is filed under: a bare name is not unique across states. */
-function matchKey(q: SchoolQuery): string {
+/**
+ * The key a resolved name is filed under.
+ *
+ * The state is part of it because a bare name is not unique across them, and
+ * matchSchoolNames reports only the name it was given: keyed by name alone,
+ * "Franklin County (TN)" overwrote Kentucky's Franklin County and four real
+ * games went looking for fixtures that do not exist. Exported so that stays
+ * tested without needing two identically named schools in the database.
+ */
+export function schoolMatchKey(q: SchoolQuery): string {
   return `${q.name}|${q.state ?? ""}`.toLowerCase();
 }
 
@@ -193,12 +201,12 @@ export async function previewResults(
   for (const group of groups.values()) {
     const matched = await matchSchoolNames(group);
     for (const m of matched) {
-      byKey.set(matchKey({ name: m.input, state: group[0].state ?? null }), m);
+      byKey.set(schoolMatchKey({ name: m.input, state: group[0].state ?? null }), m);
     }
   }
 
   const school = (name: string): SchoolMatch | undefined =>
-    byKey.get(matchKey(schoolQueryFromName(name)));
+    byKey.get(schoolMatchKey(schoolQueryFromName(name)));
 
   const plans: ResultPlan[] = [];
 

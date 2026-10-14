@@ -21,7 +21,8 @@ after(async () => {
   await sql.end();
 });
 
-test("a bare name is assumed to be Kentucky, and says so", opts, async () => {
+// These need no database: `sql` is a lazy proxy, so importing does not connect.
+test("a bare name is assumed to be Kentucky, and says so", async () => {
   const { schoolQueryFromName } = await import("../src/index.ts");
 
   assert.deepEqual(schoolQueryFromName("Franklin County"), {
@@ -42,18 +43,24 @@ test("a bare name is assumed to be Kentucky, and says so", opts, async () => {
   });
 });
 
-test("the same bare name in two states resolves to two schools", opts, async () => {
-  const { matchSchoolNames, schoolQueryFromName } = await import("../src/index.ts");
+test("the same bare name in two states files under two keys", async () => {
+  const { schoolMatchKey, schoolQueryFromName } = await import("../src/index.ts");
 
-  const [ky] = await matchSchoolNames([schoolQueryFromName("Franklin County")]);
-  const [tn] = await matchSchoolNames([schoolQueryFromName("Franklin County (TN)")]);
+  // This is the collision itself. The matcher's own handling of two schools
+  // with one name is covered by matching.test.ts, with its own fixtures; what
+  // broke here was filing both answers under the same key.
+  const ky = schoolMatchKey(schoolQueryFromName("Franklin County"));
+  const tn = schoolMatchKey(schoolQueryFromName("Franklin County (TN)"));
+  assert.notEqual(ky, tn);
 
-  assert.ok(ky.schoolId, "Kentucky's Franklin County should resolve");
-  assert.ok(tn.schoolId, "Tennessee's Franklin County should resolve");
+  // And a name must still find its own entry.
+  assert.equal(ky, schoolMatchKey(schoolQueryFromName("franklin county")));
+  assert.equal(tn, schoolMatchKey(schoolQueryFromName("Franklin County (tn)")));
+
+  // The St. Xavier pair, same shape.
   assert.notEqual(
-    ky.schoolId,
-    tn.schoolId,
-    "the two Franklin Counties must not be the same school"
+    schoolMatchKey(schoolQueryFromName("St. Xavier")),
+    schoolMatchKey(schoolQueryFromName("St. Xavier (OH)"))
   );
 });
 
