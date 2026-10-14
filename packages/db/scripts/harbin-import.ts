@@ -3,6 +3,7 @@
  *
  *   npm run harbin -- --dry-run
  *   npm run harbin -- --url <pdf>       # a specific report, for testing
+ *   npm run harbin -- --year 2025       # a season with none, to test the guard
  *
  * OHSAA is the only permitted Ohio source that carries win-loss records: their
  * own football hub links MaxPreps, which CLAUDE.md bans, and the alternatives
@@ -112,11 +113,20 @@ const norm = (s: string) =>
  */
 const FIRST_WEEK = 5;
 const LAST_WEEK = 15;
+/**
+ * Weeks past the first possible report before silence stops being normal.
+ *
+ * This job's healthy state is a no-op, which is precisely why it failed
+ * silently for two seasons: "nothing to do" is the correct output for most of
+ * the year and nobody can tell it apart from "I have never once worked". Past
+ * this point in the season, finding no report means something is wrong -
+ * almost certainly the URL again - and the job says so and exits non-zero.
+ */
+const SILENCE_GRACE_WEEKS = 2;
 
-async function findReport(): Promise<
+async function findReport(year: number): Promise<
   { url: string; date: string; week: number } | null
 > {
-  const year = new Date().getFullYear();
   // Highest week first, so the newest report wins and a missing week in the
   // middle does not stop the search.
   for (let week = LAST_WEEK; week >= FIRST_WEEK; week--) {
@@ -136,24 +146,25 @@ async function findReport(): Promise<
   return null;
 }
 
+/** Which week of the season today is, counting the opening week as one. */
+function seasonWeek(startsOn: string): number {
+  const days =
+    (Date.parse(new Date().toISOString().slice(0, 10)) -
+      Date.parse(startsOn)) /
+    86400000;
+  return Math.floor(days / 7) + 1;
+}
+
 async function main() {
   const override = arg("url");
-  const found = override
-    ? { url: override, date: new Date().toISOString().slice(0, 10) }
-    : await findReport();
-  if (!found) {
-    console.log(
-      `no Harbin report published yet for this season ` +
-        `(weekly from week ${FIRST_WEEK}; looked for ` +
-        `${new Date().getFullYear()}Week${FIRST_WEEK}..${LAST_WEEK}Ratings.pdf); ` +
-        `nothing to do`
-    );
-    return;
-  }
-  if ("week" in found) console.log(`report: week ${found.week}, published ${found.date}`);
 
-  const [season] = await sql<{ id: number; asOf: string | null }[]>`
+  // The season comes first now, because deciding whether silence is normal
+  // needs to know what week it is.
+  const [season] = await sql<
+    { id: number; startsOn: string; asOf: string | null }[]
+  >`
     SELECT ss.id::int,
+           ss.starts_on::text AS "startsOn",
            (SELECT max(r.as_of)::text FROM out_of_state_record r
              JOIN team t ON t.id = r.team_id
              JOIN school sc ON sc.id = t.school_id AND sc.state = 'OH'
@@ -161,6 +172,39 @@ async function main() {
     FROM sport_season ss JOIN sport sp ON sp.id = ss.sport_id
     WHERE sp.slug = 'football' AND ss.is_current`;
   if (!season) { console.log("no football season open"); return; }
+
+  const year = Number(arg("year") ?? new Date().getFullYear());
+  const found = override
+    ? { url: override, date: new Date().toISOString().slice(0, 10) }
+    : await findReport(year);
+
+  if (!found) {
+    const week = seasonWeek(season.startsOn);
+    const pattern = `${year}Week${FIRST_WEEK}..${LAST_WEEK}Ratings.pdf`;
+    // Quiet before the first report is due, and quiet again once the season
+    // is well over; loud in between, which is the only window where a missing
+    // report means a broken job rather than a calendar.
+    const overdue =
+      week > FIRST_WEEK + SILENCE_GRACE_WEEKS && week <= LAST_WEEK + 3;
+    if (overdue) {
+      console.log(
+        `ABORT: no Harbin report found and it is week ${week} of the season. ` +
+          `Looked for ${pattern} under ${BASE}/${year}/. ` +
+          `OHSAA has renamed this file twice before, so check the current name ` +
+          `against a known-good old URL as a control - see ` +
+          `docs/out-of-state-sources.md. Ohio records are frozen at ` +
+          `${season.asOf ?? "never imported"} until this is fixed.`
+      );
+      process.exitCode = 1;
+      return;
+    }
+    console.log(
+      `no Harbin report published yet (week ${week}; weekly from week ` +
+        `${FIRST_WEEK}; looked for ${pattern}); nothing to do`
+    );
+    return;
+  }
+  if ("week" in found) console.log(`report: week ${found.week}, published ${found.date}`);
   if (!override && season.asOf && season.asOf >= found.date) {
     console.log(`already imported ${found.date}; nothing to do`);
     return;

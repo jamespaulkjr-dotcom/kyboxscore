@@ -21,11 +21,23 @@ if ! docker compose ps --status running --services 2>/dev/null | grep -qx web; t
   exit 0
 fi
 
+status=0
 {
   echo "--- $(date -Is)"
   docker compose exec -T web \
-    node --experimental-strip-types packages/db/scripts/harbin-import.ts 2>&1
+    node --experimental-strip-types packages/db/scripts/harbin-import.ts 2>&1 \
+    || status=$?
 } >> "$LOG"
 
-# Records feed Shadow RPI, and the hourly recompute picks them up on its own.
+# Records feed True RPI, and the hourly recompute picks them up on its own.
 tail -n 2000 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
+
+# The status is captured rather than left to `set -e` so the log still gets
+# trimmed, and then re-raised: a non-zero exit is how this job asks for
+# attention. It spent two seasons reporting "nothing to do" while completely
+# broken, because a no-op is its healthy state and nothing could tell the two
+# apart. The ABORT line is already in the log; this is what reaches cron.
+if [ "$status" -ne 0 ]; then
+  echo "harbin-import FAILED (exit $status) - see $LOG" >&2
+  exit "$status"
+fi
