@@ -110,20 +110,13 @@ export function schoolQueryFromName(raw: string): SchoolQuery {
   if (m && /^[A-Za-z]{2}$/.test(m[2].trim())) {
     return { name: m[1].trim(), state: m[2].trim().toUpperCase() };
   }
-  return { name, state: "KY" };
+  // Kentucky is the assumption, flagged as one so an alias can beat it.
+  return { name, state: "KY", stateIsAssumed: true };
 }
 
-/**
- * Whether the document actually said which state, as "Elder (OH)" does.
- *
- * The difference matters because the Kentucky default is an assumption, and an
- * assumption must not outrank an alias somebody recorded by hand. Without
- * this, binding "St. Xavier (Cincinnati, OH)" to the Ohio school silently
- * fails: the alias is found and then thrown away for being in the wrong state.
- */
-export function statesItsOwnState(raw: string): boolean {
-  const m = /^(.*?)\s*\(([^)]+)\)$/.exec(raw.trim());
-  return Boolean(m && /^[A-Za-z]{2}$/.test(m[2].trim()));
+/** The key a match is filed under: a bare name is not unique across states. */
+function matchKey(q: SchoolQuery): string {
+  return `${q.name}|${q.state ?? ""}`.toLowerCase();
 }
 
 const dayGap = (a: string, b: string) =>
@@ -178,35 +171,34 @@ export async function previewResults(
      WHERE ss.sport_id = ${sportId} AND ss.is_current`;
   if (!ss) return { error: "That sport has no season open." };
 
-  const names = rows.flatMap((r) => [r.awayName, r.homeName]);
+  const queries = rows.flatMap((r) => [
+    schoolQueryFromName(r.awayName),
+    schoolQueryFromName(r.homeName),
+  ]);
 
-  // First pass assumes Kentucky, which is what settles "Franklin County"
-  // against the Tennessee school of the same name.
-  const matches = await matchSchoolNames(names.map(schoolQueryFromName));
-  const byInput = new Map(matches.map((m) => [m.input.trim().toLowerCase(), m]));
-
-  // Second pass, for names the assumption just cost us: anything still
-  // unresolved whose document did not say a state is retried with no state at
-  // all, so an alias pointing out of state is found. A name that is genuinely
-  // ambiguous without the hint stays unmatched, which is the right answer.
-  const stranded = names.filter((n) => {
-    if (statesItsOwnState(n)) return false;
-    const m = byInput.get(schoolQueryFromName(n).name.toLowerCase());
-    return !m?.schoolId;
-  });
-  if (stranded.length > 0) {
-    const retried = await matchSchoolNames(
-      stranded.map((n) => ({ name: schoolQueryFromName(n).name }))
-    );
-    for (const m of retried) {
-      const key = m.input.trim().toLowerCase();
-      // Only ever fills a gap; never overrides a first-pass match.
-      if (m.schoolId && !byInput.get(key)?.schoolId) byInput.set(key, m);
+  // Matched one state at a time, and filed by name AND state, because a bare
+  // name is not unique across them. One document holds both "Franklin County",
+  // meaning Kentucky's, and "Franklin County (TN)". matchSchoolNames reports
+  // only the name it was given, so a single call cannot say which of the two a
+  // result belongs to: keyed by name alone the second overwrote the first and
+  // sent four real games looking for fixtures that do not exist.
+  const byKey = new Map<string, SchoolMatch>();
+  const groups = new Map<string, SchoolQuery[]>();
+  for (const q of queries) {
+    const g = `${q.state ?? ""}|${q.stateIsAssumed ? "assumed" : "stated"}`;
+    const list = groups.get(g);
+    if (list) list.push(q);
+    else groups.set(g, [q]);
+  }
+  for (const group of groups.values()) {
+    const matched = await matchSchoolNames(group);
+    for (const m of matched) {
+      byKey.set(matchKey({ name: m.input, state: group[0].state ?? null }), m);
     }
   }
 
   const school = (name: string): SchoolMatch | undefined =>
-    byInput.get(schoolQueryFromName(name).name.toLowerCase());
+    byKey.get(matchKey(schoolQueryFromName(name)));
 
   const plans: ResultPlan[] = [];
 

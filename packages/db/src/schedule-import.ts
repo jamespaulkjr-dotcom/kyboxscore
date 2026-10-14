@@ -37,7 +37,17 @@ export type SchoolMatch = {
 const SIMILARITY_FLOOR = 0.45;
 
 /** A name, and whatever else is known about which school it is. */
-export type SchoolQuery = { name: string; city?: string | null; state?: string | null };
+export type SchoolQuery = {
+  name: string;
+  city?: string | null;
+  state?: string | null;
+  /**
+   * True when `state` is the caller's default rather than something the source
+   * said. An assumption must not outrank an alias: a person who wrote down
+   * that this name means that school knew which state it was in.
+   */
+  stateIsAssumed?: boolean;
+};
 
 function asQueries(names: (string | SchoolQuery)[]): SchoolQuery[] {
   const seen = new Set<string>();
@@ -70,12 +80,14 @@ export async function matchSchoolNames(
     // school we hold as "Moeller", and no query should second-guess that. A
     // state hint still has to agree, so an alias cannot drag a match across a
     // border either.
+    // An assumed state is not evidence, so it does not get to veto an alias.
+    const aliasState = query.stateIsAssumed ? null : state;
     const aliased = await sql<{ id: number; name: string; state: string }[]>`
       SELECT sc.id::int, sc.name, sc.state
       FROM school_alias a
       JOIN school sc ON sc.id = a.school_id
       WHERE a.alias = ${input} AND sc.is_active
-        AND (${state}::text IS NULL OR upper(sc.state) = ${state})`;
+        AND (${aliasState}::text IS NULL OR upper(sc.state) = ${aliasState})`;
     if (aliased.length === 1) {
       out.push({
         input,
