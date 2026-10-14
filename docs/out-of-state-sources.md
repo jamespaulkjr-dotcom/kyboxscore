@@ -75,19 +75,35 @@ PDF with explicit `Wins` and `Losses` columns, a `City`, a `High School Name`
 and an `OHSAA School ID` that would make matching stable. It is published at
 
 ```
-https://ohsaaweb.blob.core.windows.net/files/Sports/Football/<year>/<YYYYMMDD>HarbinReport.pdf
+https://ohsaaweb.blob.core.windows.net/files/Sports/Football/<year>/<year>Week<N>Ratings.pdf
 ```
 
-(verified against 2024-10-01, which returns 200; 2023 and earlier used
-`<year>HarbinReportWeek<N>.pdf`, so the naming changed and a probe of the old
-pattern proves nothing about a new season). The PDF needs no library: its page
-streams are zlib-compressed text and the table reads out with `zlib` and a
-regex, one word per cell.
+The PDF needs no library: its page streams are zlib-compressed text and the
+table reads out with `zlib` and a regex, one word per cell.
 
-**It is released every Tuesday beginning in the fifth week of the season.** As
-of 12 September 2026 no 2026 report exists, which was confirmed with a 2024
-date as a control so a 404 could be told apart from a changed URL. Week five
-of 2026 falls around 22 September, so that is when Ohio becomes possible.
+**The name has changed twice, so probe before trusting it.** 2023 and earlier
+used `<year>HarbinReportWeek<N>.pdf`; 2024 used `<YYYYMMDD>HarbinReport.pdf`;
+2025 onwards uses `<year>Week<N>Ratings.pdf`. Established on 14 October 2026 by
+sweeping every Tuesday of two seasons against the date pattern — 2024 returned
+six reports, 2025 returned none — and then every week number of 2026 against
+the new one, which returned Weeks 5 to 8 at about 473KB each. Keep a known-good
+old URL as a control: `2024/20241001HarbinReport.pdf` still returns 200, which
+is how a genuine 404 is told apart from a moved file.
+
+**It is released weekly beginning in the fifth week of the season.** The
+importer searches by week number from the highest down, so the newest report
+wins, a missing week does not stop the search, and nothing depends on the
+publication day being a Tuesday any more. `as_of` comes from the response's
+`Last-Modified`, because the filename no longer carries a date.
+
+**The cost of getting this wrong was two seasons of silence.** The importer was
+written against the 2024 name and ran nightly for 32 consecutive nights in 2026
+logging "no Harbin report published yet… nothing to do", which is exactly what
+it is supposed to say for most of the year, so nothing ever surfaced it. Every
+Ohio record in the table had come from Nathan by hand in early September. When
+the URL was fixed, one run updated 19 Ohio opponents and moved 96 Kentucky
+teams in True RPI, by as much as 13 places. A job whose healthy state is a
+no-op needs a louder way to say "I have never once done anything".
 
 Everything else Ohio that carries records is a third party rather than the
 publishing association: OHSAA's own football hub links **MaxPreps** for polls

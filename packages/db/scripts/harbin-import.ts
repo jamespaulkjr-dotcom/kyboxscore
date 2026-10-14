@@ -97,27 +97,41 @@ const norm = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-/** Tuesdays of the current season, newest first, that could hold a report. */
-function candidateDates(): string[] {
-  const out: string[] = [];
-  const today = new Date();
-  for (let back = 0; back < 14; back++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - back);
-    if (d.getDay() !== 2) continue;                      // Tuesdays only
-    out.push(d.toISOString().slice(0, 10).replace(/-/g, ""));
-  }
-  return out;
-}
+/**
+ * The report is named by week, not by date.
+ *
+ * It used to be `<YYYYMMDD>HarbinReport.pdf`, which is what this looked for,
+ * and OHSAA stopped publishing under that name after the 2024 season. The job
+ * then ran 32 nights in a row reporting "nothing published yet" and nobody
+ * noticed, because a no-op is what it is designed to do for most of the year.
+ * Proven by sweeping every Tuesday of both seasons: 2024 had six reports at
+ * the old name, 2025 had none, and 2026 has Weeks 5 to 8 at the new one.
+ *
+ * Searching by week rather than by date also removes the assumption that
+ * publication day is a Tuesday. It is, but nothing now depends on it.
+ */
+const FIRST_WEEK = 5;
+const LAST_WEEK = 15;
 
-async function findReport(): Promise<{ url: string; date: string } | null> {
+async function findReport(): Promise<
+  { url: string; date: string; week: number } | null
+> {
   const year = new Date().getFullYear();
-  for (const ymd of candidateDates()) {
-    const url = `${BASE}/${year}/${ymd}HarbinReport.pdf`;
+  // Highest week first, so the newest report wins and a missing week in the
+  // middle does not stop the search.
+  for (let week = LAST_WEEK; week >= FIRST_WEEK; week--) {
+    const url = `${BASE}/${year}/${year}Week${week}Ratings.pdf`;
     const res = await fetch(url, { method: "HEAD" });
-    if (res.ok) {
-      return { url, date: `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6)}` };
-    }
+    if (!res.ok) continue;
+    // as_of should say when OHSAA published, not when we happened to run, and
+    // the filename no longer carries a date. Last-Modified is the next best
+    // thing; today is the fallback if the header is missing or unparseable.
+    const modified = res.headers.get("last-modified");
+    const date =
+      modified && !Number.isNaN(Date.parse(modified))
+        ? new Date(modified).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
+    return { url, date, week };
   }
   return null;
 }
@@ -129,11 +143,14 @@ async function main() {
     : await findReport();
   if (!found) {
     console.log(
-      "no Harbin report published yet for this season " +
-        "(released Tuesdays from week five); nothing to do"
+      `no Harbin report published yet for this season ` +
+        `(weekly from week ${FIRST_WEEK}; looked for ` +
+        `${new Date().getFullYear()}Week${FIRST_WEEK}..${LAST_WEEK}Ratings.pdf); ` +
+        `nothing to do`
     );
     return;
   }
+  if ("week" in found) console.log(`report: week ${found.week}, published ${found.date}`);
 
   const [season] = await sql<{ id: number; asOf: string | null }[]>`
     SELECT ss.id::int,
